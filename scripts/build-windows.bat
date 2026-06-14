@@ -21,9 +21,7 @@ if %ERRORLEVEL%==0 (
     windres.exe -O coff -o cmd\pysentry\rsrc_windows_amd64.syso packaging\windows\pysentry.rc
 )
 
-"%GOEXE%" build -trimpath -ldflags "-s -w" -o "%OUTPUT%" .\cmd\pysentry
+"%GOEXE%" build -trimpath -ldflags "-s -w -H=windowsgui" -o "%OUTPUT%" .\cmd\pysentry
 if errorlevel 1 exit /b 1
-
-xcopy /E /I /Y assets "%OUTDIR%assets" >nul
 
 echo Built %OUTPUT%

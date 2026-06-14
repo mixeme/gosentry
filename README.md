@@ -43,6 +43,8 @@ Windows:
 .\scripts\build-windows.bat
 ```
 
+The Windows build is created as a GUI application, so it does not open a terminal window.
+
 The binary is written to:
 
 ```text
@@ -160,7 +162,7 @@ Changing `jobs_dir` saves the current job list to the new directory.
 - `cmd/pysentry` starts the desktop app.
 - `src/gui` contains the GUI.
 - `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
-- `assets` contains app icons.
+- `assets` contains app icons that are embedded into the application binary.
 - `scripts` contains build helpers.
 
 Build outputs are written to `dist/`. The old local `bin/` directory is not used.

@@ -2,12 +2,11 @@ package gui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pysentry/pysentry/assets"
 	"github.com/pysentry/pysentry/src/core"
 
 	"fyne.io/fyne/v2"
@@ -39,19 +38,7 @@ func Run() {
 }
 
 func loadAppIcon() fyne.Resource {
-	candidates := []string{}
-	if executable, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(executable), "assets", "pysentry-icon.png"))
-	}
-	if workingDir, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(workingDir, "assets", "pysentry-icon.png"))
-	}
-	for _, path := range candidates {
-		if resource, err := fyne.LoadResourceFromPath(path); err == nil {
-			return resource
-		}
-	}
-	return theme.ComputerIcon()
+	return assets.Icon()
 }
 
 func configureSystemTray(a fyne.App, w fyne.Window) {
@@ -558,7 +545,6 @@ func newHistoryView(events *[]event) *fyne.Container {
 }
 
 func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {
-	runOnStartup := widget.NewCheck("Start PySentry when I sign in", nil)
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
 	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
@@ -621,7 +607,6 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 
 	return container.NewPadded(container.NewVBox(
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		runOnStartup,
 		minimizeToTray,
 		notifications,
 		widget.NewSeparator(),
@@ -635,7 +620,7 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 		settingsStatus,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Scheduler", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Current core supports @every schedules. Cron expressions come next."),
+		widget.NewLabel("Current core supports @every schedules and standard 5-field cron expressions."),
 	))
 }
 
