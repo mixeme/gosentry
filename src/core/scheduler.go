@@ -11,6 +11,10 @@ import (
 
 var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
+// Scheduler owns the timing loop for jobs that are currently loaded in the GUI.
+// It receives a pointer to the jobs slice because the GUI edits the same slice;
+// this keeps the early architecture simple while storage and scheduling are
+// still in one desktop process.
 type Scheduler struct {
 	store    *Store
 	jobs     *[]Job
@@ -36,6 +40,10 @@ func NewScheduler(store *Store, jobs *[]Job, onChange func(RunRecord)) *Schedule
 }
 
 func (s *Scheduler) Start() {
+	// A one-second ticker is accurate enough for cron-style desktop automation
+	// and avoids the complexity of maintaining one timer per job. Five-field cron
+	// expressions have minute precision, while @every values may be shorter for
+	// testing and lightweight local tasks.
 	ticker := time.NewTicker(time.Second)
 	go func() {
 		defer ticker.Stop()
@@ -60,6 +68,8 @@ func (s *Scheduler) SetPaused(paused bool) {
 
 	s.paused = paused
 	now := time.Now()
+	// Pause state is reflected into each job's display string so the list view is
+	// understandable even before the next scheduler tick.
 	for index := range *s.jobs {
 		job := &(*s.jobs)[index]
 		if !job.Enabled {
@@ -83,6 +93,9 @@ func (s *Scheduler) RunNow(index int) RunRecord {
 		return RunRecord{}
 	}
 	job := &(*s.jobs)[index]
+	// Manual runs share the same runner and log writer as scheduled runs. The
+	// Trigger field is the only difference, which keeps History comparable and
+	// prevents "Run now" from becoming a separate behavior path.
 	record := RunJob(s.ctx, job, "Manual", s.store.Paths.LogsDir)
 	s.prepareNextRun(job, time.Now())
 	_ = CleanupLogs(s.store.Paths.LogsDir, s.store.Config.MaxLogFiles, s.store.Config.MaxLogAgeDays)
@@ -120,6 +133,10 @@ func (s *Scheduler) tick(now time.Time) {
 			if !job.Enabled || job.nextDue.IsZero() || now.Before(job.nextDue) {
 				continue
 			}
+			// Run only one due job per tick for now. That avoids overlapping shell
+			// commands in the GUI process and keeps the first version predictable;
+			// a future worker pool can add concurrency once cancellation and status
+			// reporting are more explicit.
 			record = RunJob(s.ctx, job, "Schedule", s.store.Paths.LogsDir)
 			s.prepareNextRun(job, time.Now())
 			_ = CleanupLogs(s.store.Paths.LogsDir, s.store.Config.MaxLogFiles, s.store.Config.MaxLogAgeDays)
@@ -166,12 +183,17 @@ func nextRunTime(schedule string, from time.Time) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	if strings.HasPrefix(schedule, "@every ") {
+		// @every is kept alongside cron because it is convenient for quick tests
+		// and for simple intervals that are awkward to express as five fields.
 		interval, err := time.ParseDuration(strings.TrimSpace(strings.TrimPrefix(schedule, "@every ")))
 		if err != nil || interval <= 0 {
 			return time.Time{}, false
 		}
 		return from.Add(interval), true
 	}
+	// Standard five-field cron keeps PySentry compatible with the mental model
+	// users already know from Unix cron, while robfig/cron handles edge cases
+	// such as ranges, steps, and day-of-week names.
 	parsed, err := cronParser.Parse(schedule)
 	if err != nil {
 		return time.Time{}, false

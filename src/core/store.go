@@ -28,6 +28,9 @@ func OpenStore() (*Store, []Job, error) {
 	}
 	store.Config = config
 	store.applyConfigPaths()
+	// Save the config after loading so missing defaults are written back. This
+	// rewrites old or hand-edited files into the current clean schema without
+	// forcing the user to delete them manually.
 	if err := store.SaveConfig(); err != nil {
 		return nil, nil, err
 	}
@@ -37,6 +40,9 @@ func OpenStore() (*Store, []Job, error) {
 		return nil, nil, err
 	}
 	normalizeJobs(jobs)
+	// Jobs are also rewritten after normalization. That keeps jobs.yaml compact:
+	// only durable job definitions remain, because runtime fields are tagged
+	// yaml:"-" in the model.
 	if err := store.SaveJobs(jobs); err != nil {
 		return nil, nil, err
 	}
@@ -59,6 +65,8 @@ func (s *Store) SaveJobs(jobs []Job) error {
 }
 
 func loadOrCreateConfig(paths Paths) (Config, error) {
+	// Defaults favor a portable installation: settings and jobs begin next to the
+	// executable, while logs are grouped under a dedicated subdirectory.
 	config := Config{
 		JobsDir:           ".",
 		LogsDir:           "logs",
@@ -80,6 +88,8 @@ func loadOrCreateConfig(paths Paths) (Config, error) {
 		return Config{}, err
 	}
 	if strings.TrimSpace(config.JobsDir) == "" {
+		// Empty paths are treated as missing values rather than intentional root
+		// directories. This avoids accidentally writing jobs to unexpected places.
 		config.JobsDir = "."
 	}
 	if strings.TrimSpace(config.LogsDir) == "" {
@@ -96,6 +106,8 @@ func loadOrCreateConfig(paths Paths) (Config, error) {
 
 func loadOrCreateJobs(path string) ([]Job, error) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		// The first run creates harmless sample jobs so a new user can immediately
+		// see scheduled and manual execution without inventing a command.
 		jobs := defaultJobs()
 		normalizeJobs(jobs)
 		return jobs, writeYAML(path, JobsFile{Jobs: jobs})
@@ -117,6 +129,8 @@ func normalizeJobs(jobs []Job) {
 	for index := range jobs {
 		job := &jobs[index]
 		if job.ID <= 0 {
+			// IDs are assigned only when absent. Existing IDs stay stable because
+			// History and future log associations use them to identify jobs.
 			job.ID = next
 		}
 		if job.ID >= next {
@@ -129,6 +143,8 @@ func normalizeJobs(jobs []Job) {
 			job.Schedule = "@every 1m"
 		}
 		if strings.TrimSpace(job.Command) == "" {
+			// An empty command would fail in a confusing way. A safe echo command
+			// gives the user something observable and harmless instead.
 			job.Command = echoCommand("PySentry job ran")
 		}
 		if job.LastRun == "" {
@@ -144,6 +160,9 @@ func normalizeJobs(jobs []Job) {
 			job.LastState = "Paused"
 			job.NextRun = "Paused"
 		}
+		// Runtime fields are reconstructed each time the app starts. Persisted run
+		// records live in log files, not in jobs.yaml, to keep the jobs file easy
+		// to review and edit by hand.
 		job.Logs = nil
 	}
 }
@@ -156,6 +175,9 @@ func resolveConfiguredDir(appDir string, dir string) string {
 	if filepath.IsAbs(dir) {
 		return dir
 	}
+	// Relative paths are resolved against the executable directory, not the
+	// process working directory. This matches ResolvePaths and keeps shortcuts,
+	// Explorer launches, and terminal launches consistent.
 	return filepath.Clean(filepath.Join(appDir, dir))
 }
 
@@ -173,6 +195,9 @@ func writeYAML(path string, value any) error {
 	if err != nil {
 		return err
 	}
+	// WriteFile replaces the full file instead of patching it in place. For small
+	// YAML files this is simpler and prevents stale keys from older versions from
+	// lingering after the schema changes.
 	return os.WriteFile(path, data, 0o644)
 }
 
@@ -208,5 +233,7 @@ func echoCommand(message string) string {
 	if runtime.GOOS == "windows" {
 		return "echo " + message
 	}
+	// POSIX shells need quotes for messages with spaces. Single quotes inside the
+	// message are escaped using the standard close-quote/backslash/reopen pattern.
 	return "echo '" + strings.ReplaceAll(message, "'", "'\\''") + "'"
 }

@@ -23,10 +23,15 @@ const appID = "io.github.pysentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
 
+// The GUI package aliases core types to keep widget callbacks short. The actual
+// durable model still lives in src/core, so GUI code does not define a second
+// copy of the scheduler data.
 type job = core.Job
 type event = core.RunRecord
 
 func Run() {
+	// A stable app ID lets Fyne persist desktop preferences consistently across
+	// launches and gives tray/window integration a predictable identity.
 	a := app.NewWithID(appID)
 	a.SetIcon(loadAppIcon())
 
@@ -44,6 +49,8 @@ func loadAppIcon() fyne.Resource {
 func configureSystemTray(a fyne.App, w fyne.Window) {
 	desk, ok := a.(desktop.App)
 	if !ok {
+		// Not every Fyne driver exposes desktop tray features. Returning silently
+		// keeps the same binary usable on platforms or sessions without a tray.
 		return
 	}
 
@@ -59,6 +66,9 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 	)
 	desk.SetSystemTrayMenu(menu)
 	w.SetCloseIntercept(func() {
+		// Closing hides the window instead of quitting because scheduler tools are
+		// expected to keep working in the background. The explicit Quit tray item
+		// remains the way to stop the process.
 		w.Hide()
 	})
 }
@@ -70,6 +80,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	}
 	events := collectActivity(jobs)
 
+	// The GUI keeps the loaded jobs slice in memory and persists changes after
+	// each edit/run. This keeps the first version responsive and easy to reason
+	// about; a database would be unnecessary overhead for one YAML file.
 	nextJobID := nextID(jobs)
 	selected := 0
 	selectedFolder := allFolders
@@ -86,6 +99,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(jobs[selected].Output)
 	commandOutputScroll := container.NewScroll(commandOutput)
+	// Command output can contain long lines and preserved whitespace. TextGrid is
+	// used instead of Label so stdout/stderr remains readable and does not vanish
+	// against the theme when it is placed inside a scroll container.
 	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 	history := newHistoryView(&events)
 	jobLogs := widget.NewList(
@@ -103,6 +119,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 
 	updateDetails := func(index int) {
 		if index < 0 || index >= len(jobs) {
+			// A folder filter can temporarily leave no selectable rows. Clearing
+			// the details panel avoids showing stale information for a hidden job.
 			title.SetText("No job selected")
 			folder.SetText("")
 			schedule.SetText("")
@@ -125,6 +143,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 		commandOutput.SetText(current.Output)
 	}
 	refresh := func() {
+		// Several callbacks mutate jobs, filters, and event history. A single
+		// refresh closure keeps the different widgets synchronized after each
+		// mutation without introducing a heavier state-management layer.
 		filteredJobs = filteredJobIndexes(jobs, selectedFolder)
 		updateDetails(selected)
 		jobLogs.Refresh()
@@ -148,6 +169,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 
 			current := jobs[filteredJobs[id]]
 			name.SetText(current.Name)
+			// Keep each row compact: folder, schedule, and command are shown in one
+			// metadata line so the left pane stays useful even with many jobs.
 			meta.SetText(displayFolder(current.Folder) + "    " + current.Schedule + "    " + current.Command)
 			status.SetText(statusText(current))
 		},
@@ -169,6 +192,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 		filteredJobs = filteredJobIndexes(jobs, selectedFolder)
 		list.Refresh()
 		if len(filteredJobs) == 0 {
+			// The "No folder" filter is intentionally allowed to be empty. It is a
+			// real filter choice, not an error state, so the selection is cleared.
 			selected = -1
 			updateDetails(-1)
 			return
@@ -186,6 +211,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			jobs = append(jobs, saved)
 			selected = len(jobs) - 1
 			created := newEvent(saved.ID, saved.Name, "Created", "Job was added")
+			// UI events are kept in memory for the current session. They explain
+			// user actions in History, while command output remains in log files.
 			jobs[selected].Logs = append([]event{created}, jobs[selected].Logs...)
 			events = append([]event{created}, events...)
 			_ = store.SaveJobs(jobs)
@@ -229,6 +256,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			return
 		}
 		if schedulerPaused {
+			// The global pause is treated as an emergency stop for all execution,
+			// including manual "Run now", so the user has one reliable switch.
 			dialog.ShowInformation("Scheduler paused", "Global pause is active. Resume the scheduler before running jobs.", w)
 			return
 		}
@@ -262,6 +291,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			stopAllButton.SetIcon(theme.MediaStopIcon())
 			for index := range jobs {
 				if jobs[index].Enabled && jobs[index].NextRun == "Scheduler paused" {
+					// The scheduler will calculate the exact next run when it is
+					// resumed; this interim text prevents a stale paused timestamp.
 					jobs[index].NextRun = "Waiting for scheduler"
 				}
 			}
@@ -307,6 +338,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			return
 		}
 		deleted := jobs[selected]
+		// Deletion is confirmed because jobs can represent real system actions.
+		// There is no undo yet, so accidental removal should require one more click.
 		dialog.ShowConfirm("Delete job", fmt.Sprintf("Delete %q?", deleted.Name), func(confirm bool) {
 			if !confirm {
 				return
@@ -358,6 +391,8 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	)
 
 	scheduler = core.NewScheduler(store, &jobs, func(record core.RunRecord) {
+		// Scheduled runs happen on the scheduler goroutine. The callback updates
+		// the shared in-memory event list so History reflects background activity.
 		events = append([]event{record}, events...)
 		refresh()
 	})
@@ -381,6 +416,8 @@ func statusText(j job) string {
 }
 
 func newEvent(jobID int, jobName string, state string, detail string) event {
+	// UI events use a short time because they are session-local activity markers.
+	// Command runs use full timestamps from core.RunJob and have log files.
 	return event{
 		Time:    time.Now().Format("15:04:05"),
 		JobID:   jobID,
@@ -405,6 +442,9 @@ func eventText(e event) string {
 func collectActivity(jobs []job) []event {
 	var events []event
 	for _, current := range jobs {
+		// At startup this is usually empty because jobs.yaml does not persist
+		// runtime logs. The function still centralizes the merge for future
+		// history loading from log metadata.
 		events = append(events, current.Logs...)
 	}
 	return events
@@ -437,6 +477,8 @@ func filteredJobIndexes(jobs []job, folder string) []int {
 }
 
 func folderOptions(jobs []job) []string {
+	// "All" and "No folder" are always present so the filter UI is stable even
+	// before the user creates folders.
 	options := []string{allFolders, noFolder}
 	seen := map[string]bool{allFolders: true, noFolder: true}
 	for _, current := range jobs {
@@ -505,6 +547,8 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 				return
 			}
 			if strings.TrimSpace(name.Text) == "" || strings.TrimSpace(schedule.Text) == "" || strings.TrimSpace(command.Text) == "" {
+				// These three fields are the minimum executable job definition.
+				// Folder is optional because ungrouped jobs are a supported workflow.
 				dialog.ShowError(fmt.Errorf("name, schedule, and command are required"), w)
 				return
 			}
@@ -594,10 +638,15 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
 		}
+		// When the jobs directory changes, save the currently loaded jobs to the
+		// newly resolved path immediately. That makes the setting visible on disk
+		// without requiring a restart or a separate migration command.
 		if err := store.SaveJobs(*jobs); err != nil {
 			settingsStatus.SetText("Jobs save failed: " + err.Error())
 			return
 		}
+		// Cleanup runs on settings save so a user who tightens retention limits
+		// sees the new policy take effect right away.
 		if err := core.CleanupLogs(store.Paths.LogsDir, store.Config.MaxLogFiles, store.Config.MaxLogAgeDays); err != nil {
 			settingsStatus.SetText("Saved, cleanup failed: " + err.Error())
 			return
@@ -631,6 +680,8 @@ func chooseFolder(w fyne.Window, target *widget.Entry) {
 		}
 		target.SetText(uri.Path())
 	}, w)
+	// The default folder picker can be cramped on Windows. A larger size makes
+	// long paths readable and avoids forcing the user to resize it every time.
 	folderDialog.Resize(fyne.NewSize(900, 640))
 	folderDialog.Show()
 }

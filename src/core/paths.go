@@ -6,10 +6,18 @@ import (
 )
 
 const (
+	// The config file stays beside the executable so the portable build behaves
+	// predictably: moving the program folder moves its settings with it.
 	ConfigFileName = "pysentry.yaml"
-	JobsFileName   = "jobs.yaml"
+	// Jobs are kept in a separate YAML file because the user can choose a
+	// different jobs directory, while application settings remain local to the
+	// installed/copied program.
+	JobsFileName = "jobs.yaml"
 )
 
+// Paths contains both the physical program location and the resolved runtime
+// storage locations. Keeping resolved paths in one struct prevents the GUI and
+// scheduler from interpreting relative directories differently.
 type Paths struct {
 	AppDir     string
 	ConfigPath string
@@ -19,6 +27,10 @@ type Paths struct {
 }
 
 func ResolvePaths() (Paths, error) {
+	// os.Executable is used instead of the current working directory because GUI
+	// apps are often launched from Explorer, a tray shortcut, or a desktop file.
+	// In those cases the working directory can be surprising, but the executable
+	// path is stable and matches the "portable app folder" storage model.
 	executable, err := os.Executable()
 	if err != nil {
 		return Paths{}, err

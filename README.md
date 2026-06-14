@@ -2,6 +2,8 @@
 
 PySentry is a cross-platform desktop scheduler inspired by cron. It provides a native GUI for creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
+PySentry is being designed and implemented with assistance from OpenAI Codex.
+
 ## Features
 
 - Native desktop GUI built with Fyne.
@@ -32,6 +34,8 @@ Linux:
 On Debian/Ubuntu, the Linux dependencies are typically:
 
 ```bash
+# Go builds the application, gcc is required by CGO/Fyne, and the OpenGL/X11
+# development packages provide the native desktop headers used by Fyne.
 sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 ```
 
@@ -40,6 +44,9 @@ sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 Windows:
 
 ```powershell
+# Builds dist\windows\pysentry.exe. The script adds MSYS2 UCRT64 to PATH for
+# this process only, embeds the Windows icon when windres is available, and uses
+# the Windows GUI subsystem so no console window opens at startup.
 .\scripts\build-windows.bat
 ```
 
@@ -48,12 +55,14 @@ The Windows build is created as a GUI application, so it does not open a termina
 The binary is written to:
 
 ```text
+# GUI executable produced by scripts\build-windows.bat.
 dist\windows\pysentry.exe
 ```
 
 Linux:
 
 ```bash
+# Make the helper executable once, then build a linux/amd64 Fyne binary.
 chmod +x ./scripts/build-linux.sh
 ./scripts/build-linux.sh
 ```
@@ -61,12 +70,15 @@ chmod +x ./scripts/build-linux.sh
 The binary is written to:
 
 ```text
+# Linux executable produced by scripts/build-linux.sh.
 dist/linux/pysentry
 ```
 
 Linux using Docker:
 
 ```bash
+# Builds the same Linux binary inside Docker, useful from Windows hosts or CI
+# where the native Linux/Fyne packages are not installed locally.
 chmod +x ./scripts/build-linux-docker.sh
 ./scripts/build-linux-docker.sh
 ```
@@ -74,6 +86,7 @@ chmod +x ./scripts/build-linux-docker.sh
 The binary is copied to:
 
 ```text
+# Linux executable copied out of the Docker build image.
 dist\linux\pysentry
 ```
 
@@ -82,14 +95,21 @@ dist\linux\pysentry
 Windows:
 
 ```powershell
+# Fyne requires CGO on Windows. MSYS2 UCRT64 provides the C compiler and native
+# libraries used by the desktop backend.
 $env:Path = 'C:\msys64\ucrt64\bin;' + $env:Path
 $env:CGO_ENABLED = '1'
+
+# go run starts the app from source. Use scripts\build-windows.bat when you need
+# a standalone .exe without a console window.
 & 'C:\Program Files\Go\bin\go.exe' run ./cmd/pysentry
 ```
 
 Linux:
 
 ```bash
+# CGO must stay enabled because the Fyne GUI links against native Linux desktop
+# libraries.
 CGO_ENABLED=1 go run ./cmd/pysentry
 ```
 
@@ -100,11 +120,25 @@ PySentry creates its runtime files next to the executable by default.
 `pysentry.yaml` stores application settings:
 
 ```yaml
+# Directory containing jobs.yaml. "." means "the folder where pysentry.exe lives";
+# an absolute path can be used when jobs should live elsewhere.
 jobs_dir: .
+
+# Directory for per-run command output logs. Relative paths are resolved against
+# the program folder, just like jobs_dir.
 logs_dir: logs
+
+# Keep at most this many .log files after cleanup. Newest logs are preserved.
 max_log_files: 100
+
+# Delete .log files older than this many days during cleanup.
 max_log_age_days: 30
+
+# Closing the window hides it to the tray instead of stopping the scheduler.
 keep_running_in_tray: true
+
+# Reserved for desktop failure notifications; the setting is stored now so the
+# UI and config format do not need to change when notifications are wired fully.
 notify_on_failure: true
 ```
 
@@ -112,17 +146,32 @@ notify_on_failure: true
 
 ```yaml
 jobs:
+  # A harmless sample job created on first run so the scheduler can be tested
+  # immediately. Runtime fields such as last run time, next run time, and command
+  # output are intentionally not stored here; they are displayed in the GUI and
+  # written to separate log files.
   - id: 1
+    # Human-readable name shown in the jobs list and used in log file names.
     name: Hello scheduler
+
+    # Optional grouping label. Omit it or leave it empty to put the job under
+    # the "No folder" filter.
     folder: Examples
+
+    # Either @every with a Go duration, or a standard five-field cron expression.
     schedule: '@every 10s'
+
+    # Command passed to the platform shell: cmd.exe /C on Windows, sh -c on Linux.
     command: echo PySentry test job: scheduler is alive
+
+    # Disabled jobs remain in jobs.yaml but are skipped by the scheduler.
     enabled: true
 ```
 
 Command output is written to separate files under `logs_dir`. File names include the run timestamp and job name, for example:
 
 ```text
+# Format: YYYYMMDD-HHMMSS_<sanitized job name>.log
 20260614-224306_Hello_scheduler.log
 ```
 
@@ -131,6 +180,7 @@ Command output is written to separate files under `logs_dir`. File names include
 Fast interval schedules:
 
 ```text
+# Go duration syntax after @every; useful for tests and simple intervals.
 @every 10s
 @every 5m
 @every 1h30m
@@ -139,6 +189,7 @@ Fast interval schedules:
 Standard 5-field cron schedules:
 
 ```text
+# Standard five-field cron: minute hour day-of-month month day-of-week.
 */5 * * * *      every five minutes
 0 2 * * *        every day at 02:00
 30 9 * * 1-5     weekdays at 09:30
