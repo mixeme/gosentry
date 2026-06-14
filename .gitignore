@@ -1,7 +1,12 @@
 # ---> Python
 # ---> Go
 bin/
+dist/
+cmd/pysentry/*.syso
 *.exe
+pysentry.yaml
+jobs.yaml
+logs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

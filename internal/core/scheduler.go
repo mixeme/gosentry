@@ -5,7 +5,11 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/robfig/cron/v3"
 )
+
+var cronParser = cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 
 type Scheduler struct {
 	store    *Store
@@ -146,24 +150,31 @@ func (s *Scheduler) resetNextRuns(now time.Time) {
 }
 
 func (s *Scheduler) prepareNextRun(job *Job, from time.Time) {
-	interval, ok := parseEvery(job.Schedule)
+	next, ok := nextRunTime(job.Schedule, from)
 	if !ok {
-		job.NextRun = "Unsupported schedule"
+		job.NextRun = "Invalid schedule"
 		job.nextDue = time.Time{}
 		return
 	}
-	job.nextDue = from.Add(interval)
+	job.nextDue = next
 	job.NextRun = job.nextDue.Format("2006-01-02 15:04:05")
 }
 
-func parseEvery(schedule string) (time.Duration, bool) {
+func nextRunTime(schedule string, from time.Time) (time.Time, bool) {
 	schedule = strings.TrimSpace(schedule)
-	if !strings.HasPrefix(schedule, "@every ") {
-		return 0, false
+	if schedule == "" {
+		return time.Time{}, false
 	}
-	interval, err := time.ParseDuration(strings.TrimSpace(strings.TrimPrefix(schedule, "@every ")))
-	if err != nil || interval <= 0 {
-		return 0, false
+	if strings.HasPrefix(schedule, "@every ") {
+		interval, err := time.ParseDuration(strings.TrimSpace(strings.TrimPrefix(schedule, "@every ")))
+		if err != nil || interval <= 0 {
+			return time.Time{}, false
+		}
+		return from.Add(interval), true
 	}
-	return interval, true
+	parsed, err := cronParser.Parse(schedule)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed.Next(from), true
 }

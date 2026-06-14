@@ -1,0 +1,22 @@
+FROM golang:1.22-bookworm
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        gcc \
+        libgl1-mesa-dev \
+        xorg-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ENV CGO_ENABLED=1
+ENV GOOS=linux
+ENV GOARCH=amd64
+
+RUN go build -trimpath -ldflags "-s -w" -o /out/pysentry ./cmd/pysentry

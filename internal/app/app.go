@@ -1,9 +1,8 @@
 package app
 
 import (
+	_ "embed"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +26,9 @@ const noFolder = "No folder"
 type job = core.Job
 type event = core.RunRecord
 
+//go:embed assets/pysentry-icon.png
+var iconBytes []byte
+
 func Run() {
 	a := app.NewWithID(appID)
 	a.SetIcon(loadAppIcon())
@@ -39,19 +41,7 @@ func Run() {
 }
 
 func loadAppIcon() fyne.Resource {
-	candidates := []string{}
-	if executable, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(executable), "assets", "pysentry-icon.png"))
-	}
-	if workingDir, err := os.Getwd(); err == nil {
-		candidates = append(candidates, filepath.Join(workingDir, "assets", "pysentry-icon.png"))
-	}
-	for _, path := range candidates {
-		if resource, err := fyne.LoadResourceFromPath(path); err == nil {
-			return resource
-		}
-	}
-	return theme.ComputerIcon()
+	return fyne.NewStaticResource("pysentry-icon.png", iconBytes)
 }
 
 func configureSystemTray(a fyne.App, w fyne.Window) {
@@ -379,7 +369,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Jobs", theme.ListIcon(), container.NewHSplit(sidebar, container.NewPadded(details))),
 		container.NewTabItemWithIcon("History", theme.HistoryIcon(), history),
-		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(store)),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(w, store, &jobs)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -557,14 +547,22 @@ func newHistoryView(events *[]event) *fyne.Container {
 	return container.NewPadded(list)
 }
 
-func settingsView(store *core.Store) fyne.CanvasObject {
+func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {
 	runOnStartup := widget.NewCheck("Start PySentry when I sign in", nil)
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
 	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
+	jobsDir := widget.NewEntry()
+	jobsDir.SetText(store.Config.JobsDir)
+	jobsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		chooseFolder(w, jobsDir)
+	})
 	logsDir := widget.NewEntry()
 	logsDir.SetText(store.Config.LogsDir)
+	logsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		chooseFolder(w, logsDir)
+	})
 	maxLogFiles := widget.NewEntry()
 	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
 	maxLogAgeDays := widget.NewEntry()
@@ -583,12 +581,25 @@ func settingsView(store *core.Store) fyne.CanvasObject {
 			return
 		}
 		store.Config.LogsDir = strings.TrimSpace(logsDir.Text)
+		if strings.TrimSpace(jobsDir.Text) == "" {
+			settingsStatus.SetText("Jobs directory is required")
+			return
+		}
+		if strings.TrimSpace(logsDir.Text) == "" {
+			settingsStatus.SetText("Logs directory is required")
+			return
+		}
+		store.Config.JobsDir = strings.TrimSpace(jobsDir.Text)
 		store.Config.MaxLogFiles = files
 		store.Config.MaxLogAgeDays = days
 		store.Config.KeepRunningInTray = minimizeToTray.Checked
 		store.Config.NotifyOnFailure = notifications.Checked
 		if err := store.SaveConfig(); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
+			return
+		}
+		if err := store.SaveJobs(*jobs); err != nil {
+			settingsStatus.SetText("Jobs save failed: " + err.Error())
 			return
 		}
 		if err := core.CleanupLogs(store.Paths.LogsDir, store.Config.MaxLogFiles, store.Config.MaxLogAgeDays); err != nil {
@@ -606,9 +617,8 @@ func settingsView(store *core.Store) fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		detailRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
-		detailRow("Jobs YAML", widget.NewLabel(store.Paths.JobsPath)),
-		detailRow("Jobs directory", widget.NewLabel(store.Paths.JobsDir)),
-		detailRow("Logs directory", logsDir),
+		detailRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
+		detailRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
 		detailRow("Max log files", maxLogFiles),
 		detailRow("Max log age days", maxLogAgeDays),
 		saveSettings,
@@ -617,4 +627,13 @@ func settingsView(store *core.Store) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Scheduler", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Current core supports @every schedules. Cron expressions come next."),
 	))
+}
+
+func chooseFolder(w fyne.Window, target *widget.Entry) {
+	dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		target.SetText(uri.Path())
+	}, w)
 }

@@ -1,0 +1,7 @@
+.git
+bin
+dist
+logs
+pysentry.yaml
+jobs.yaml
+*.exe

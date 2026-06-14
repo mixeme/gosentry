@@ -22,11 +22,11 @@ type Job struct {
 	Schedule  string      `yaml:"schedule"`
 	Command   string      `yaml:"command"`
 	Enabled   bool        `yaml:"enabled"`
-	LastRun   string      `yaml:"last_run,omitempty"`
-	NextRun   string      `yaml:"next_run,omitempty"`
-	LastState string      `yaml:"last_state,omitempty"`
-	Logs      []RunRecord `yaml:"activity,omitempty"`
-	Output    string      `yaml:"last_output,omitempty"`
+	LastRun   string      `yaml:"-"`
+	NextRun   string      `yaml:"-"`
+	LastState string      `yaml:"-"`
+	Logs      []RunRecord `yaml:"-"`
+	Output    string      `yaml:"-"`
 
 	nextDue time.Time
 }
