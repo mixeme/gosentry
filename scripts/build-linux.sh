@@ -9,5 +9,7 @@ export GOOS=linux
 export GOARCH=amd64
 
 go build -trimpath -ldflags "-s -w" -o "$output" ./cmd/pysentry
+rm -rf "$(dirname "$output")/assets"
+cp -R assets "$(dirname "$output")/assets"
 
 echo "Built $output"

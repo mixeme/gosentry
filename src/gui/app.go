@@ -1,13 +1,14 @@
-package app
+package gui
 
 import (
-	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pysentry/pysentry/internal/core"
+	"github.com/pysentry/pysentry/src/core"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -26,9 +27,6 @@ const noFolder = "No folder"
 type job = core.Job
 type event = core.RunRecord
 
-//go:embed assets/pysentry-icon.png
-var iconBytes []byte
-
 func Run() {
 	a := app.NewWithID(appID)
 	a.SetIcon(loadAppIcon())
@@ -41,7 +39,19 @@ func Run() {
 }
 
 func loadAppIcon() fyne.Resource {
-	return fyne.NewStaticResource("pysentry-icon.png", iconBytes)
+	candidates := []string{}
+	if executable, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(executable), "assets", "pysentry-icon.png"))
+	}
+	if workingDir, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(workingDir, "assets", "pysentry-icon.png"))
+	}
+	for _, path := range candidates {
+		if resource, err := fyne.LoadResourceFromPath(path); err == nil {
+			return resource
+		}
+	}
+	return theme.ComputerIcon()
 }
 
 func configureSystemTray(a fyne.App, w fyne.Window) {
@@ -630,10 +640,12 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 }
 
 func chooseFolder(w fyne.Window, target *widget.Entry) {
-	dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+	folderDialog := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
 		if err != nil || uri == nil {
 			return
 		}
 		target.SetText(uri.Path())
 	}, w)
+	folderDialog.Resize(fyne.NewSize(900, 640))
+	folderDialog.Show()
 }

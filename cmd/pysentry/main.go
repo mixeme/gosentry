@@ -1,7 +1,7 @@
 package main
 
-import "github.com/pysentry/pysentry/internal/app"
+import "github.com/pysentry/pysentry/src/gui"
 
 func main() {
-	app.Run()
+	gui.Run()
 }

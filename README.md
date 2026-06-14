@@ -40,7 +40,7 @@ sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 Windows:
 
 ```powershell
-.\scripts\build-windows.ps1
+.\scripts\build-windows.bat
 ```
 
 The binary is written to:
@@ -64,8 +64,9 @@ dist/linux/pysentry
 
 Linux using Docker:
 
-```powershell
-.\scripts\build-linux-docker.ps1
+```bash
+chmod +x ./scripts/build-linux-docker.sh
+./scripts/build-linux-docker.sh
 ```
 
 The binary is copied to:
@@ -157,10 +158,12 @@ Changing `jobs_dir` saves the current job list to the new directory.
 ## Project Layout
 
 - `cmd/pysentry` starts the desktop app.
-- `internal/app` contains the GUI.
-- `internal/core` contains YAML storage, command execution, scheduling, and log cleanup.
+- `src/gui` contains the GUI.
+- `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
 - `assets` contains app icons.
 - `scripts` contains build helpers.
+
+Build outputs are written to `dist/`. The old local `bin/` directory is not used.
 
 ## Dependencies
 
