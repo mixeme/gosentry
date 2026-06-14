@@ -2,8 +2,13 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pysentry/pysentry/internal/core"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -19,37 +24,34 @@ const appID = "io.github.pysentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
 
-type job struct {
-	ID        int
-	Name      string
-	Folder    string
-	Schedule  string
-	Command   string
-	Enabled   bool
-	LastRun   string
-	NextRun   string
-	LastState string
-	Logs      []event
-	Output    string
-}
-
-type event struct {
-	Time    string
-	JobID   int
-	JobName string
-	State   string
-	Detail  string
-}
+type job = core.Job
+type event = core.RunRecord
 
 func Run() {
 	a := app.NewWithID(appID)
-	a.SetIcon(theme.ComputerIcon())
+	a.SetIcon(loadAppIcon())
 
 	w := a.NewWindow("PySentry")
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
 	w.SetContent(newMainView(w))
 	w.ShowAndRun()
+}
+
+func loadAppIcon() fyne.Resource {
+	candidates := []string{}
+	if executable, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(executable), "assets", "pysentry-icon.png"))
+	}
+	if workingDir, err := os.Getwd(); err == nil {
+		candidates = append(candidates, filepath.Join(workingDir, "assets", "pysentry-icon.png"))
+	}
+	for _, path := range candidates {
+		if resource, err := fyne.LoadResourceFromPath(path); err == nil {
+			return resource
+		}
+	}
+	return theme.ComputerIcon()
 }
 
 func configureSystemTray(a fyne.App, w fyne.Window) {
@@ -75,62 +77,13 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 }
 
 func newMainView(w fyne.Window) fyne.CanvasObject {
-	jobs := []job{
-		{
-			ID:        1,
-			Name:      "Nightly backup",
-			Folder:    "Maintenance",
-			Schedule:  "0 2 * * *",
-			Command:   "python scripts/backup.py",
-			Enabled:   true,
-			LastRun:   "Today 02:00",
-			NextRun:   "Tomorrow 02:00",
-			LastState: "OK",
-			Output:    "stdout: backup archive created\nstderr: <empty>",
-			Logs: []event{
-				{Time: "Today 02:00", JobID: 1, JobName: "Nightly backup", State: "OK", Detail: "Completed in 42 s"},
-				{Time: "Yesterday 02:00", JobID: 1, JobName: "Nightly backup", State: "OK", Detail: "Completed in 39 s"},
-			},
-		},
-		{
-			ID:        2,
-			Name:      "Health check",
-			Folder:    "Monitoring",
-			Schedule:  "*/15 * * * *",
-			Command:   "curl -fsS https://example.test/health",
-			Enabled:   true,
-			LastRun:   "21:00",
-			NextRun:   "21:15",
-			LastState: "OK",
-			Output:    "stdout: HTTP 200 OK\nstderr: <empty>",
-			Logs: []event{
-				{Time: "21:00", JobID: 2, JobName: "Health check", State: "OK", Detail: "Completed in 184 ms"},
-				{Time: "20:45", JobID: 2, JobName: "Health check", State: "OK", Detail: "Completed in 201 ms"},
-			},
-		},
-		{
-			ID:        3,
-			Name:      "Rotate logs",
-			Schedule:  "30 1 * * 1",
-			Command:   "pysentry rotate-logs",
-			Enabled:   false,
-			LastRun:   "Monday 01:30",
-			NextRun:   "Paused",
-			LastState: "Paused",
-			Output:    "No command output captured yet.",
-			Logs: []event{
-				{Time: "Yesterday 01:30", JobID: 3, JobName: "Rotate logs", State: "Paused", Detail: "Skipped because the job is paused"},
-			},
-		},
+	store, jobs, err := core.OpenStore()
+	if err != nil {
+		return container.NewPadded(widget.NewLabel("Failed to load PySentry configuration: " + err.Error()))
 	}
-	events := []event{
-		{Time: "21:00", JobID: 2, JobName: "Health check", State: "OK", Detail: "Completed in 184 ms"},
-		{Time: "20:45", JobID: 2, JobName: "Health check", State: "OK", Detail: "Completed in 201 ms"},
-		{Time: "02:00", JobID: 1, JobName: "Nightly backup", State: "OK", Detail: "Completed in 42 s"},
-		{Time: "Yesterday 01:30", JobID: 3, JobName: "Rotate logs", State: "Paused", Detail: "Skipped because the job is paused"},
-	}
+	events := collectActivity(jobs)
 
-	nextJobID := 4
+	nextJobID := nextID(jobs)
 	selected := 0
 	selectedFolder := allFolders
 	schedulerPaused := false
@@ -143,9 +96,10 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	nextRun := widget.NewLabel(jobs[selected].NextRun)
 	state := widget.NewLabel(jobs[selected].LastState)
 	schedulerState := widget.NewLabel("Scheduler running")
-	commandOutput := widget.NewMultiLineEntry()
+	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(jobs[selected].Output)
-	commandOutput.Disable()
+	commandOutputScroll := container.NewScroll(commandOutput)
+	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 	history := newHistoryView(&events)
 	jobLogs := widget.NewList(
 		func() int {
@@ -189,6 +143,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 		jobLogs.Refresh()
 		history.Refresh()
 	}
+	var scheduler *core.Scheduler
 
 	list := widget.NewList(
 		func() int { return len(filteredJobs) },
@@ -238,7 +193,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	folderSelect.SetSelected(selectedFolder)
 
 	addButton := widget.NewButtonWithIcon("New job", theme.ContentAddIcon(), func() {
-		showJobDialog(w, "New job", job{Enabled: true, LastRun: "Never", NextRun: "After save", LastState: "Ready"}, func(saved job) {
+		showJobDialog(w, "New job", job{Schedule: "@every 1m", Command: "echo PySentry job ran", Enabled: true, LastRun: "Never", NextRun: "After save", LastState: "Ready"}, func(saved job) {
 			saved.ID = nextJobID
 			nextJobID++
 			jobs = append(jobs, saved)
@@ -246,6 +201,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			created := newEvent(saved.ID, saved.Name, "Created", "Job was added")
 			jobs[selected].Logs = append([]event{created}, jobs[selected].Logs...)
 			events = append([]event{created}, events...)
+			_ = store.SaveJobs(jobs)
 			folderSelect.Options = folderOptions(jobs)
 			folderSelect.Refresh()
 			targetFolder := filterValue(saved.Folder)
@@ -271,6 +227,10 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			updated := newEvent(saved.ID, saved.Name, "Updated", "Job settings changed")
 			jobs[selected].Logs = append([]event{updated}, jobs[selected].Logs...)
 			events = append([]event{updated}, events...)
+			if scheduler != nil {
+				scheduler.RefreshSchedule(selected)
+			}
+			_ = store.SaveJobs(jobs)
 			folderSelect.Options = folderOptions(jobs)
 			folderSelect.Refresh()
 			list.Refresh()
@@ -285,14 +245,10 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			dialog.ShowInformation("Scheduler paused", "Global pause is active. Resume the scheduler before running jobs.", w)
 			return
 		}
-		jobs[selected].LastRun = "Just now"
-		jobs[selected].LastState = "OK"
-		jobs[selected].Output = "stdout: manual run simulated\nstderr: <empty>"
-		if jobs[selected].Enabled {
-			jobs[selected].NextRun = "Waiting for scheduler"
+		ran := scheduler.RunNow(selected)
+		if ran.Time == "" {
+			return
 		}
-		ran := newEvent(jobs[selected].ID, jobs[selected].Name, "OK", "Manual run simulated")
-		jobs[selected].Logs = append([]event{ran}, jobs[selected].Logs...)
 		events = append([]event{ran}, events...)
 		list.Refresh()
 		refresh()
@@ -309,6 +265,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 					jobs[index].NextRun = "Scheduler paused"
 				}
 			}
+			if scheduler != nil {
+				scheduler.SetPaused(true)
+			}
 			events = append([]event{newEvent(0, "Scheduler", "Paused", "All job execution paused")}, events...)
 		} else {
 			schedulerState.SetText("Scheduler running")
@@ -318,6 +277,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 				if jobs[index].Enabled && jobs[index].NextRun == "Scheduler paused" {
 					jobs[index].NextRun = "Waiting for scheduler"
 				}
+			}
+			if scheduler != nil {
+				scheduler.SetPaused(false)
 			}
 			events = append([]event{newEvent(0, "Scheduler", "Resumed", "All job execution resumed")}, events...)
 		}
@@ -336,13 +298,20 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			resumed := newEvent(current.ID, current.Name, "Resumed", "Job was enabled")
 			current.Logs = append([]event{resumed}, current.Logs...)
 			events = append([]event{resumed}, events...)
+			if scheduler != nil {
+				scheduler.RefreshSchedule(selected)
+			}
 		} else {
 			current.LastState = "Paused"
 			current.NextRun = "Paused"
 			paused := newEvent(current.ID, current.Name, "Paused", "Job was disabled")
 			current.Logs = append([]event{paused}, current.Logs...)
 			events = append([]event{paused}, events...)
+			if scheduler != nil {
+				scheduler.RefreshSchedule(selected)
+			}
 		}
+		_ = store.SaveJobs(jobs)
 		list.Refresh()
 		refresh()
 	})
@@ -370,6 +339,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 				selected = filteredJobs[0]
 			}
 			events = append([]event{newEvent(deleted.ID, deleted.Name, "Deleted", "Job was removed")}, events...)
+			_ = store.SaveJobs(jobs)
 			list.Refresh()
 			if selected >= 0 {
 				list.Select(displayIndex(filteredJobs, selected))
@@ -394,16 +364,22 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 		detailRow("State", state),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Command output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		commandOutput,
+		commandOutputScroll,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Selected job activity", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		jobLogs,
 	)
 
+	scheduler = core.NewScheduler(store, &jobs, func(record core.RunRecord) {
+		events = append([]event{record}, events...)
+		refresh()
+	})
+	scheduler.Start()
+
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Jobs", theme.ListIcon(), container.NewHSplit(sidebar, container.NewPadded(details))),
 		container.NewTabItemWithIcon("History", theme.HistoryIcon(), history),
-		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView()),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(store)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -422,13 +398,39 @@ func newEvent(jobID int, jobName string, state string, detail string) event {
 		Time:    time.Now().Format("15:04:05"),
 		JobID:   jobID,
 		JobName: jobName,
+		Trigger: "UI",
 		State:   state,
 		Detail:  detail,
 	}
 }
 
 func eventText(e event) string {
-	return fmt.Sprintf("%s  %s  %s  %s", e.Time, e.JobName, e.State, e.Detail)
+	trigger := e.Trigger
+	if trigger == "" {
+		trigger = "Unknown"
+	}
+	if e.LogFile != "" {
+		return fmt.Sprintf("%s  %s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail, e.LogFile)
+	}
+	return fmt.Sprintf("%s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail)
+}
+
+func collectActivity(jobs []job) []event {
+	var events []event
+	for _, current := range jobs {
+		events = append(events, current.Logs...)
+	}
+	return events
+}
+
+func nextID(jobs []job) int {
+	next := 1
+	for _, current := range jobs {
+		if current.ID >= next {
+			next = current.ID + 1
+		}
+	}
+	return next
 }
 
 func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
@@ -492,10 +494,10 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	folder.SetPlaceHolder("Maintenance")
 	folder.SetText(current.Folder)
 	schedule := widget.NewEntry()
-	schedule.SetPlaceHolder("0 2 * * *")
+	schedule.SetPlaceHolder("@every 1m")
 	schedule.SetText(current.Schedule)
 	command := widget.NewEntry()
-	command.SetPlaceHolder("python scripts/backup.py")
+	command.SetPlaceHolder("echo PySentry job ran")
 	command.SetText(current.Command)
 	enabled := widget.NewCheck("Enabled", nil)
 	enabled.SetChecked(current.Enabled)
@@ -555,12 +557,46 @@ func newHistoryView(events *[]event) *fyne.Container {
 	return container.NewPadded(list)
 }
 
-func settingsView() fyne.CanvasObject {
+func settingsView(store *core.Store) fyne.CanvasObject {
 	runOnStartup := widget.NewCheck("Start PySentry when I sign in", nil)
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
-	minimizeToTray.SetChecked(true)
+	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
-	notifications.SetChecked(true)
+	notifications.SetChecked(store.Config.NotifyOnFailure)
+	logsDir := widget.NewEntry()
+	logsDir.SetText(store.Config.LogsDir)
+	maxLogFiles := widget.NewEntry()
+	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
+	maxLogAgeDays := widget.NewEntry()
+	maxLogAgeDays.SetText(strconv.Itoa(store.Config.MaxLogAgeDays))
+	settingsStatus := widget.NewLabel("")
+
+	saveSettings := widget.NewButtonWithIcon("Save settings", theme.DocumentSaveIcon(), func() {
+		files, err := strconv.Atoi(strings.TrimSpace(maxLogFiles.Text))
+		if err != nil || files <= 0 {
+			settingsStatus.SetText("Max log files must be a positive number")
+			return
+		}
+		days, err := strconv.Atoi(strings.TrimSpace(maxLogAgeDays.Text))
+		if err != nil || days <= 0 {
+			settingsStatus.SetText("Max log age days must be a positive number")
+			return
+		}
+		store.Config.LogsDir = strings.TrimSpace(logsDir.Text)
+		store.Config.MaxLogFiles = files
+		store.Config.MaxLogAgeDays = days
+		store.Config.KeepRunningInTray = minimizeToTray.Checked
+		store.Config.NotifyOnFailure = notifications.Checked
+		if err := store.SaveConfig(); err != nil {
+			settingsStatus.SetText("Save failed: " + err.Error())
+			return
+		}
+		if err := core.CleanupLogs(store.Paths.LogsDir, store.Config.MaxLogFiles, store.Config.MaxLogAgeDays); err != nil {
+			settingsStatus.SetText("Saved, cleanup failed: " + err.Error())
+			return
+		}
+		settingsStatus.SetText("Saved")
+	})
 
 	return container.NewPadded(container.NewVBox(
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -568,7 +604,17 @@ func settingsView() fyne.CanvasObject {
 		minimizeToTray,
 		notifications,
 		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		detailRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
+		detailRow("Jobs YAML", widget.NewLabel(store.Paths.JobsPath)),
+		detailRow("Jobs directory", widget.NewLabel(store.Paths.JobsDir)),
+		detailRow("Logs directory", logsDir),
+		detailRow("Max log files", maxLogFiles),
+		detailRow("Max log age days", maxLogAgeDays),
+		saveSettings,
+		settingsStatus,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Scheduler", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("The scheduler service, job storage, and cron parser come next."),
+		widget.NewLabel("Current core supports @every schedules. Cron expressions come next."),
 	))
 }

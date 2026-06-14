@@ -26,5 +26,12 @@ If Go is installed but not available in `PATH`, use the full path:
 
 - `cmd/pysentry` starts the desktop app.
 - `internal/app` contains the first Fyne-based interface prototype.
-- Jobs can be created, edited, paused/resumed, and run manually in memory.
-- Job persistence, cron parsing, and process execution are planned for the next phase.
+- `internal/core` contains YAML storage, command execution, and the first scheduler loop.
+- Jobs can be created, edited, paused/resumed, run manually, and persisted to YAML.
+- Settings are stored in `pysentry.yaml` next to the executable.
+- Jobs are stored in one `jobs.yaml` file. The job directory is configured by `jobs_dir` and defaults to the executable directory.
+- Command output is also written to per-run `.log` files in `logs_dir`. Log filenames include the run timestamp and job name.
+- Log cleanup is controlled by `max_log_files` and `max_log_age_days`.
+- The current scheduler supports `@every` schedules such as `@every 10s` and `@every 1m`.
+- Run history records include a `trigger` value such as `Manual`, `Schedule`, or `UI`.
+- Cron expression parsing is planned for the next phase.
