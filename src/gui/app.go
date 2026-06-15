@@ -22,6 +22,7 @@ import (
 const appID = "io.github.pysentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
+const minJobsSidebarWidth float32 = 480
 
 // The GUI package aliases core types to keep widget callbacks short. The actual
 // durable model still lives in src/core, so GUI code does not define a second
@@ -396,14 +397,48 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	})
 	scheduler.Start()
 
+	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)
+	jobsView := container.NewBorder(nil, nil, fixedSidebar, nil, container.NewPadded(details))
 	tabs := container.NewAppTabs(
-		container.NewTabItemWithIcon("Jobs", theme.ListIcon(), container.NewHSplit(sidebar, container.NewPadded(details))),
+		container.NewTabItemWithIcon("Jobs", theme.ListIcon(), jobsView),
 		container.NewTabItemWithIcon("History", theme.HistoryIcon(), history),
 		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(w, store, &jobs)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	return tabs
+}
+
+type minWidthLayout struct {
+	width float32
+}
+
+func (layout minWidthLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	width := layout.width
+	var height float32
+	for _, object := range objects {
+		if !object.Visible() {
+			continue
+		}
+		min := object.MinSize()
+		if min.Width > width {
+			width = min.Width
+		}
+		if min.Height > height {
+			height = min.Height
+		}
+	}
+	return fyne.NewSize(width, height)
+}
+
+func (layout minWidthLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	for _, object := range objects {
+		if !object.Visible() {
+			continue
+		}
+		object.Move(fyne.NewPos(0, 0))
+		object.Resize(size)
+	}
 }
 
 func statusText(j job) string {
