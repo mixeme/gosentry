@@ -2,6 +2,42 @@
 
 This file tracks planned PySentry work that is larger than a single bug fix.
 
+## Project Rename
+
+Plan a rename from PySentry to GoSentry.
+
+Rename checklist:
+
+- Decide the final repository path and Go module path.
+- Update application name, window title, tray menu, and desktop integration text.
+- Update app ID and autostart entry names.
+- Rename build artifacts from `pysentry-*` to `gosentry-*`.
+- Decide whether runtime files should stay backward-compatible with existing
+  `pysentry.yaml`, `jobs.yaml`, and log directories or migrate to new names.
+- Update README, CHANGELOG, ROADMAP, build scripts, Docker image names, and
+  package metadata.
+- Consider a transition note for users with existing PySentry configuration.
+
+## Post-Field-Test Cleanup
+
+After real-world use confirms the main workflows, clean up temporary
+stabilization code and development scaffolding.
+
+Cleanup checklist:
+
+- Review and remove debug-oriented diagnostics that are no longer useful.
+- Remove excessive defensive checks once behavior is proven and covered by the
+  right tests.
+- Remove obsolete compatibility cleanup, such as old autostart migration code,
+  after the transition window is over.
+- Delete stale generated files and old build artifacts from local/release flows.
+- Revisit tests and remove ones that only lock in temporary implementation
+  details instead of real user-facing behavior.
+- Simplify README notes that were useful during early setup but are too noisy
+  for normal users.
+- Recheck `.gitignore`, Docker scripts, and packaging scripts for rules or
+  branches that only supported early experiments.
+
 ## Delivery And Packaging
 
 Keep a single portable binary as the baseline delivery format. It is simple to
