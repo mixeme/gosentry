@@ -620,9 +620,34 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 }
 
 func newHistoryView(events *[]event) *fyne.Container {
+	descending := false
+	headerText := func(id widget.TableCellID) string {
+		headers := []string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
+		if id.Row < 0 && id.Col == 0 {
+			if descending {
+				return "Time desc"
+			}
+			return "Time asc"
+		}
+		if id.Row < 0 && id.Col >= 0 && id.Col < len(headers) {
+			return headers[id.Col]
+		}
+		return ""
+	}
+	sortedEvents := func() []event {
+		result := append([]event(nil), (*events)...)
+		sort.SliceStable(result, func(left int, right int) bool {
+			if descending {
+				return result[left].Time > result[right].Time
+			}
+			return result[left].Time < result[right].Time
+		})
+		return result
+	}
+
 	table := widget.NewTable(
 		func() (int, int) {
-			return len(*events) + 1, 6
+			return len(*events), 6
 		},
 		func() fyne.CanvasObject {
 			label := widget.NewLabel("")
@@ -631,30 +656,44 @@ func newHistoryView(events *[]event) *fyne.Container {
 		},
 		func(id widget.TableCellID, item fyne.CanvasObject) {
 			label := item.(*widget.Label)
-			label.SetText(historyCellText(id, *events))
-			label.TextStyle = fyne.TextStyle{Bold: id.Row == 0}
+			label.SetText(historyCellText(id, sortedEvents()))
+			label.TextStyle = fyne.TextStyle{}
 			label.Refresh()
 		},
 	)
+	table.ShowHeaderRow = true
+	table.CreateHeader = func() fyne.CanvasObject {
+		label := widget.NewLabel("")
+		label.Wrapping = fyne.TextTruncate
+		return label
+	}
+	table.UpdateHeader = func(id widget.TableCellID, item fyne.CanvasObject) {
+		label := item.(*widget.Label)
+		label.SetText(headerText(id))
+		label.TextStyle = fyne.TextStyle{Bold: true}
+		label.Refresh()
+	}
+	table.OnSelected = func(id widget.TableCellID) {
+		if id.Row < 0 && id.Col == 0 {
+			descending = !descending
+			table.Refresh()
+		}
+		table.Unselect(id)
+	}
 	table.SetColumnWidth(0, 150)
 	table.SetColumnWidth(1, 90)
 	table.SetColumnWidth(2, 170)
 	table.SetColumnWidth(3, 90)
-	table.SetColumnWidth(4, 360)
-	table.SetColumnWidth(5, 320)
+	table.SetColumnWidth(4, 260)
+	table.SetColumnWidth(5, 240)
 	return container.NewPadded(table)
 }
 
 func historyCellText(id widget.TableCellID, events []event) string {
-	headers := []string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
-	if id.Row == 0 {
-		return headers[id.Col]
-	}
-	eventIndex := id.Row - 1
-	if eventIndex < 0 || eventIndex >= len(events) {
+	if id.Row < 0 || id.Row >= len(events) {
 		return ""
 	}
-	current := events[eventIndex]
+	current := events[id.Row]
 	trigger := current.Trigger
 	if trigger == "" {
 		trigger = "Unknown"
@@ -671,10 +710,22 @@ func historyCellText(id widget.TableCellID, events []event) string {
 	case 4:
 		return current.Detail
 	case 5:
-		return current.LogFile
+		return logFileName(current.LogFile)
 	default:
 		return ""
 	}
+}
+
+func logFileName(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	path = strings.ReplaceAll(path, "\\", "/")
+	if slash := strings.LastIndex(path, "/"); slash >= 0 {
+		return path[slash+1:]
+	}
+	return path
 }
 
 func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {

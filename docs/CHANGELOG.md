@@ -2,6 +2,15 @@
 
 All notable PySentry changes are recorded in this file.
 
+## 0.2.3 - 2026-06-15
+
+- Changed History to use chronological ordering with new records appended at the bottom.
+- Replaced the History list with a compact table.
+- Added Time column sorting in both ascending and descending directions.
+- Made History table columns user-resizable through the native Fyne table header.
+- Shortened the Log column display to file names instead of full paths.
+- Unified UI event timestamps with command run timestamps.
+
 ## 0.2.2 - 2026-06-15
 
 - Added Linux desktop integration that installs a user-level `.desktop` file and icon so taskbars can match the running window to the PySentry icon.

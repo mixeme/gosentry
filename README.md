@@ -86,7 +86,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry-0.2.2-windows-amd64.exe
+dist\windows\pysentry-0.2.3-windows-amd64.exe
 ```
 
 Linux:
@@ -101,7 +101,7 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry-0.2.2-linux-amd64
+dist/linux/pysentry-0.2.3-linux-amd64
 ```
 
 Linux using Docker:
@@ -118,7 +118,7 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry-0.2.2-linux-amd64
+dist\linux\pysentry-0.2.3-linux-amd64
 ```
 
 Release build from Linux:
@@ -143,13 +143,13 @@ The binaries are copied to:
 
 ```text
 # Linux artifact.
-dist/linux/pysentry-0.2.2-linux-amd64
+dist/linux/pysentry-0.2.3-linux-amd64
 
 # Linux arm64 artifact.
-dist/linux/pysentry-0.2.2-linux-arm64
+dist/linux/pysentry-0.2.3-linux-arm64
 
 # Windows artifact cross-compiled from Linux.
-dist/windows/pysentry-0.2.2-windows-amd64.exe
+dist/windows/pysentry-0.2.3-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -292,7 +292,7 @@ Linux:
 [Desktop Entry]
 Type=Application
 Name=PySentry
-Exec=/opt/pysentry/pysentry-0.2.2-linux-amd64
+Exec=/opt/pysentry/pysentry-0.2.3-linux-amd64
 Terminal=false
 ```
 
