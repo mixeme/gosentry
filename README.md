@@ -6,8 +6,9 @@ PySentry is being designed and implemented with assistance from OpenAI Codex.
 
 Project notes:
 
-- [Changelog](CHANGELOG.md)
-- [Roadmap](ROADMAP.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Architecture](docs/ARCHITECTURE.md)
 
 ## Features
 
@@ -313,7 +314,7 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PySentry
 - `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
 - `assets` contains app icons that are embedded into the application binary.
 - `scripts` contains build helpers.
-- `CHANGELOG.md` records release notes and version history.
+- `docs` contains architecture notes, the changelog, and the roadmap.
 
 Build outputs are written to `dist/`. The old local `bin/` directory is not used.
 
