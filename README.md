@@ -4,6 +4,11 @@ PySentry is a cross-platform desktop scheduler inspired by cron. It provides a n
 
 PySentry is being designed and implemented with assistance from OpenAI Codex.
 
+Project notes:
+
+- [Changelog](CHANGELOG.md)
+- [Roadmap](ROADMAP.md)
+
 ## Features
 
 - Native desktop GUI built with [Fyne](https://fyne.io/).
