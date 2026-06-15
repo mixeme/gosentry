@@ -9,7 +9,7 @@ import (
 
 const autostartName = "PySentry"
 
-func SetAutostart(enabled bool, executablePath string) error {
+func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	if enabled {
 		// Remove any stale entry first. This makes "uncheck, save, check, save"
 		// and even a plain "check, save" repair an old path after the executable

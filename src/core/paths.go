@@ -25,6 +25,7 @@ type Paths struct {
 	JobsDir        string
 	JobsPath       string
 	LogsDir        string
+	DesktopIcon    string
 }
 
 func ResolvePaths() (Paths, error) {

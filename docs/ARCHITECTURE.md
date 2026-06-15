@@ -10,15 +10,15 @@ job state.
 ```mermaid
 flowchart LR
     user["Desktop user"]
-    gui["src/gui\nFyne windows, tabs, dialogs"]
-    store["src/core Store\nYAML config and jobs"]
-    scheduler["src/core Scheduler\n@every and cron timing"]
-    runner["src/core Runner\nshell command execution"]
-    autostart["src/core Autostart\nWindows Run / Linux desktop startup"]
-    config["pysentry.yaml\napplication settings"]
-    jobs["jobs.yaml\njob definitions"]
-    logs["logs_dir\nper-run command output logs"]
-    shell["Platform shell\ncmd.exe /C or sh -c"]
+    gui["src/gui - Fyne windows, tabs, dialogs"]
+    store["src/core Store - YAML config and jobs"]
+    scheduler["src/core Scheduler - @every and cron timing"]
+    runner["src/core Runner - shell command execution"]
+    autostart["src/core Autostart - Windows Run / Linux desktop startup"]
+    config["pysentry.yaml - application settings"]
+    jobs["jobs.yaml - job definitions"]
+    logs["logs_dir - per-run command output logs"]
+    shell["Platform shell - cmd.exe /C or sh -c"]
 
     user -->|"edits jobs, settings, runs commands"| gui
     gui -->|"OpenStore, SaveConfig, SaveJobs"| store

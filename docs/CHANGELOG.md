@@ -2,6 +2,15 @@
 
 All notable PySentry changes are recorded in this file.
 
+## 0.2.2 - 2026-06-15
+
+- Added Linux desktop integration that installs a user-level `.desktop` file and icon so taskbars can match the running window to the PySentry icon.
+- Added the installed icon path to Linux autostart desktop entries when available.
+- Added `ARCHITECTURE.md` with a component interaction diagram and moved project documentation under `docs/`.
+- Adjusted the Mermaid architecture diagram to avoid line-break syntax that breaks rendering in Gitea.
+- Stabilized the Jobs tab pane layout so switching jobs does not move the divider.
+- Added startup timing to the History tab.
+
 ## 0.2.1 - 2026-06-15
 
 - Fixed Docker release scripts so container builds keep Go in `PATH`.

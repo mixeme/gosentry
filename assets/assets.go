@@ -24,3 +24,7 @@ func Icon() fyne.Resource {
 	// resources rather than Fyne runtime state.
 	return fyne.NewStaticResource("pysentry-icon.png", iconBytes)
 }
+
+func IconBytes() []byte {
+	return append([]byte(nil), iconBytes...)
+}

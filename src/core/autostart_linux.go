@@ -13,7 +13,7 @@ import (
 
 const autostartDesktopFileName = "pysentry.desktop"
 
-func SetAutostart(enabled bool, executablePath string) error {
+func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	desktopPath, err := autostartDesktopPath()
 	if err != nil {
 		return err
@@ -31,9 +31,10 @@ Type=Application
 Name=PySentry
 Comment=PySentry desktop scheduler
 Exec=%s
+%s
 Terminal=false
 X-GNOME-Autostart-enabled=true
-`, quoteDesktopExec(executablePath))
+`, quoteDesktopExec(executablePath), desktopIconLine(iconPath))
 		return os.WriteFile(desktopPath, []byte(desktopFile), 0o644)
 	}
 
@@ -82,6 +83,13 @@ func autostartDesktopPath() (string, error) {
 
 func quoteDesktopExec(path string) string {
 	return strconv.Quote(path)
+}
+
+func desktopIconLine(iconPath string) string {
+	if strings.TrimSpace(iconPath) == "" {
+		return ""
+	}
+	return "Icon=" + iconPath
 }
 
 func cleanupLegacySystemdAutostart() error {

@@ -4,7 +4,7 @@ package core
 
 import "fmt"
 
-func SetAutostart(enabled bool, executablePath string) error {
+func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	if !enabled {
 		return nil
 	}

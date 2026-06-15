@@ -80,6 +80,9 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	if err != nil {
 		return container.NewPadded(widget.NewLabel("Failed to load PySentry configuration: " + err.Error()))
 	}
+	if iconPath, err := core.InstallDesktopIntegration(appID, store.Paths.ExecutablePath, assets.IconBytes()); err == nil {
+		store.Paths.DesktopIcon = iconPath
+	}
 	startupDuration := time.Since(started).Round(time.Millisecond)
 	events := append([]event{newEvent(0, "Application", "Started", "Startup completed in "+startupDuration.String())}, collectActivity(jobs)...)
 
@@ -693,7 +696,7 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
 		}
-		if err := core.SetAutostart(store.Config.StartOnLogin, store.Paths.ExecutablePath); err != nil {
+		if err := core.SetAutostart(store.Config.StartOnLogin, store.Paths.ExecutablePath, store.Paths.DesktopIcon); err != nil {
 			refreshAutostartStatus()
 			settingsStatus.SetText("Saved, autostart failed: " + err.Error())
 			return
