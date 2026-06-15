@@ -19,11 +19,12 @@ const (
 // storage locations. Keeping resolved paths in one struct prevents the GUI and
 // scheduler from interpreting relative directories differently.
 type Paths struct {
-	AppDir     string
-	ConfigPath string
-	JobsDir    string
-	JobsPath   string
-	LogsDir    string
+	ExecutablePath string
+	AppDir         string
+	ConfigPath     string
+	JobsDir        string
+	JobsPath       string
+	LogsDir        string
 }
 
 func ResolvePaths() (Paths, error) {
@@ -39,9 +40,10 @@ func ResolvePaths() (Paths, error) {
 	appDir := filepath.Dir(executable)
 	configPath := filepath.Join(appDir, ConfigFileName)
 	return Paths{
-		AppDir:     appDir,
-		ConfigPath: configPath,
-		JobsDir:    appDir,
-		JobsPath:   filepath.Join(appDir, JobsFileName),
+		ExecutablePath: executable,
+		AppDir:         appDir,
+		ConfigPath:     configPath,
+		JobsDir:        appDir,
+		JobsPath:       filepath.Join(appDir, JobsFileName),
 	}, nil
 }

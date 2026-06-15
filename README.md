@@ -15,6 +15,7 @@ PySentry is being designed and implemented with assistance from OpenAI Codex.
 - Log cleanup by maximum file count and maximum age.
 - Global pause/resume for all job execution.
 - Windows tray support.
+- Version shown in the window title, Settings, and build artifact names.
 
 ## Requirements
 
@@ -44,9 +45,11 @@ sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 Windows:
 
 ```powershell
-# Builds dist\windows\pysentry.exe. The script adds MSYS2 UCRT64 to PATH for
-# this process only, embeds the Windows icon when windres is available, and uses
-# the Windows GUI subsystem so no console window opens at startup.
+# Builds dist\windows\pysentry-<version>-windows-amd64.exe. The script changes
+# to the repository root first, so double-clicking it from Explorer works. It
+# also adds MSYS2 UCRT64 to PATH for this process only, embeds the Windows icon
+# when windres is available, and uses the Windows GUI subsystem so no console
+# window opens at startup.
 .\scripts\build-windows.bat
 ```
 
@@ -56,7 +59,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry.exe
+dist\windows\pysentry-0.1.0-windows-amd64.exe
 ```
 
 Linux:
@@ -71,14 +74,15 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry
+dist/linux/pysentry-0.1.0-linux-amd64
 ```
 
 Linux using Docker:
 
 ```bash
-# Builds the same Linux binary inside Docker, useful from Windows hosts or CI
-# where the native Linux/Fyne packages are not installed locally.
+# Builds the Linux binary inside Docker using the image tag
+# gitea.mixdep.ru/mix/pysentry-builder. Useful from hosts or CI jobs where the
+# native Linux/Fyne packages are not installed locally.
 chmod +x ./scripts/build-linux-docker.sh
 ./scripts/build-linux-docker.sh
 ```
@@ -87,7 +91,30 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry
+dist\linux\pysentry-0.1.0-linux-amd64
+```
+
+Release build from Linux:
+
+```bash
+# Builds Linux amd64, Linux arm64, and Windows amd64 artifacts from one
+# Linux/Docker workflow. The Dockerfile includes Linux Fyne dependencies plus
+# cross-compilers for arm64 Linux and the Windows .exe.
+chmod +x ./scripts/build-release-linux.sh
+./scripts/build-release-linux.sh
+```
+
+The binaries are copied to:
+
+```text
+# Linux artifact.
+dist/linux/pysentry-0.1.0-linux-amd64
+
+# Linux arm64 artifact.
+dist/linux/pysentry-0.1.0-linux-arm64
+
+# Windows artifact cross-compiled from Linux.
+dist/windows/pysentry-0.1.0-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -120,8 +147,8 @@ PySentry creates its runtime files next to the executable by default.
 `pysentry.yaml` stores application settings:
 
 ```yaml
-# Directory containing jobs.yaml. "." means "the folder where pysentry.exe lives";
-# an absolute path can be used when jobs should live elsewhere.
+# Directory containing jobs.yaml. "." means "the folder where the PySentry
+# executable lives"; an absolute path can be used when jobs should live elsewhere.
 jobs_dir: .
 
 # Directory for per-run command output logs. Relative paths are resolved against
@@ -133,6 +160,9 @@ max_log_files: 100
 
 # Delete .log files older than this many days during cleanup.
 max_log_age_days: 30
+
+# Start PySentry automatically when the current desktop user signs in.
+start_on_login: false
 
 # Closing the window hides it to the tray instead of stopping the scheduler.
 keep_running_in_tray: true
@@ -159,7 +189,7 @@ jobs:
     folder: Examples
 
     # Either @every with a Go duration, or a standard five-field cron expression.
-    schedule: '@every 10s'
+    schedule: '@every 1m'
 
     # Command passed to the platform shell: cmd.exe /C on Windows, sh -c on Linux.
     command: echo PySentry test job: scheduler is alive
@@ -207,6 +237,41 @@ Standard 5-field cron schedules:
 8. Open `Settings` to change `jobs_dir`, `logs_dir`, and log cleanup limits. Use `Browse` to choose directories.
 
 Changing `jobs_dir` saves the current job list to the new directory.
+
+The `Start on login` setting shows an `OK` or `Problem` status next to the checkbox. Saving settings with the checkbox enabled rewrites the autostart entry using the current executable path.
+
+## Autostart
+
+PySentry is a user desktop application, not a system daemon, so autostart should be configured per user.
+
+Linux:
+
+```ini
+# PySentry writes a systemd user unit and enables it with
+# systemctl --user enable --now pysentry.service when Start on login is enabled.
+# A user unit starts after login and can run the tray/GUI app in the user's
+# desktop session.
+[Unit]
+Description=PySentry desktop scheduler
+
+[Service]
+ExecStart=/opt/pysentry/pysentry-0.1.0-linux-amd64
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+Windows:
+
+```text
+# PySentry writes an HKCU Run entry when Start on login is enabled. It needs no
+# administrator rights and starts PySentry when the current user signs in. Task
+# Scheduler remains a later option if delayed start or elevated tasks become
+# necessary. Saving settings with the checkbox enabled rewrites this entry, so it
+# repairs an old path after the executable was moved or renamed.
+HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PySentry
+```
 
 ## Project Layout
 

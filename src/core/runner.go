@@ -31,6 +31,7 @@ func RunJob(ctx context.Context, job *Job, trigger string, logsDir string) RunRe
 	// than argv-based execution, but it is the expected behavior for a cron-like
 	// tool that supports redirection, environment expansion, and shell builtins.
 	command := shellCommand(runCtx, job.Command)
+	configureHiddenWindow(command)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	command.Stdout = &stdout

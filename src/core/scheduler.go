@@ -85,22 +85,17 @@ func (s *Scheduler) SetPaused(paused bool) {
 	_ = s.store.SaveJobs(*s.jobs)
 }
 
-func (s *Scheduler) RunNow(index int) RunRecord {
+func (s *Scheduler) RunNow(index int) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if index < 0 || index >= len(*s.jobs) {
-		return RunRecord{}
+		return false
 	}
-	job := &(*s.jobs)[index]
 	// Manual runs share the same runner and log writer as scheduled runs. The
 	// Trigger field is the only difference, which keeps History comparable and
 	// prevents "Run now" from becoming a separate behavior path.
-	record := RunJob(s.ctx, job, "Manual", s.store.Paths.LogsDir)
-	s.prepareNextRun(job, time.Now())
-	_ = CleanupLogs(s.store.Paths.LogsDir, s.store.Config.MaxLogFiles, s.store.Config.MaxLogAgeDays)
-	_ = s.store.SaveJobs(*s.jobs)
-	return record
+	return s.startRunLocked(index, "Manual")
 }
 
 func (s *Scheduler) RefreshSchedule(index int) {
@@ -123,7 +118,6 @@ func (s *Scheduler) RefreshSchedule(index int) {
 }
 
 func (s *Scheduler) tick(now time.Time) {
-	var record RunRecord
 	var changed bool
 
 	s.mu.Lock()
@@ -137,21 +131,58 @@ func (s *Scheduler) tick(now time.Time) {
 			// commands in the GUI process and keeps the first version predictable;
 			// a future worker pool can add concurrency once cancellation and status
 			// reporting are more explicit.
-			record = RunJob(s.ctx, job, "Schedule", s.store.Paths.LogsDir)
-			s.prepareNextRun(job, time.Now())
-			_ = CleanupLogs(s.store.Paths.LogsDir, s.store.Config.MaxLogFiles, s.store.Config.MaxLogAgeDays)
-			changed = true
+			changed = s.startRunLocked(index, "Schedule")
 			break
 		}
 	}
-	if changed {
-		_ = s.store.SaveJobs(*s.jobs)
-	}
 	s.mu.Unlock()
+	_ = changed
+}
 
-	if changed && s.onChange != nil {
-		s.onChange(record)
+func (s *Scheduler) startRunLocked(index int, trigger string) bool {
+	job := &(*s.jobs)[index]
+	if job.LastState == "Running" {
+		return false
 	}
+
+	jobCopy := *job
+	job.LastState = "Running"
+	job.NextRun = "Running"
+	job.nextDue = time.Time{}
+	_ = s.store.SaveJobs(*s.jobs)
+
+	go func() {
+		record := RunJob(s.ctx, &jobCopy, trigger, s.store.Paths.LogsDir)
+
+		s.mu.Lock()
+		if current := s.findJobByIDLocked(jobCopy.ID); current != nil {
+			current.LastRun = record.Time
+			current.LastState = record.State
+			current.Output = record.Output
+			current.Logs = append([]RunRecord{record}, current.Logs...)
+			if len(current.Logs) > 50 {
+				current.Logs = current.Logs[:50]
+			}
+			s.prepareNextRun(current, time.Now())
+			_ = CleanupLogs(s.store.Paths.LogsDir, s.store.Config.MaxLogFiles, s.store.Config.MaxLogAgeDays)
+			_ = s.store.SaveJobs(*s.jobs)
+		}
+		s.mu.Unlock()
+
+		if s.onChange != nil {
+			s.onChange(record)
+		}
+	}()
+	return true
+}
+
+func (s *Scheduler) findJobByIDLocked(id int) *Job {
+	for index := range *s.jobs {
+		if (*s.jobs)[index].ID == id {
+			return &(*s.jobs)[index]
+		}
+	}
+	return nil
 }
 
 func (s *Scheduler) resetNextRuns(now time.Time) {

@@ -1,11 +1,20 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM Double-clicking a .bat file can start it with an arbitrary working
+REM directory. Move to the repository root (the parent of scripts\) before using
+REM relative paths such as .\cmd\pysentry and packaging\windows\pysentry.rc.
+cd /d "%~dp0\.."
+
+for /f "tokens=4" %%V in ('findstr /C:"var Version" src\core\version.go') do set "VERSION=%%~V"
+if "%VERSION%"=="" set "VERSION=0.0.0-dev"
+set "VERSION=%VERSION:"=%"
+
 REM Optional first argument allows CI or a developer to choose another output
 REM path. The default keeps all generated binaries under dist\ so the source tree
 REM stays clean and the old bin\ folder is no longer needed.
 set "OUTPUT=%~1"
-if "%OUTPUT%"=="" set "OUTPUT=dist\windows\pysentry.exe"
+if "%OUTPUT%"=="" set "OUTPUT=dist\windows\pysentry-%VERSION%-windows-amd64.exe"
 
 REM Prefer the standard Go installer path on Windows, but fall back to PATH for
 REM machines where Go was installed by another package manager.
@@ -38,7 +47,7 @@ if %ERRORLEVEL%==0 (
 REM -trimpath removes local machine paths from the binary, -s -w reduce binary
 REM size, and -H=windowsgui prevents a separate console window from opening when
 REM the GUI app starts from Explorer or a shortcut.
-"%GOEXE%" build -trimpath -ldflags "-s -w -H=windowsgui" -o "%OUTPUT%" .\cmd\pysentry
+"%GOEXE%" build -trimpath -ldflags "-s -w -H=windowsgui -X github.com/pysentry/pysentry/src/core.Version=%VERSION%" -o "%OUTPUT%" .\cmd\pysentry
 if errorlevel 1 exit /b 1
 
 REM Icons are embedded into the executable, so no assets directory is copied next

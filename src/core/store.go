@@ -72,6 +72,7 @@ func loadOrCreateConfig(paths Paths) (Config, error) {
 		LogsDir:           "logs",
 		MaxLogFiles:       100,
 		MaxLogAgeDays:     30,
+		StartOnLogin:      false,
 		KeepRunningInTray: true,
 		NotifyOnFailure:   true,
 	}
@@ -207,7 +208,7 @@ func defaultJobs() []Job {
 			ID:       1,
 			Name:     "Hello scheduler",
 			Folder:   "Examples",
-			Schedule: "@every 10s",
+			Schedule: "@every 1m",
 			Command:  echoCommand("PySentry test job: scheduler is alive"),
 			Enabled:  true,
 		},

@@ -35,7 +35,7 @@ func Run() {
 	a := app.NewWithID(appID)
 	a.SetIcon(loadAppIcon())
 
-	w := a.NewWindow("PySentry")
+	w := a.NewWindow("PySentry " + core.Version)
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
 	w.SetContent(newMainView(w))
@@ -104,16 +104,14 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 	// against the theme when it is placed inside a scroll container.
 	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 	history := newHistoryView(&events)
+	selectedLogs := append([]event(nil), jobs[selected].Logs...)
 	jobLogs := widget.NewList(
 		func() int {
-			if selected < 0 || selected >= len(jobs) {
-				return 0
-			}
-			return len(jobs[selected].Logs)
+			return len(selectedLogs)
 		},
 		func() fyne.CanvasObject { return widget.NewLabel("log") },
 		func(id widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(eventText(jobs[selected].Logs[id]))
+			item.(*widget.Label).SetText(eventText(selectedLogs[id]))
 		},
 	)
 
@@ -129,6 +127,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			nextRun.SetText("")
 			state.SetText("")
 			commandOutput.SetText("")
+			selectedLogs = nil
 			return
 		}
 		selected = index
@@ -141,6 +140,7 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 		nextRun.SetText(current.NextRun)
 		state.SetText(current.LastState)
 		commandOutput.SetText(current.Output)
+		selectedLogs = append(selectedLogs[:0], current.Logs...)
 	}
 	refresh := func() {
 		// Several callbacks mutate jobs, filters, and event history. A single
@@ -261,11 +261,9 @@ func newMainView(w fyne.Window) fyne.CanvasObject {
 			dialog.ShowInformation("Scheduler paused", "Global pause is active. Resume the scheduler before running jobs.", w)
 			return
 		}
-		ran := scheduler.RunNow(selected)
-		if ran.Time == "" {
+		if !scheduler.RunNow(selected) {
 			return
 		}
-		events = append([]event{ran}, events...)
 		list.Refresh()
 		refresh()
 	})
@@ -589,6 +587,21 @@ func newHistoryView(events *[]event) *fyne.Container {
 }
 
 func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {
+	startOnLogin := widget.NewCheck("Start PySentry when I sign in", nil)
+	startOnLogin.SetChecked(store.Config.StartOnLogin)
+	autostartStatus := widget.NewLabel("")
+	refreshAutostartStatus := func() {
+		ok, message := core.AutostartStatus(startOnLogin.Checked, store.Paths.ExecutablePath)
+		if ok {
+			autostartStatus.SetText("OK: " + message)
+			return
+		}
+		autostartStatus.SetText("Problem: " + message)
+	}
+	startOnLogin.OnChanged = func(bool) {
+		refreshAutostartStatus()
+	}
+	refreshAutostartStatus()
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
 	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
@@ -632,12 +645,19 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 		store.Config.JobsDir = strings.TrimSpace(jobsDir.Text)
 		store.Config.MaxLogFiles = files
 		store.Config.MaxLogAgeDays = days
+		store.Config.StartOnLogin = startOnLogin.Checked
 		store.Config.KeepRunningInTray = minimizeToTray.Checked
 		store.Config.NotifyOnFailure = notifications.Checked
 		if err := store.SaveConfig(); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
 		}
+		if err := core.SetAutostart(store.Config.StartOnLogin, store.Paths.ExecutablePath); err != nil {
+			refreshAutostartStatus()
+			settingsStatus.SetText("Saved, autostart failed: " + err.Error())
+			return
+		}
+		refreshAutostartStatus()
 		// When the jobs directory changes, save the currently loaded jobs to the
 		// newly resolved path immediately. That makes the setting visible on disk
 		// without requiring a restart or a separate migration command.
@@ -656,6 +676,8 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 
 	return container.NewPadded(container.NewVBox(
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		detailRow("Version", widget.NewLabel(core.Version)),
+		detailRow("Start on login", container.NewBorder(nil, nil, nil, autostartStatus, startOnLogin)),
 		minimizeToTray,
 		notifications,
 		widget.NewSeparator(),

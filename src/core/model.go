@@ -10,6 +10,7 @@ type Config struct {
 	LogsDir           string `yaml:"logs_dir"`
 	MaxLogFiles       int    `yaml:"max_log_files"`
 	MaxLogAgeDays     int    `yaml:"max_log_age_days"`
+	StartOnLogin      bool   `yaml:"start_on_login"`
 	KeepRunningInTray bool   `yaml:"keep_running_in_tray"`
 	NotifyOnFailure   bool   `yaml:"notify_on_failure"`
 }
