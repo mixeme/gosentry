@@ -15,6 +15,11 @@ cd "$repo_root"
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
 
+docker_user_args=()
+if command -v id >/dev/null 2>&1; then
+    docker_user_args=(--user "$(id -u):$(id -g)")
+fi
+
 usage() {
     cat <<EOF
 Usage: $0 [target...]
@@ -86,23 +91,25 @@ normalize_targets() {
 
 run_in_builder() {
     docker run --rm \
+        "${docker_user_args[@]}" \
         -e "VERSION=${version}" \
+        -e "GOCACHE=/tmp/go-build-cache" \
         -v "${repo_root}:/src" \
         -w /src \
         "$tag" \
-        bash -lc "$1"
+        bash -c "$1"
 }
 
 build_linux_amd64() {
-    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-amd64" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-amd64" ./cmd/pysentry'
 }
 
 build_linux_arm64() {
-    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-arm64" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-arm64" ./cmd/pysentry'
 }
 
 build_windows_amd64() {
-    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/pysentry/rsrc_windows_amd64.syso packaging/windows/pysentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "-s -w -H=windowsgui -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/windows/pysentry-${VERSION}-windows-amd64.exe" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/pysentry/rsrc_windows_amd64.syso packaging/windows/pysentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/windows/pysentry-${VERSION}-windows-amd64.exe" ./cmd/pysentry'
 }
 
 mapfile -t targets < <(choose_targets "$@" | normalize_targets | awk '!seen[$0]++')

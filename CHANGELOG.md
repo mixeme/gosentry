@@ -2,6 +2,16 @@
 
 All notable PySentry changes are recorded in this file.
 
+## 0.2.1 - 2026-06-15
+
+- Fixed Docker release scripts so container builds keep Go in `PATH`.
+- Disabled Go VCS stamping for Docker release builds to avoid failures when `.git` metadata is unavailable inside the container.
+- Made Docker release builds write `dist/` artifacts with the current user's UID/GID instead of root ownership.
+- Added `ROADMAP.md` with planned delivery formats and packaging priorities.
+- Cleaned `.gitignore` for the current Go/Fyne project and kept the local `_gsdata_/` rule.
+- Added README links to official Go/Fyne sites and source repositories useful for dependency mirroring.
+- Documented Windows dependency installation steps for Go and MSYS2 UCRT64 GCC.
+
 ## 0.2.0 - 2026-06-15
 
 - Added working autostart support with status diagnostics in Settings.

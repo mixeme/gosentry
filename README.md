@@ -80,7 +80,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry-0.2.0-windows-amd64.exe
+dist\windows\pysentry-0.2.1-windows-amd64.exe
 ```
 
 Linux:
@@ -95,7 +95,7 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry-0.2.0-linux-amd64
+dist/linux/pysentry-0.2.1-linux-amd64
 ```
 
 Linux using Docker:
@@ -112,7 +112,7 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry-0.2.0-linux-amd64
+dist\linux\pysentry-0.2.1-linux-amd64
 ```
 
 Release build from Linux:
@@ -120,7 +120,8 @@ Release build from Linux:
 ```bash
 # Interactively choose Linux amd64, Linux arm64, Windows amd64, or all artifacts
 # from one Linux/Docker workflow. The Dockerfile contains the builder
-# environment; the build commands live in this script.
+# environment; the build commands live in this script. Docker runs the build
+# with the current user's UID/GID so dist/ files are not owned by root.
 chmod +x ./scripts/build-release-linux.sh
 ./scripts/build-release-linux.sh
 ```
@@ -136,13 +137,13 @@ The binaries are copied to:
 
 ```text
 # Linux artifact.
-dist/linux/pysentry-0.2.0-linux-amd64
+dist/linux/pysentry-0.2.1-linux-amd64
 
 # Linux arm64 artifact.
-dist/linux/pysentry-0.2.0-linux-arm64
+dist/linux/pysentry-0.2.1-linux-arm64
 
 # Windows artifact cross-compiled from Linux.
-dist/windows/pysentry-0.2.0-windows-amd64.exe
+dist/windows/pysentry-0.2.1-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -285,7 +286,7 @@ Linux:
 [Desktop Entry]
 Type=Application
 Name=PySentry
-Exec=/opt/pysentry/pysentry-0.2.0-linux-amd64
+Exec=/opt/pysentry/pysentry-0.2.1-linux-amd64
 Terminal=false
 ```
 
@@ -320,3 +321,16 @@ PySentry keeps the direct dependency list intentionally small:
 - `gopkg.in/yaml.v3` for YAML settings and jobs.
 
 The remaining entries in `go.mod` are indirect dependencies pulled by Fyne and the Go module resolver.
+
+Source repositories for mirroring:
+
+- Go toolchain: https://go.googlesource.com/go
+- Fyne: https://github.com/fyne-io/fyne
+- robfig/cron: https://github.com/robfig/cron
+- go-yaml/yaml: https://github.com/go-yaml/yaml
+
+To list every direct and indirect Go module used by the current checkout:
+
+```bash
+go list -m all
+```
