@@ -591,7 +591,7 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 	startOnLogin.SetChecked(store.Config.StartOnLogin)
 	autostartStatus := widget.NewLabel("")
 	refreshAutostartStatus := func() {
-		ok, message := core.AutostartStatus(startOnLogin.Checked, store.Paths.ExecutablePath)
+		ok, message := core.AutostartStatus(store.Config.StartOnLogin, store.Paths.ExecutablePath)
 		if ok {
 			autostartStatus.SetText("OK: " + message)
 			return
@@ -599,6 +599,10 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 		autostartStatus.SetText("Problem: " + message)
 	}
 	startOnLogin.OnChanged = func(bool) {
+		if startOnLogin.Checked != store.Config.StartOnLogin {
+			autostartStatus.SetText("Pending: save settings to apply")
+			return
+		}
 		refreshAutostartStatus()
 	}
 	refreshAutostartStatus()

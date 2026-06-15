@@ -80,7 +80,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry-0.1.0-windows-amd64.exe
+dist\windows\pysentry-0.2.0-windows-amd64.exe
 ```
 
 Linux:
@@ -95,7 +95,7 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry-0.1.0-linux-amd64
+dist/linux/pysentry-0.2.0-linux-amd64
 ```
 
 Linux using Docker:
@@ -112,7 +112,7 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry-0.1.0-linux-amd64
+dist\linux\pysentry-0.2.0-linux-amd64
 ```
 
 Release build from Linux:
@@ -136,13 +136,13 @@ The binaries are copied to:
 
 ```text
 # Linux artifact.
-dist/linux/pysentry-0.1.0-linux-amd64
+dist/linux/pysentry-0.2.0-linux-amd64
 
 # Linux arm64 artifact.
-dist/linux/pysentry-0.1.0-linux-arm64
+dist/linux/pysentry-0.2.0-linux-arm64
 
 # Windows artifact cross-compiled from Linux.
-dist/windows/pysentry-0.1.0-windows-amd64.exe
+dist/windows/pysentry-0.2.0-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -275,19 +275,18 @@ PySentry is a user desktop application, not a system daemon, so autostart should
 Linux:
 
 ```ini
-# PySentry writes a systemd user unit and enables it with
-# systemctl --user enable --now pysentry.service when Start on login is enabled.
-# A user unit starts after login and can run the tray/GUI app in the user's
-# desktop session.
-[Unit]
-Description=PySentry desktop scheduler
+# PySentry writes an XDG Autostart desktop entry when Start on login is enabled.
+# This is better for a GUI/tray application than a systemd user service because
+# the desktop environment starts it inside the graphical user session.
+# Saving the setting also removes the old ~/.config/systemd/user/pysentry.service
+# unit if it was created by an earlier PySentry build.
+~/.config/autostart/pysentry.desktop
 
-[Service]
-ExecStart=/opt/pysentry/pysentry-0.1.0-linux-amd64
-Restart=on-failure
-
-[Install]
-WantedBy=default.target
+[Desktop Entry]
+Type=Application
+Name=PySentry
+Exec=/opt/pysentry/pysentry-0.2.0-linux-amd64
+Terminal=false
 ```
 
 Windows:
@@ -308,6 +307,7 @@ HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PySentry
 - `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
 - `assets` contains app icons that are embedded into the application binary.
 - `scripts` contains build helpers.
+- `CHANGELOG.md` records release notes and version history.
 
 Build outputs are written to `dist/`. The old local `bin/` directory is not used.
 
