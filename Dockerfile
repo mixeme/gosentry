@@ -9,14 +9,22 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         gcc \
+        libc6-dev \
         gcc-aarch64-linux-gnu \
+        libc6-dev-arm64-cross \
+        linux-libc-dev-arm64-cross \
         gcc-mingw-w64-x86-64 \
         binutils-mingw-w64-x86-64 \
         pkg-config \
         libgl1-mesa-dev \
         xorg-dev \
         libgl1-mesa-dev:arm64 \
-        xorg-dev:arm64 && \
+        libx11-dev:arm64 \
+        libxcursor-dev:arm64 \
+        libxrandr-dev:arm64 \
+        libxinerama-dev:arm64 \
+        libxi-dev:arm64 \
+        libxxf86vm-dev:arm64 && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
@@ -39,7 +47,9 @@ RUN version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)" && 
         go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${version}" \
         -o "/out/linux/pysentry-${version}-linux-amd64" ./cmd/pysentry && \
     CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
-        PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig \
+        CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" \
+        CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" \
+        PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
         go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${version}" \
         -o "/out/linux/pysentry-${version}-linux-arm64" ./cmd/pysentry && \
     x86_64-w64-mingw32-windres -O coff -o cmd/pysentry/rsrc_windows_amd64.syso packaging/windows/pysentry.rc && \
