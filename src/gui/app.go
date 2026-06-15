@@ -2,6 +2,7 @@ package gui
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -84,7 +85,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 		store.Paths.DesktopIcon = iconPath
 	}
 	startupDuration := time.Since(started).Round(time.Millisecond)
-	events := append([]event{newEvent(0, "Application", "Started", "Startup completed in "+startupDuration.String())}, collectActivity(jobs)...)
+	events := append(collectActivity(jobs), newEvent(0, "Application", "Started", "Startup completed in "+startupDuration.String()))
 
 	// The GUI keeps the loaded jobs slice in memory and persists changes after
 	// each edit/run. This keeps the first version responsive and easy to reason
@@ -220,7 +221,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			// UI events are kept in memory for the current session. They explain
 			// user actions in History, while command output remains in log files.
 			jobs[selected].Logs = append([]event{created}, jobs[selected].Logs...)
-			events = append([]event{created}, events...)
+			events = append(events, created)
 			_ = store.SaveJobs(jobs)
 			folderSelect.Options = folderOptions(jobs)
 			folderSelect.Refresh()
@@ -246,7 +247,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			jobs[selected] = saved
 			updated := newEvent(saved.ID, saved.Name, "Updated", "Job settings changed")
 			jobs[selected].Logs = append([]event{updated}, jobs[selected].Logs...)
-			events = append([]event{updated}, events...)
+			events = append(events, updated)
 			if scheduler != nil {
 				scheduler.RefreshSchedule(selected)
 			}
@@ -288,7 +289,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			if scheduler != nil {
 				scheduler.SetPaused(true)
 			}
-			events = append([]event{newEvent(0, "Scheduler", "Paused", "All job execution paused")}, events...)
+			events = append(events, newEvent(0, "Scheduler", "Paused", "All job execution paused"))
 		} else {
 			schedulerState.SetText("Scheduler running")
 			stopAllButton.SetText("Pause all")
@@ -303,7 +304,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			if scheduler != nil {
 				scheduler.SetPaused(false)
 			}
-			events = append([]event{newEvent(0, "Scheduler", "Resumed", "All job execution resumed")}, events...)
+			events = append(events, newEvent(0, "Scheduler", "Resumed", "All job execution resumed"))
 		}
 		list.Refresh()
 		refresh()
@@ -319,7 +320,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			current.NextRun = "Waiting for scheduler"
 			resumed := newEvent(current.ID, current.Name, "Resumed", "Job was enabled")
 			current.Logs = append([]event{resumed}, current.Logs...)
-			events = append([]event{resumed}, events...)
+			events = append(events, resumed)
 			if scheduler != nil {
 				scheduler.RefreshSchedule(selected)
 			}
@@ -328,7 +329,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			current.NextRun = "Paused"
 			paused := newEvent(current.ID, current.Name, "Paused", "Job was disabled")
 			current.Logs = append([]event{paused}, current.Logs...)
-			events = append([]event{paused}, events...)
+			events = append(events, paused)
 			if scheduler != nil {
 				scheduler.RefreshSchedule(selected)
 			}
@@ -362,7 +363,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 			} else {
 				selected = filteredJobs[0]
 			}
-			events = append([]event{newEvent(deleted.ID, deleted.Name, "Deleted", "Job was removed")}, events...)
+			events = append(events, newEvent(deleted.ID, deleted.Name, "Deleted", "Job was removed"))
 			_ = store.SaveJobs(jobs)
 			list.Refresh()
 			if selected >= 0 {
@@ -397,7 +398,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	scheduler = core.NewScheduler(store, &jobs, func(record core.RunRecord) {
 		// Scheduled runs happen on the scheduler goroutine. The callback updates
 		// the shared in-memory event list so History reflects background activity.
-		events = append([]event{record}, events...)
+		events = append(events, record)
 		refresh()
 	})
 	scheduler.Start()
@@ -454,10 +455,10 @@ func statusText(j job) string {
 }
 
 func newEvent(jobID int, jobName string, state string, detail string) event {
-	// UI events use a short time because they are session-local activity markers.
-	// Command runs use full timestamps from core.RunJob and have log files.
+	// Use the same timestamp shape as command run records so the History tab is
+	// visually consistent across startup, UI actions, manual runs, and schedules.
 	return event{
-		Time:    time.Now().Format("15:04:05"),
+		Time:    time.Now().Format("2006-01-02 15:04:05"),
 		JobID:   jobID,
 		JobName: jobName,
 		Trigger: "UI",
@@ -485,6 +486,9 @@ func collectActivity(jobs []job) []event {
 		// history loading from log metadata.
 		events = append(events, current.Logs...)
 	}
+	sort.SliceStable(events, func(left int, right int) bool {
+		return events[left].Time < events[right].Time
+	})
 	return events
 }
 
@@ -616,14 +620,61 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 }
 
 func newHistoryView(events *[]event) *fyne.Container {
-	list := widget.NewList(
-		func() int { return len(*events) },
-		func() fyne.CanvasObject { return widget.NewLabel("event") },
-		func(id widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(eventText((*events)[id]))
+	table := widget.NewTable(
+		func() (int, int) {
+			return len(*events) + 1, 6
+		},
+		func() fyne.CanvasObject {
+			label := widget.NewLabel("")
+			label.Wrapping = fyne.TextTruncate
+			return label
+		},
+		func(id widget.TableCellID, item fyne.CanvasObject) {
+			label := item.(*widget.Label)
+			label.SetText(historyCellText(id, *events))
+			label.TextStyle = fyne.TextStyle{Bold: id.Row == 0}
+			label.Refresh()
 		},
 	)
-	return container.NewPadded(list)
+	table.SetColumnWidth(0, 150)
+	table.SetColumnWidth(1, 90)
+	table.SetColumnWidth(2, 170)
+	table.SetColumnWidth(3, 90)
+	table.SetColumnWidth(4, 360)
+	table.SetColumnWidth(5, 320)
+	return container.NewPadded(table)
+}
+
+func historyCellText(id widget.TableCellID, events []event) string {
+	headers := []string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
+	if id.Row == 0 {
+		return headers[id.Col]
+	}
+	eventIndex := id.Row - 1
+	if eventIndex < 0 || eventIndex >= len(events) {
+		return ""
+	}
+	current := events[eventIndex]
+	trigger := current.Trigger
+	if trigger == "" {
+		trigger = "Unknown"
+	}
+	switch id.Col {
+	case 0:
+		return current.Time
+	case 1:
+		return trigger
+	case 2:
+		return current.JobName
+	case 3:
+		return current.State
+	case 4:
+		return current.Detail
+	case 5:
+		return current.LogFile
+	default:
+		return ""
+	}
 }
 
 func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {
