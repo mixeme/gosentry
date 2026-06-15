@@ -6,7 +6,7 @@ PySentry is being designed and implemented with assistance from OpenAI Codex.
 
 ## Features
 
-- Native desktop GUI built with Fyne.
+- Native desktop GUI built with [Fyne](https://fyne.io/).
 - Job storage in one clean YAML file.
 - App settings in a separate YAML file.
 - `@every` schedules and standard 5-field cron expressions.
@@ -21,16 +21,37 @@ PySentry is being designed and implemented with assistance from OpenAI Codex.
 
 Common:
 
-- Go 1.22 or newer.
+- [Go](https://go.dev/) 1.22 or newer.
 
 Windows:
 
 - MSYS2 with UCRT64 GCC in `C:\msys64\ucrt64\bin`.
 
+Install these dependencies on Windows:
+
+```powershell
+# 1. Install Go 1.22 or newer from https://go.dev/dl/.
+#    The default installer path is C:\Program Files\Go.
+go version
+
+# 2. Install MSYS2 from https://www.msys2.org/.
+#    Use the default installation path so UCRT64 tools are placed under
+#    C:\msys64\ucrt64\bin.
+
+# 3. Open "MSYS2 UCRT64" from the Start menu and install GCC plus windres.
+pacman -Syu
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-binutils
+
+# 4. In PowerShell, check that the compiler is available where the build script
+#    expects it. build-windows.bat prepends this directory automatically.
+Test-Path C:\msys64\ucrt64\bin\gcc.exe
+Test-Path C:\msys64\ucrt64\bin\windres.exe
+```
+
 Linux:
 
 - A C compiler.
-- Fyne native build dependencies, including OpenGL/X11 development packages.
+- [Fyne](https://fyne.io/) native build dependencies, including OpenGL/X11 development packages.
 
 On Debian/Ubuntu, the Linux dependencies are typically:
 
@@ -97,11 +118,18 @@ dist\linux\pysentry-0.1.0-linux-amd64
 Release build from Linux:
 
 ```bash
-# Builds Linux amd64, Linux arm64, and Windows amd64 artifacts from one
-# Linux/Docker workflow. The Dockerfile includes Linux Fyne dependencies plus
-# cross-compilers for arm64 Linux and the Windows .exe.
+# Interactively choose Linux amd64, Linux arm64, Windows amd64, or all artifacts
+# from one Linux/Docker workflow. The Dockerfile contains the builder
+# environment; the build commands live in this script.
 chmod +x ./scripts/build-release-linux.sh
 ./scripts/build-release-linux.sh
+```
+
+Non-interactive release builds can pass target names:
+
+```bash
+# Build only Linux arm64 and Windows amd64 artifacts.
+./scripts/build-release-linux.sh linux-arm64 windows-amd64
 ```
 
 The binaries are copied to:
@@ -287,7 +315,7 @@ Build outputs are written to `dist/`. The old local `bin/` directory is not used
 
 PySentry keeps the direct dependency list intentionally small:
 
-- `fyne.io/fyne/v2` for the native GUI.
+- [`fyne.io/fyne/v2`](https://fyne.io/) for the native GUI.
 - `github.com/robfig/cron/v3` for cron schedule parsing.
 - `gopkg.in/yaml.v3` for YAML settings and jobs.
 

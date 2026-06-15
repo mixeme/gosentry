@@ -30,29 +30,12 @@ RUN apt-get update && \
 WORKDIR /src
 
 # Copy module files first so Docker can cache downloaded dependencies while the
-# application source changes. This makes repeated local builds much faster.
+# application source changes. The release script later mounts the live repository
+# over /src, but the module cache remains in the image and keeps repeated builds
+# faster.
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . .
-
-# CGO is required by Fyne. This builder produces the release artifacts from
-# Linux: Linux amd64, Linux arm64, and a Windows amd64 binary cross-compiled with
-# MinGW. The Windows resource is generated inside the container so Explorer still
-# sees the application icon.
-RUN version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)" && \
-    version="${version:-0.0.0-dev}" && \
-    mkdir -p /out/linux /out/windows && \
-    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-        go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${version}" \
-        -o "/out/linux/pysentry-${version}-linux-amd64" ./cmd/pysentry && \
-    CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
-        CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" \
-        CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" \
-        PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig \
-        go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${version}" \
-        -o "/out/linux/pysentry-${version}-linux-arm64" ./cmd/pysentry && \
-    x86_64-w64-mingw32-windres -O coff -o cmd/pysentry/rsrc_windows_amd64.syso packaging/windows/pysentry.rc && \
-    CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 \
-        go build -trimpath -ldflags "-s -w -H=windowsgui -X github.com/pysentry/pysentry/src/core.Version=${version}" \
-        -o "/out/windows/pysentry-${version}-windows-amd64.exe" ./cmd/pysentry
+# The image intentionally stops here. Artifact build commands live in
+# scripts/build-release-linux.sh so a developer can choose targets interactively
+# without rebuilding this environment image for every selection.

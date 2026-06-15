@@ -12,17 +12,14 @@ output="${1:-dist/linux/pysentry-${version}-linux-amd64}"
 # environment in Docker makes Linux builds repeatable from Windows hosts and CI.
 docker build -f Dockerfile -t gitea.mixdep.ru/mix/pysentry-builder .
 
-# The image build produces /out/linux and /out/windows. This helper copies only
-# the Linux binary for compatibility with the older Linux-only workflow; use
-# build-release-linux.sh when both platform artifacts are needed.
-container_id="$(docker create gitea.mixdep.ru/mix/pysentry-builder)"
-cleanup() {
-    docker rm "$container_id" >/dev/null
-}
-trap cleanup EXIT
-
 mkdir -p "$(dirname "$output")"
-docker cp "${container_id}:/out/linux/pysentry-${version}-linux-amd64" "$output"
+docker run --rm \
+    -e "VERSION=${version}" \
+    -e "OUTPUT=${output}" \
+    -v "$(pwd):/src" \
+    -w /src \
+    gitea.mixdep.ru/mix/pysentry-builder \
+    bash -lc 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "${OUTPUT}" ./cmd/pysentry'
 
 # Icons are embedded in the Go binary, so there is no assets directory to copy
 # after extracting the Linux executable.
