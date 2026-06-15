@@ -31,6 +31,7 @@ type job = core.Job
 type event = core.RunRecord
 
 func Run() {
+	started := time.Now()
 	// A stable app ID lets Fyne persist desktop preferences consistently across
 	// launches and gives tray/window integration a predictable identity.
 	a := app.NewWithID(appID)
@@ -39,7 +40,7 @@ func Run() {
 	w := a.NewWindow("PySentry " + core.Version)
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
-	w.SetContent(newMainView(w))
+	w.SetContent(newMainView(w, started))
 	w.ShowAndRun()
 }
 
@@ -74,12 +75,13 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 	})
 }
 
-func newMainView(w fyne.Window) fyne.CanvasObject {
+func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	store, jobs, err := core.OpenStore()
 	if err != nil {
 		return container.NewPadded(widget.NewLabel("Failed to load PySentry configuration: " + err.Error()))
 	}
-	events := collectActivity(jobs)
+	startupDuration := time.Since(started).Round(time.Millisecond)
+	events := append([]event{newEvent(0, "Application", "Started", "Startup completed in "+startupDuration.String())}, collectActivity(jobs)...)
 
 	// The GUI keeps the loaded jobs slice in memory and persists changes after
 	// each edit/run. This keeps the first version responsive and easy to reason
