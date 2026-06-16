@@ -733,7 +733,7 @@ func logFileName(path string) string {
 }
 
 func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObject {
-	startOnLogin := widget.NewCheck("Start PySentry when I sign in", nil)
+	startOnLogin := widget.NewCheck("Start on login", nil)
 	startOnLogin.SetChecked(store.Config.StartOnLogin)
 	autostartStatus := widget.NewLabel("")
 	refreshAutostartStatus := func() {
@@ -826,8 +826,7 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 
 	return container.NewPadded(container.NewVBox(
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		detailRow("Version", widget.NewLabel(core.Version)),
-		detailRow("Start on login", container.NewBorder(nil, nil, nil, autostartStatus, startOnLogin)),
+		container.NewBorder(nil, nil, nil, autostartStatus, startOnLogin),
 		minimizeToTray,
 		notifications,
 		widget.NewSeparator(),
