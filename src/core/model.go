@@ -2,6 +2,11 @@ package core
 
 import "time"
 
+// StartInTrayArgument is written to the Windows Startup shortcut so autostart
+// can keep the scheduler running without flashing the main window. Manual
+// launches omit this flag and open the normal window.
+const StartInTrayArgument = "--start-in-tray"
+
 // Config is stored in pysentry.yaml next to the program. It contains only
 // application-level choices: where to read jobs from, where to write logs, and
 // how the desktop shell should behave.

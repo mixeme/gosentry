@@ -69,4 +69,5 @@ flowchart LR
 7. Autostart:
    The Settings tab calls the platform autostart implementation. Windows uses a
    shortcut in the current user's Startup folder. Linux uses a desktop-session
-   startup entry.
+   startup entry. Both autostart mechanisms pass `--start-in-tray`, so the
+   scheduler starts without opening the main window after sign-in.

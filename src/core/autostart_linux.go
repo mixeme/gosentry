@@ -30,11 +30,11 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 Type=Application
 Name=PySentry
 Comment=PySentry desktop scheduler
-Exec=%s
+Exec=%s %s
 %s
 Terminal=false
 X-GNOME-Autostart-enabled=true
-`, quoteDesktopExec(executablePath), desktopIconLine(iconPath))
+`, quoteDesktopExec(executablePath), StartInTrayArgument, desktopIconLine(iconPath))
 		return os.WriteFile(desktopPath, []byte(desktopFile), 0o644)
 	}
 
@@ -63,7 +63,8 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	if readErr != nil {
 		return false, "Autostart desktop entry is missing"
 	}
-	if !strings.Contains(string(data), "Exec="+quoteDesktopExec(executablePath)) {
+	expectedExec := "Exec=" + quoteDesktopExec(executablePath) + " " + StartInTrayArgument
+	if !strings.Contains(string(data), expectedExec) {
 		return false, "Autostart desktop entry points to another executable"
 	}
 	return true, "Autostart is configured"

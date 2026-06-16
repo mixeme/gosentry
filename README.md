@@ -274,6 +274,7 @@ Standard 5-field cron schedules:
 Changing `jobs_dir` saves the current job list to the new directory.
 
 The `Start on login` setting shows an `OK` or `Problem` status next to the checkbox. Saving settings with the checkbox enabled rewrites the autostart entry using the current executable path.
+Autostart entries add `--start-in-tray`, so scheduled jobs begin running after sign-in without opening the main window.
 
 ## Autostart
 
@@ -292,7 +293,7 @@ Linux:
 [Desktop Entry]
 Type=Application
 Name=PySentry
-Exec=/opt/pysentry/pysentry-0.2.4-linux-amd64
+Exec=/opt/pysentry/pysentry-0.2.4-linux-amd64 --start-in-tray
 Terminal=false
 ```
 
@@ -301,8 +302,9 @@ Windows:
 ```text
 # PySentry writes a shortcut to the current user's Startup folder when Start on
 # login is enabled. A .lnk stores the executable path as a structured TargetPath,
-# so paths with spaces do not need fragile command-line quoting. Saving settings
-# rewrites the shortcut and removes old HKCU Run entries from earlier builds.
+# and stores --start-in-tray as Arguments, so paths with spaces do not need
+# fragile command-line quoting. Saving settings rewrites the shortcut and removes
+# old HKCU Run entries from earlier builds.
 %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\GoSentry.lnk
 ```
 

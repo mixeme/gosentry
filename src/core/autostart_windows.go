@@ -57,12 +57,15 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 		return false, "Autostart shortcut cannot be checked"
 	}
 
-	actual, err := readShortcutTarget(shortcutPath)
+	actual, arguments, err := readShortcut(shortcutPath)
 	if err != nil {
 		return false, "Autostart shortcut cannot be read"
 	}
 	if !sameWindowsPath(actual, executablePath) {
 		return false, "Autostart shortcut points to another executable"
+	}
+	if strings.TrimSpace(arguments) != StartInTrayArgument {
+		return false, "Autostart shortcut does not start in tray"
 	}
 	return true, "Autostart is configured"
 }
@@ -84,11 +87,12 @@ func createStartupShortcut(shortcutPath string, executablePath string, iconPath 
 	if iconPath == "" {
 		iconPath = executablePath
 	}
-	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); $shortcut.TargetPath = $env:GOSENTRY_TARGET_PATH; $shortcut.WorkingDirectory = $env:GOSENTRY_WORKING_DIRECTORY; $shortcut.IconLocation = $env:GOSENTRY_ICON_PATH; $shortcut.Save()`
+	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); $shortcut.TargetPath = $env:GOSENTRY_TARGET_PATH; $shortcut.Arguments = $env:GOSENTRY_ARGUMENTS; $shortcut.WorkingDirectory = $env:GOSENTRY_WORKING_DIRECTORY; $shortcut.IconLocation = $env:GOSENTRY_ICON_PATH; $shortcut.Save()`
 	command := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	command.Env = append(os.Environ(),
 		"GOSENTRY_SHORTCUT_PATH="+shortcutPath,
 		"GOSENTRY_TARGET_PATH="+executablePath,
+		"GOSENTRY_ARGUMENTS="+StartInTrayArgument,
 		"GOSENTRY_WORKING_DIRECTORY="+workingDirectory,
 		"GOSENTRY_ICON_PATH="+iconPath,
 	)
@@ -99,16 +103,27 @@ func createStartupShortcut(shortcutPath string, executablePath string, iconPath 
 	return nil
 }
 
-func readShortcutTarget(shortcutPath string) (string, error) {
-	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); [Console]::Out.Write($shortcut.TargetPath)`
+func readShortcut(shortcutPath string) (string, string, error) {
+	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); [Console]::Out.Write($shortcut.TargetPath + [Environment]::NewLine + $shortcut.Arguments)`
 	command := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	command.Env = append(os.Environ(), "GOSENTRY_SHORTCUT_PATH="+shortcutPath)
 	configureHiddenWindow(command)
 	output, err := command.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("read startup shortcut: %w: %s", err, strings.TrimSpace(string(output)))
+		return "", "", fmt.Errorf("read startup shortcut: %w: %s", err, strings.TrimSpace(string(output)))
 	}
-	return strings.TrimSpace(string(output)), nil
+	lines := strings.SplitN(string(output), "\n", 2)
+	target := strings.TrimSpace(lines[0])
+	arguments := ""
+	if len(lines) > 1 {
+		arguments = strings.TrimSpace(lines[1])
+	}
+	return target, arguments, nil
+}
+
+func readShortcutTarget(shortcutPath string) (string, error) {
+	target, _, err := readShortcut(shortcutPath)
+	return target, err
 }
 
 func removeIfExists(path string) error {

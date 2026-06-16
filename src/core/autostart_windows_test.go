@@ -63,11 +63,14 @@ func TestCreateStartupShortcutHandlesSpaces(t *testing.T) {
 		t.Fatalf("create shortcut: %v", err)
 	}
 
-	actual, err := readShortcutTarget(shortcutPath)
+	actual, arguments, err := readShortcut(shortcutPath)
 	if err != nil {
 		t.Fatalf("read shortcut: %v", err)
 	}
 	if !sameWindowsPath(actual, targetPath) {
 		t.Fatalf("shortcut target mismatch: got %q want %q", actual, targetPath)
+	}
+	if arguments != StartInTrayArgument {
+		t.Fatalf("shortcut arguments mismatch: got %q want %q", arguments, StartInTrayArgument)
 	}
 }

@@ -42,9 +42,9 @@ const singleInstanceShowCommand = "show"
 type job = core.Job
 type event = core.RunRecord
 
-func Run() {
+func Run(startInTray bool) {
 	started := time.Now()
-	instanceListener, primary := acquireSingleInstance()
+	instanceListener, primary := acquireSingleInstance(!startInTray)
 	if !primary {
 		return
 	}
@@ -62,6 +62,10 @@ func Run() {
 	w.Resize(fyne.NewSize(1120, 720))
 	w.SetContent(newMainView(w, started))
 	serveSingleInstance(instanceListener, w)
+	if startInTray {
+		a.Run()
+		return
+	}
 	w.ShowAndRun()
 }
 
@@ -96,7 +100,7 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 	})
 }
 
-func acquireSingleInstance() (net.Listener, bool) {
+func acquireSingleInstance(showExisting bool) (net.Listener, bool) {
 	listener, err := net.Listen("tcp", singleInstanceAddress)
 	if err == nil {
 		return listener, true
@@ -104,7 +108,9 @@ func acquireSingleInstance() (net.Listener, bool) {
 
 	connection, dialErr := net.DialTimeout("tcp", singleInstanceAddress, time.Second)
 	if dialErr == nil {
-		_, _ = io.WriteString(connection, singleInstanceShowCommand)
+		if showExisting {
+			_, _ = io.WriteString(connection, singleInstanceShowCommand)
+		}
 		_ = connection.Close()
 		return nil, false
 	}
