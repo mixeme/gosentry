@@ -27,6 +27,9 @@ const appID = "io.github.pysentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
 const minJobsSidebarWidth float32 = 480
+const settingsLabelWidth float32 = 140
+const settingsControlWidth float32 = 330
+const settingsStatusWidth float32 = 280
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
 
 // The GUI package aliases core types to keep widget callbacks short. The actual
@@ -512,6 +515,19 @@ func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewGridWithColumns(2, caption, value)
 }
 
+func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
+	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	caption.Wrapping = fyne.TextTruncate
+	captionBox := container.New(minWidthLayout{width: settingsLabelWidth}, caption)
+	return container.NewBorder(nil, nil, captionBox, nil, value)
+}
+
+func settingsRowWithStatus(label string, value fyne.CanvasObject, status fyne.CanvasObject) fyne.CanvasObject {
+	valueBox := container.New(minWidthLayout{width: settingsControlWidth}, value)
+	statusBox := container.New(minWidthLayout{width: settingsStatusWidth}, status)
+	return settingsRow(label, container.NewBorder(nil, nil, valueBox, nil, statusBox))
+}
+
 func filteredJobIndexes(jobs []job, folder string) []int {
 	indexes := make([]int, 0, len(jobs))
 	for index, current := range jobs {
@@ -826,24 +842,24 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 
 	return container.NewPadded(container.NewVBox(
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil, autostartStatus, startOnLogin),
-		minimizeToTray,
-		notifications,
+		settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
+		settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
+		settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		detailRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
-		detailRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
-		detailRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
-		detailRow("Max log files", maxLogFiles),
-		detailRow("Max log age days", maxLogAgeDays),
+		settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
+		settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
+		settingsRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
+		settingsRow("Max log files", maxLogFiles),
+		settingsRow("Max log age days", maxLogAgeDays),
 		saveSettings,
 		settingsStatus,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("About", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		detailRow("GoSentry", widget.NewLabel(core.Version)),
-		detailRow("Go", widget.NewLabel(runtime.Version())),
-		detailRow("Fyne", widget.NewLabel(fyneVersion())),
-		detailRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
+		settingsRow("GoSentry", widget.NewLabel(core.Version)),
+		settingsRow("Go", widget.NewLabel(runtime.Version())),
+		settingsRow("Fyne", widget.NewLabel(fyneVersion())),
+		settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
 	))
 }
 
