@@ -157,12 +157,13 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	schedulerPaused := false
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 	title := widget.NewLabelWithStyle(jobs[selected].Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	folder := widget.NewLabel(jobs[selected].Folder)
-	schedule := widget.NewLabel(jobs[selected].Schedule)
-	command := widget.NewLabel(jobs[selected].Command)
-	lastRun := widget.NewLabel(jobs[selected].LastRun)
-	nextRun := widget.NewLabel(jobs[selected].NextRun)
-	state := widget.NewLabel(jobs[selected].LastState)
+	title.Wrapping = fyne.TextWrapBreak
+	folder := newJobDetailLabel(jobs[selected].Folder)
+	schedule := newJobDetailLabel(jobs[selected].Schedule)
+	command := newJobDetailLabel(jobs[selected].Command)
+	lastRun := newJobDetailLabel(jobs[selected].LastRun)
+	nextRun := newJobDetailLabel(jobs[selected].NextRun)
+	state := newJobDetailLabel(jobs[selected].LastState)
 	schedulerState := widget.NewLabel("Scheduler running")
 	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(jobs[selected].Output)
@@ -567,6 +568,15 @@ func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
 	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	caption.Wrapping = fyne.TextTruncate
 	return container.NewGridWithColumns(2, caption, value)
+}
+
+func newJobDetailLabel(text string) *widget.Label {
+	label := widget.NewLabel(text)
+	// Job names, commands, and paths can be much wider than the details panel.
+	// Breaking long runs of text keeps Label.MinSize stable when the selection
+	// changes, so the right panel does not force the whole window to resize.
+	label.Wrapping = fyne.TextWrapBreak
+	return label
 }
 
 func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
