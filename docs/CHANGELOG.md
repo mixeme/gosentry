@@ -2,6 +2,11 @@
 
 All notable PySentry changes are recorded in this file.
 
+## 0.2.4 - 2026-06-16
+
+- Prevented repeated application launches by forwarding a second start attempt to the already running instance.
+- A second instance now asks the first instance to show and focus the existing window, then exits.
+
 ## 0.2.3 - 2026-06-15
 
 - Changed History to use chronological ordering with new records appended at the bottom.

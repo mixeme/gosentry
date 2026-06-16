@@ -2,6 +2,8 @@ package gui
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"net/url"
 	"runtime"
 	"runtime/debug"
@@ -31,6 +33,8 @@ const settingsLabelWidth float32 = 140
 const settingsControlWidth float32 = 330
 const settingsStatusWidth float32 = 280
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
+const singleInstanceAddress = "127.0.0.1:37653"
+const singleInstanceShowCommand = "show"
 
 // The GUI package aliases core types to keep widget callbacks short. The actual
 // durable model still lives in src/core, so GUI code does not define a second
@@ -40,6 +44,14 @@ type event = core.RunRecord
 
 func Run() {
 	started := time.Now()
+	instanceListener, primary := acquireSingleInstance()
+	if !primary {
+		return
+	}
+	if instanceListener != nil {
+		defer instanceListener.Close()
+	}
+
 	// A stable app ID lets Fyne persist desktop preferences consistently across
 	// launches and gives tray/window integration a predictable identity.
 	a := app.NewWithID(appID)
@@ -49,6 +61,7 @@ func Run() {
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
 	w.SetContent(newMainView(w, started))
+	serveSingleInstance(instanceListener, w)
 	w.ShowAndRun()
 }
 
@@ -81,6 +94,47 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 		// remains the way to stop the process.
 		w.Hide()
 	})
+}
+
+func acquireSingleInstance() (net.Listener, bool) {
+	listener, err := net.Listen("tcp", singleInstanceAddress)
+	if err == nil {
+		return listener, true
+	}
+
+	connection, dialErr := net.DialTimeout("tcp", singleInstanceAddress, time.Second)
+	if dialErr == nil {
+		_, _ = io.WriteString(connection, singleInstanceShowCommand)
+		_ = connection.Close()
+		return nil, false
+	}
+
+	// If the port is unavailable but does not answer as GoSentry, continue
+	// startup instead of making the application impossible to open because of an
+	// unrelated local listener. In the normal duplicate-start case the dial above
+	// succeeds and this process exits after waking the first instance.
+	return nil, true
+}
+
+func serveSingleInstance(listener net.Listener, w fyne.Window) {
+	if listener == nil {
+		return
+	}
+	go func() {
+		for {
+			connection, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			command, _ := io.ReadAll(io.LimitReader(connection, 32))
+			_ = connection.Close()
+			if strings.TrimSpace(string(command)) != singleInstanceShowCommand {
+				continue
+			}
+			w.Show()
+			w.RequestFocus()
+		}
+	}()
 }
 
 func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
