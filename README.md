@@ -324,7 +324,7 @@ PySentry keeps the direct dependency list intentionally small:
 
 - [`fyne.io/fyne/v2`](https://fyne.io/) for the native GUI.
 - `github.com/robfig/cron/v3` for cron schedule parsing.
-- `gopkg.in/yaml.v3` for YAML settings and jobs.
+- [`go.yaml.in/yaml/v4`](https://github.com/yaml/go-yaml) for YAML settings and jobs.
 
 The remaining entries in `go.mod` are indirect dependencies pulled by Fyne and the Go module resolver.
 
@@ -333,7 +333,7 @@ Source repositories for mirroring:
 - Go toolchain: https://go.googlesource.com/go
 - Fyne: https://github.com/fyne-io/fyne
 - robfig/cron: https://github.com/robfig/cron
-- go-yaml/yaml: https://github.com/go-yaml/yaml
+- yaml/go-yaml: https://github.com/yaml/go-yaml
 
 To list every direct and indirect Go module used by the current checkout:
 

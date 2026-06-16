@@ -5,7 +5,7 @@ go 1.22
 require (
 	fyne.io/fyne/v2 v2.5.3
 	github.com/robfig/cron/v3 v3.0.1
-	gopkg.in/yaml.v3 v3.0.1
+	go.yaml.in/yaml/v4 v4.0.0-rc.5
 )
 
 require (
@@ -37,4 +37,5 @@ require (
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.16.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
