@@ -2,6 +2,15 @@
 
 All notable PySentry changes are recorded in this file.
 
+## 0.2.5 - 2026-06-16
+
+- Stabilized the Jobs details panel so long selected-job fields do not resize the right pane or application window.
+- Switched Windows autostart from `HKCU Run` entries to a Startup folder shortcut, fixing executable paths that contain spaces.
+- Added `--start-in-tray` autostart launches for Windows and Linux so sign-in startup does not open the main window.
+- Added Windows shortcut tests and Linux autostart desktop-entry tests for the new startup-in-tray behavior.
+- Updated autostart documentation and architecture notes for the Startup shortcut and XDG desktop-entry behavior.
+- Documented the Windows VirtualBox/RDP OpenGL startup failure and the Mesa software OpenGL workaround.
+
 ## 0.2.4 - 2026-06-16
 
 - Prevented repeated application launches by forwarding a second start attempt to the already running instance.

@@ -86,7 +86,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry-0.2.4-windows-amd64.exe
+dist\windows\pysentry-0.2.5-windows-amd64.exe
 ```
 
 Linux:
@@ -101,7 +101,7 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry-0.2.4-linux-amd64
+dist/linux/pysentry-0.2.5-linux-amd64
 ```
 
 Linux using Docker:
@@ -118,7 +118,7 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry-0.2.4-linux-amd64
+dist\linux\pysentry-0.2.5-linux-amd64
 ```
 
 Release build from Linux:
@@ -143,13 +143,13 @@ The binaries are copied to:
 
 ```text
 # Linux artifact.
-dist/linux/pysentry-0.2.4-linux-amd64
+dist/linux/pysentry-0.2.5-linux-amd64
 
 # Linux arm64 artifact.
-dist/linux/pysentry-0.2.4-linux-arm64
+dist/linux/pysentry-0.2.5-linux-arm64
 
 # Windows artifact cross-compiled from Linux.
-dist/windows/pysentry-0.2.4-windows-amd64.exe
+dist/windows/pysentry-0.2.5-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -174,6 +174,42 @@ Linux:
 # libraries.
 CGO_ENABLED=1 go run ./cmd/pysentry
 ```
+
+## Troubleshooting
+
+### Windows, VirtualBox, RDP, And OpenGL
+
+PySentry uses [Fyne](https://fyne.io/), and Fyne uses GLFW/OpenGL to create the
+desktop window. In a Windows virtual machine, especially when the session is
+opened through RDP inside VirtualBox, the available video driver can fail OpenGL
+initialization.
+
+Typical error:
+
+```text
+Fyne error: window creation error
+Cause: APIUnavailable: WGL: The driver does not appear to support OpenGL
+At: fyne.io/fyne/v2@v2.5.3/internal/driver/glfw/driver.go:149
+```
+
+Known workaround:
+
+1. Download a Windows Mesa build from
+   [mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases).
+2. Open the downloaded archive and use the `x64` build.
+3. Copy the Mesa OpenGL DLL files from `x64` into the same directory as the
+   PySentry `.exe`, for example:
+
+```text
+dist\windows\
+  pysentry-0.2.5-windows-amd64.exe
+  opengl32.dll
+  ...
+```
+
+This makes Windows load Mesa's software OpenGL implementation next to the
+application binary, which lets the Fyne window start even when the VirtualBox/RDP
+driver does not provide usable OpenGL.
 
 ## Storage
 
@@ -293,7 +329,7 @@ Linux:
 [Desktop Entry]
 Type=Application
 Name=PySentry
-Exec=/opt/pysentry/pysentry-0.2.4-linux-amd64 --start-in-tray
+Exec=/opt/pysentry/pysentry-0.2.5-linux-amd64 --start-in-tray
 Terminal=false
 ```
 

@@ -38,6 +38,16 @@ Cleanup checklist:
 - Recheck `.gitignore`, Docker scripts, and packaging scripts for rules or
   branches that only supported early experiments.
 
+## Tray Interaction
+
+Improve tray icon interaction after choosing a tray backend path.
+
+- Add double-click on the tray icon to show and focus the main window.
+- Current Fyne 2.5.3 desktop tray API exposes menu and icon setup, but does not
+  expose click or double-click callbacks for the tray icon itself.
+- Revisit when Fyne exposes this callback, or evaluate a small platform-specific
+  tray integration if the behavior becomes important enough.
+
 ## Delivery And Packaging
 
 Keep a single portable binary as the baseline delivery format. It is simple to
