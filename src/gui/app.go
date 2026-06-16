@@ -2,6 +2,9 @@ package gui
 
 import (
 	"fmt"
+	"net/url"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +27,7 @@ const appID = "io.github.pysentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
 const minJobsSidebarWidth float32 = 480
+const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
 
 // The GUI package aliases core types to keep widget callbacks short. The actual
 // durable model still lives in src/core, so GUI code does not define a second
@@ -836,9 +840,39 @@ func settingsView(w fyne.Window, store *core.Store, jobs *[]job) fyne.CanvasObje
 		saveSettings,
 		settingsStatus,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Scheduler", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Current core supports @every schedules and standard 5-field cron expressions."),
+		widget.NewLabelWithStyle("About", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		detailRow("GoSentry", widget.NewLabel(core.Version)),
+		detailRow("Go", widget.NewLabel(runtime.Version())),
+		detailRow("Fyne", widget.NewLabel(fyneVersion())),
+		detailRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
 	))
+}
+
+func fyneVersion() string {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return "unknown"
+	}
+	for _, dependency := range info.Deps {
+		if dependency.Path == "fyne.io/fyne/v2" {
+			if dependency.Replace != nil && dependency.Replace.Version != "" {
+				return dependency.Replace.Version
+			}
+			if dependency.Version != "" {
+				return dependency.Version
+			}
+			return "local"
+		}
+	}
+	return "unknown"
+}
+
+func mustParseURL(raw string) *url.URL {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return &url.URL{}
+	}
+	return parsed
 }
 
 func chooseFolder(w fyne.Window, target *widget.Entry) {

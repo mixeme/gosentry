@@ -107,9 +107,9 @@ dist/linux/pysentry-0.2.3-linux-amd64
 Linux using Docker:
 
 ```bash
-# Builds the Linux binary inside Docker using the image tag
-# gitea.mixdep.ru/mix/pysentry-builder. Useful from hosts or CI jobs where the
-# native Linux/Fyne packages are not installed locally.
+# Builds the Linux binary inside Docker using the versioned image tag
+# gitea.mixdep.ru/mix/pysentry-builder:<version>. Useful from hosts or CI jobs
+# where the native Linux/Fyne packages are not installed locally.
 chmod +x ./scripts/build-linux-docker.sh
 ./scripts/build-linux-docker.sh
 ```

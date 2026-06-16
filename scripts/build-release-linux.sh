@@ -5,15 +5,13 @@ set -euo pipefail
 # image contains Linux/Fyne dependencies for amd64 and arm64, plus the MinGW
 # cross-compiler used for the Windows GUI executable. Actual build commands live
 # here rather than in Dockerfile so target selection does not require rebuilding
-# the image.
-tag="gitea.mixdep.ru/mix/pysentry-builder"
-
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "$repo_root"
 
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
+tag="gitea.mixdep.ru/mix/pysentry-builder:${version}"
 
 docker_user_args=()
 if command -v id >/dev/null 2>&1; then

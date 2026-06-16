@@ -6,6 +6,7 @@ set -euo pipefail
 # default includes the application version and target platform.
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
+tag="gitea.mixdep.ru/mix/pysentry-builder:${version}"
 output="${1:-dist/linux/pysentry-${version}-linux-amd64}"
 docker_user_args=()
 if command -v id >/dev/null 2>&1; then
@@ -14,7 +15,7 @@ fi
 
 # Dockerfile contains the native packages required by Fyne. Keeping that
 # environment in Docker makes Linux builds repeatable from Windows hosts and CI.
-docker build -f Dockerfile -t gitea.mixdep.ru/mix/pysentry-builder .
+docker build -f Dockerfile -t "$tag" .
 
 mkdir -p "$(dirname "$output")"
 docker run --rm \
@@ -24,7 +25,7 @@ docker run --rm \
     -e "GOCACHE=/tmp/go-build-cache" \
     -v "$(pwd):/src" \
     -w /src \
-    gitea.mixdep.ru/mix/pysentry-builder \
+    "$tag" \
     bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "${OUTPUT}" ./cmd/pysentry'
 
 # Icons are embedded in the Go binary, so there is no assets directory to copy
