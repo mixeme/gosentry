@@ -299,12 +299,11 @@ Terminal=false
 Windows:
 
 ```text
-# PySentry writes an HKCU Run entry when Start on login is enabled. It needs no
-# administrator rights and starts PySentry when the current user signs in. Task
-# Scheduler remains a later option if delayed start or elevated tasks become
-# necessary. Saving settings with the checkbox enabled rewrites this entry, so it
-# repairs an old path after the executable was moved or renamed.
-HKCU\Software\Microsoft\Windows\CurrentVersion\Run\PySentry
+# PySentry writes a shortcut to the current user's Startup folder when Start on
+# login is enabled. A .lnk stores the executable path as a structured TargetPath,
+# so paths with spaces do not need fragile command-line quoting. Saving settings
+# rewrites the shortcut and removes old HKCU Run entries from earlier builds.
+%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\GoSentry.lnk
 ```
 
 ## Project Layout

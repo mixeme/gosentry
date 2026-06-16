@@ -14,7 +14,7 @@ flowchart LR
     store["src/core Store - YAML config and jobs"]
     scheduler["src/core Scheduler - @every and cron timing"]
     runner["src/core Runner - shell command execution"]
-    autostart["src/core Autostart - Windows Run / Linux desktop startup"]
+    autostart["src/core Autostart - Windows Startup shortcut / Linux desktop startup"]
     config["pysentry.yaml - application settings"]
     jobs["jobs.yaml - job definitions"]
     logs["logs_dir - per-run command output logs"]
@@ -67,5 +67,6 @@ flowchart LR
    runs log cleanup, and calls the GUI callback so the `History` tab refreshes.
 
 7. Autostart:
-   The Settings tab calls the platform autostart implementation. Windows uses the
-   current user's Run registry key. Linux uses a desktop-session startup entry.
+   The Settings tab calls the platform autostart implementation. Windows uses a
+   shortcut in the current user's Startup folder. Linux uses a desktop-session
+   startup entry.
