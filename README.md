@@ -197,9 +197,10 @@ Known workaround:
 1. Download a Windows Mesa build from
    [mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases). For a
    regular Windows x64 GoSentry build, use the archive named like
-   `mesa3d-<version>-release-msvc.7z`, for example
-   `mesa3d-26.1.1-release-msvc.7z`. The `devel`, `debug-info`, `tests`, and
-   checksum files are not needed for this workaround.
+   `mesa3d-<version>-release-mingw.7z`, for example
+   `mesa3d-26.1.1-release-mingw.7z`. This matches the MSYS2 GCC toolchain used
+   to build GoSentry. The `devel`, `debug-info`, `tests`, and checksum files
+   are not needed for this workaround.
 2. Open the downloaded archive and use the `x64` build from it.
 3. Copy the Mesa OpenGL DLL files from `x64` into the same directory as the
    GoSentry `.exe`, for example:
