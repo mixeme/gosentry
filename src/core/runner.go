@@ -8,14 +8,15 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
 )
 
 const commandTimeout = 30 * time.Second
+const commandWaitDelay = 2 * time.Second
 
 func RunJob(ctx context.Context, job *Job, trigger string, logsDir string) RunRecord {
 	started := time.Now()
@@ -26,30 +27,28 @@ func RunJob(ctx context.Context, job *Job, trigger string, logsDir string) RunRe
 	runCtx, cancel := context.WithTimeout(ctx, commandTimeout)
 	defer cancel()
 
-	// The command is executed through the platform shell so users can type the
-	// same command they would test manually in cmd.exe or sh. This is less strict
-	// than argv-based execution, but it is the expected behavior for a cron-like
-	// tool that supports redirection, environment expansion, and shell builtins.
-	command := shellCommand(runCtx, job.Command)
-	configureHiddenWindow(command)
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = &stderr
-
-	err := command.Run()
-	duration := time.Since(started).Round(time.Millisecond)
-	output := formatOutput(stdout.String(), stderr.String())
-
-	state := "OK"
-	detail := fmt.Sprintf("Completed in %s", duration)
-	if err != nil {
-		state = "Failed"
-		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
-			detail = fmt.Sprintf("Timed out after %s", commandTimeout)
-		} else {
-			detail = err.Error()
+	var output string
+	var state string
+	var detail string
+	if job.StartOnly {
+		invocation := jobInvocation(context.Background(), *job)
+		state, detail, output = startJobOnly(invocation, *job, started)
+	} else {
+		invocation := jobInvocation(runCtx, *job)
+		command := invocation.command
+		command.WaitDelay = commandWaitDelay
+		if invocation.hideWindow {
+			configureHiddenWindow(command)
 		}
+		command.Stdout = &stdout
+		command.Stderr = &stderr
+
+		err := command.Run()
+		duration := time.Since(started).Round(time.Millisecond)
+		output = formatOutput(stdout.String(), stderr.String())
+		state, detail = runStateDetail(err, runCtx.Err(), duration, *job)
 	}
 
 	now := time.Now()
@@ -141,8 +140,8 @@ func writeRunLog(logsDir string, job Job, trigger string, state string, detail s
 	// avoid characters that are invalid on Windows or awkward on shells.
 	fileName := started.Format("20060102-150405") + "_" + sanitizeFileName(job.Name) + ".log"
 	path := filepath.Join(logsDir, fileName)
-	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\ncommand: %s\n\n%s\n",
-		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, job.Command, output)
+	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\ncommand: %s\narguments: %s\nsuccess_exit_codes: %s\nstart_only: %t\n\n%s\n",
+		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, job.Command, logArguments(job.Arguments), successExitCodesText(job), job.StartOnly, output)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return ""
 	}
@@ -172,15 +171,157 @@ func sanitizeFileName(name string) string {
 	return result
 }
 
-func shellCommand(ctx context.Context, command string) *exec.Cmd {
-	if runtime.GOOS == "windows" {
-		// cmd.exe /C preserves Windows users' expectations for commands such as
-		// "dir", "copy", variable expansion, and .bat/.cmd wrappers.
-		return exec.CommandContext(ctx, "cmd.exe", "/C", command)
+func startJobOnly(invocation commandInvocation, job Job, started time.Time) (string, string, string) {
+	command := invocation.command
+	if invocation.hideWindow {
+		configureHiddenWindow(command)
 	}
-	// sh -c is the portable baseline for Linux builds. It keeps the runner small
-	// and avoids a hard dependency on a larger shell such as bash.
-	return exec.CommandContext(ctx, "sh", "-c", command)
+	err := command.Start()
+	duration := time.Since(started).Round(time.Millisecond)
+	if err != nil {
+		return "Failed", fmt.Sprintf("%T: %v", err, err), startOnlyOutput(job, 0)
+	}
+	pid := command.Process.Pid
+	if releaseErr := command.Process.Release(); releaseErr != nil {
+		return "Failed", fmt.Sprintf("process started with pid %d, but release failed: %T: %v", pid, releaseErr, releaseErr), startOnlyOutput(job, pid)
+	}
+	return "OK", fmt.Sprintf("Started in %s (pid %d); not waiting for process exit", duration, pid), startOnlyOutput(job, pid)
+}
+
+func startOnlyOutput(job Job, pid int) string {
+	var builder strings.Builder
+	builder.WriteString("status:\n")
+	if pid > 0 {
+		builder.WriteString(fmt.Sprintf("Started process pid %d. GoSentry is not waiting for it to exit.\n\n", pid))
+	} else {
+		builder.WriteString("Process did not start.\n\n")
+	}
+	builder.WriteString("command:\n")
+	builder.WriteString(job.Command + "\n\n")
+	builder.WriteString("arguments:\n")
+	builder.WriteString(logArguments(job.Arguments))
+	builder.WriteString("\n\nstart_only:\ntrue")
+	return builder.String()
+}
+
+func runStateDetail(err error, runErr error, duration time.Duration, job Job) (string, string) {
+	if err == nil {
+		return "OK", fmt.Sprintf("Completed in %s (exit code 0)", duration)
+	}
+	if errors.Is(runErr, context.DeadlineExceeded) {
+		return "Failed", fmt.Sprintf("Timed out after %s", commandTimeout)
+	}
+	if errors.Is(err, exec.ErrWaitDelay) {
+		return "OK", fmt.Sprintf("Completed; output capture stopped after %s because a child process kept the stream open", commandWaitDelay)
+	}
+
+	var exitError *exec.ExitError
+	if errors.As(err, &exitError) {
+		exitCode := exitError.ExitCode()
+		if acceptedExitCode(exitCode, job.SuccessExitCodes) {
+			return "OK", fmt.Sprintf("Completed in %s with accepted exit code %d", duration, exitCode)
+		}
+		return "Failed", fmt.Sprintf("Exit code %d is not in success_exit_codes (%s)", exitCode, successExitCodesText(job))
+	}
+	return "Failed", fmt.Sprintf("%T: %v", err, err)
+}
+
+func acceptedExitCode(exitCode int, successExitCodes string) bool {
+	for _, accepted := range parseExitCodes(successExitCodes) {
+		if exitCode == accepted {
+			return true
+		}
+	}
+	return false
+}
+
+func parseExitCodes(value string) []int {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return []int{0}
+	}
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\t' || r == '\n' || r == '\r'
+	})
+	result := make([]int, 0, len(fields))
+	seen := map[int]bool{}
+	for _, field := range fields {
+		code, err := strconv.Atoi(strings.TrimSpace(field))
+		if err != nil || seen[code] {
+			continue
+		}
+		seen[code] = true
+		result = append(result, code)
+	}
+	if len(result) == 0 {
+		return []int{0}
+	}
+	return result
+}
+
+func successExitCodesText(job Job) string {
+	codes := parseExitCodes(job.SuccessExitCodes)
+	parts := make([]string, 0, len(codes))
+	for _, code := range codes {
+		parts = append(parts, strconv.Itoa(code))
+	}
+	return strings.Join(parts, ",")
+}
+
+type commandInvocation struct {
+	command    *exec.Cmd
+	hideWindow bool
+}
+
+func jobInvocation(ctx context.Context, job Job) commandInvocation {
+	command := strings.TrimSpace(job.Command)
+	arguments := commandArguments(job.Arguments)
+	if len(arguments) > 0 || commandPathExists(command) {
+		return commandInvocation{
+			command:    exec.CommandContext(ctx, unquoteCommandPath(command), arguments...),
+			hideWindow: false,
+		}
+	}
+
+	// Shell mode remains for existing jobs and for commands that intentionally
+	// use builtins, redirection, variables, or chained command syntax.
+	return commandInvocation{
+		command:    shellCommand(ctx, command),
+		hideWindow: true,
+	}
+}
+
+func commandArguments(arguments string) []string {
+	var result []string
+	for _, line := range strings.FieldsFunc(arguments, func(r rune) bool {
+		return r == '\n' || r == '\r'
+	}) {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			result = append(result, line)
+		}
+	}
+	return result
+}
+
+func commandPathExists(command string) bool {
+	command = unquoteCommandPath(strings.TrimSpace(command))
+	if command == "" {
+		return false
+	}
+	info, err := os.Stat(command)
+	return err == nil && !info.IsDir()
+}
+
+func unquoteCommandPath(command string) string {
+	return strings.Trim(strings.TrimSpace(command), `"`)
+}
+
+func logArguments(arguments string) string {
+	if strings.TrimSpace(arguments) == "" {
+		return "<empty>"
+	}
+	return strings.ReplaceAll(strings.TrimSpace(arguments), "\r\n", "\n")
 }
 
 func formatOutput(stdout string, stderr string) string {

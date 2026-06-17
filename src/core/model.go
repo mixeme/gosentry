@@ -32,17 +32,20 @@ type JobsFile struct {
 // while GoSentry is running, but writing them to jobs.yaml would make the jobs
 // file noisy and would mix durable configuration with transient execution state.
 type Job struct {
-	ID        int         `yaml:"id"`
-	Name      string      `yaml:"name"`
-	Folder    string      `yaml:"folder,omitempty"`
-	Schedule  string      `yaml:"schedule"`
-	Command   string      `yaml:"command"`
-	Enabled   bool        `yaml:"enabled"`
-	LastRun   string      `yaml:"-"`
-	NextRun   string      `yaml:"-"`
-	LastState string      `yaml:"-"`
-	Logs      []RunRecord `yaml:"-"`
-	Output    string      `yaml:"-"`
+	ID               int         `yaml:"id"`
+	Name             string      `yaml:"name"`
+	Folder           string      `yaml:"folder,omitempty"`
+	Schedule         string      `yaml:"schedule"`
+	Command          string      `yaml:"command"`
+	Arguments        string      `yaml:"arguments,omitempty"`
+	SuccessExitCodes string      `yaml:"success_exit_codes,omitempty"`
+	StartOnly        bool        `yaml:"start_only,omitempty"`
+	Enabled          bool        `yaml:"enabled"`
+	LastRun          string      `yaml:"-"`
+	NextRun          string      `yaml:"-"`
+	LastState        string      `yaml:"-"`
+	Logs             []RunRecord `yaml:"-"`
+	Output           string      `yaml:"-"`
 
 	// nextDue is kept as time.Time for scheduler comparisons. The formatted
 	// NextRun string above exists only for display in the GUI and YAML rewriting

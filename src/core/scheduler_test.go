@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,5 +26,29 @@ func TestNextRunTimeSupportsCron(t *testing.T) {
 	want := time.Date(2026, 6, 14, 12, 5, 0, 0, time.UTC)
 	if !next.Equal(want) {
 		t.Fatalf("expected %s, got %s", want, next)
+	}
+}
+
+func TestRunningOutputIncludesInvocation(t *testing.T) {
+	started := time.Date(2026, 6, 17, 23, 40, 0, 0, time.Local)
+	job := Job{
+		Name:             "Backup",
+		Command:          `C:\Program Files\FreeFileSync\FreeFileSync.exe`,
+		Arguments:        `D:\Local\Jobs\Auto.ffs_batch`,
+		SuccessExitCodes: "0,1",
+	}
+
+	output := runningOutput(job, "Manual", started)
+	for _, want := range []string{
+		"Running since 2026-06-17 23:40:00",
+		"Manual",
+		job.Command,
+		job.Arguments,
+		"0,1",
+		"start_only",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected running output to contain %q, got:\n%s", want, output)
+		}
 	}
 }

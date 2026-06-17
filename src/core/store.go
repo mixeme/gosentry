@@ -163,6 +163,11 @@ func normalizeJobs(jobs []Job) {
 			// gives the user something observable and harmless instead.
 			job.Command = echoCommand("GoSentry job ran")
 		}
+		job.Arguments = strings.TrimSpace(job.Arguments)
+		job.SuccessExitCodes = strings.TrimSpace(job.SuccessExitCodes)
+		if job.SuccessExitCodes == "" {
+			job.SuccessExitCodes = "0"
+		}
 		if job.LastRun == "" {
 			job.LastRun = "Never"
 		}

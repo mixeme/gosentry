@@ -181,6 +181,9 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 	folder := newJobDetailLabel(jobs[selected].Folder)
 	schedule := newJobDetailLabel(jobs[selected].Schedule)
 	command := newJobDetailLabel(jobs[selected].Command)
+	arguments := newJobDetailLabel(jobs[selected].Arguments)
+	successExitCodes := newJobDetailLabel(displaySuccessExitCodes(jobs[selected].SuccessExitCodes))
+	runMode := newJobDetailLabel(displayRunMode(jobs[selected]))
 	lastRun := newJobDetailLabel(jobs[selected].LastRun)
 	nextRun := newJobDetailLabel(jobs[selected].NextRun)
 	state := newJobDetailLabel(jobs[selected].LastState)
@@ -224,6 +227,9 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 			folder.SetText("")
 			schedule.SetText("")
 			command.SetText("")
+			arguments.SetText("")
+			successExitCodes.SetText("")
+			runMode.SetText("")
 			lastRun.SetText("")
 			nextRun.SetText("")
 			state.SetText("")
@@ -237,6 +243,9 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 		folder.SetText(displayFolder(current.Folder))
 		schedule.SetText(current.Schedule)
 		command.SetText(current.Command)
+		arguments.SetText(displayArguments(current.Arguments))
+		successExitCodes.SetText(displaySuccessExitCodes(current.SuccessExitCodes))
+		runMode.SetText(displayRunMode(current))
 		lastRun.SetText(current.LastRun)
 		nextRun.SetText(current.NextRun)
 		state.SetText(current.LastState)
@@ -272,7 +281,7 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 			name.SetText(current.Name)
 			// Keep each row compact: folder, schedule, and command are shown in one
 			// metadata line so the left pane stays useful even with many jobs.
-			meta.SetText(displayFolder(current.Folder) + "    " + current.Schedule + "    " + current.Command)
+			meta.SetText(displayFolder(current.Folder) + "    " + current.Schedule + "    " + displayInvocation(current))
 			status.SetText(statusText(current))
 		},
 	)
@@ -478,6 +487,9 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 		detailRow("Folder", folder),
 		detailRow("Schedule", schedule),
 		detailRow("Command", command),
+		detailRow("Arguments", arguments),
+		detailRow("Success exit codes", successExitCodes),
+		detailRow("Run mode", runMode),
 		detailRow("Last run", lastRun),
 		detailRow("Next run", nextRun),
 		detailRow("State", state),
@@ -664,6 +676,34 @@ func displayFolder(folder string) string {
 	return strings.TrimSpace(folder)
 }
 
+func displayArguments(arguments string) string {
+	if strings.TrimSpace(arguments) == "" {
+		return "(none)"
+	}
+	return strings.TrimSpace(arguments)
+}
+
+func displaySuccessExitCodes(codes string) string {
+	if strings.TrimSpace(codes) == "" {
+		return "0"
+	}
+	return strings.TrimSpace(codes)
+}
+
+func displayRunMode(current job) string {
+	if current.StartOnly {
+		return "Start only"
+	}
+	return "Wait for completion"
+}
+
+func displayInvocation(current job) string {
+	if strings.TrimSpace(current.Arguments) == "" {
+		return current.Command
+	}
+	return current.Command + "    " + strings.ReplaceAll(strings.TrimSpace(current.Arguments), "\n", " ")
+}
+
 func displayIndex(indexes []int, jobIndex int) int {
 	for display, index := range indexes {
 		if index == jobIndex {
@@ -684,8 +724,16 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	schedule.SetPlaceHolder("@every 1m")
 	schedule.SetText(current.Schedule)
 	command := widget.NewEntry()
-	command.SetPlaceHolder("echo GoSentry job ran")
+	command.SetPlaceHolder(`C:\Program Files\App\App.exe`)
 	command.SetText(current.Command)
+	arguments := widget.NewMultiLineEntry()
+	arguments.SetPlaceHolder(`D:\Local\Jobs\Auto.ffs_batch`)
+	arguments.SetText(current.Arguments)
+	successExitCodes := widget.NewEntry()
+	successExitCodes.SetPlaceHolder("0")
+	successExitCodes.SetText(displaySuccessExitCodes(current.SuccessExitCodes))
+	startOnly := widget.NewCheck("Start only, do not wait for exit", nil)
+	startOnly.SetChecked(current.StartOnly)
 	enabled := widget.NewCheck("Enabled", nil)
 	enabled.SetChecked(current.Enabled)
 
@@ -698,6 +746,9 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			widget.NewFormItem("Folder", folder),
 			widget.NewFormItem("Schedule", schedule),
 			widget.NewFormItem("Command", command),
+			widget.NewFormItem("Arguments", arguments),
+			widget.NewFormItem("Success exit codes", successExitCodes),
+			widget.NewFormItem("", startOnly),
 			widget.NewFormItem("", enabled),
 		},
 		func(saved bool) {
@@ -714,6 +765,12 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			current.Folder = strings.TrimSpace(folder.Text)
 			current.Schedule = strings.TrimSpace(schedule.Text)
 			current.Command = strings.TrimSpace(command.Text)
+			current.Arguments = strings.TrimSpace(arguments.Text)
+			current.SuccessExitCodes = strings.TrimSpace(successExitCodes.Text)
+			if current.SuccessExitCodes == "" {
+				current.SuccessExitCodes = "0"
+			}
+			current.StartOnly = startOnly.Checked
 			current.Enabled = enabled.Checked
 			if current.LastRun == "" {
 				current.LastRun = "Never"
@@ -731,7 +788,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 		},
 		w,
 	)
-	form.Resize(fyne.NewSize(560, 280))
+	form.Resize(fyne.NewSize(640, 460))
 	form.Show()
 }
 

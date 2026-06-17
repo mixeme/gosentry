@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -148,6 +149,7 @@ func (s *Scheduler) startRunLocked(index int, trigger string) bool {
 	jobCopy := *job
 	job.LastState = "Running"
 	job.NextRun = "Running"
+	job.Output = runningOutput(jobCopy, trigger, time.Now())
 	job.nextDue = time.Time{}
 	_ = s.store.SaveJobs(*s.jobs)
 
@@ -183,6 +185,23 @@ func (s *Scheduler) findJobByIDLocked(id int) *Job {
 		}
 	}
 	return nil
+}
+
+func runningOutput(job Job, trigger string, started time.Time) string {
+	var builder strings.Builder
+	builder.WriteString("status:\n")
+	builder.WriteString("Running since " + started.Format("2006-01-02 15:04:05") + "\n\n")
+	builder.WriteString("trigger:\n")
+	builder.WriteString(trigger + "\n\n")
+	builder.WriteString("command:\n")
+	builder.WriteString(job.Command + "\n\n")
+	builder.WriteString("arguments:\n")
+	builder.WriteString(logArguments(job.Arguments))
+	builder.WriteString("\n\nsuccess_exit_codes:\n")
+	builder.WriteString(successExitCodesText(job))
+	builder.WriteString("\n\nstart_only:\n")
+	builder.WriteString(fmt.Sprintf("%t", job.StartOnly))
+	return builder.String()
 }
 
 func (s *Scheduler) resetNextRuns(now time.Time) {
