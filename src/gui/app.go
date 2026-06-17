@@ -64,10 +64,17 @@ func Run(startInTray bool) {
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)
 	if startInTray {
+		// Autostart launches intentionally stay hidden, so "window shown" would be
+		// a misleading metric. Record a separate startup event for the tray path
+		// instead of forcing one timing definition onto two different UX flows.
 		recordStartup(time.Since(started), false)
 		a.Run()
 		return
 	}
+	// Show the window before recording startup time. Measuring earlier, during
+	// widget construction, looked cheaper in History than the user-perceived
+	// startup really was. The current point is less abstract: it ends when the
+	// window has actually been handed to the desktop for display.
 	w.Show()
 	recordStartup(time.Since(started), true)
 	a.Run()
@@ -112,6 +119,10 @@ func acquireSingleInstance(showExisting bool) (net.Listener, bool) {
 
 	connection, dialErr := net.DialTimeout("tcp", singleInstanceAddress, time.Second)
 	if dialErr == nil {
+		// The first instance listens only on localhost and understands one tiny
+		// command: "show". That keeps the implementation dependency-free and easy
+		// to inspect, which matters more here than introducing a named-pipe or
+		// platform-specific IPC abstraction just to focus an existing window.
 		if showExisting {
 			_, _ = io.WriteString(connection, singleInstanceShowCommand)
 		}
@@ -183,6 +194,10 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 	history := newHistoryView(&events)
 	recordStartup := func(duration time.Duration, windowShown bool) {
+		// Startup is recorded as an in-memory History event instead of being
+		// persisted into jobs.yaml. It is session diagnostics, not durable job
+		// state, and keeping it ephemeral avoids polluting the human-editable YAML
+		// file with process-lifetime bookkeeping.
 		detail := "Window shown in " + duration.Round(time.Millisecond).String()
 		if !windowShown {
 			detail = "Started in tray in " + duration.Round(time.Millisecond).String()

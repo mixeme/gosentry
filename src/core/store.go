@@ -81,6 +81,11 @@ func loadOrCreateConfig(paths Paths) (Config, error) {
 	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
 		legacyPath := filepath.Join(paths.AppDir, LegacyConfigFileName)
 		if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
+			// The rename from PySentry to GoSentry changed the preferred config
+			// filename. Read the old file once if it is still present so portable
+			// installs continue to start without a manual migration step. The
+			// caller later saves the loaded config back through SaveConfig, which
+			// naturally rewrites it under gosentry.yaml.
 			configPath = legacyPath
 		} else {
 			return config, writeYAML(paths.ConfigPath, config)

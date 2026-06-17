@@ -13,6 +13,11 @@ const legacyAutostartName = "PySentry"
 const startupShortcutFile = autostartName + ".lnk"
 
 func SetAutostart(enabled bool, executablePath string, iconPath string) error {
+	// Windows autostart used to write HKCU\Run values, but that approach became
+	// brittle once paths with spaces and the "--start-in-tray" argument entered
+	// the picture. A Startup-folder shortcut stores target path and arguments as
+	// separate structured fields, so it avoids quoting bugs and more closely
+	// matches how a user would configure a GUI app by hand.
 	if err := cleanupLegacyRegistryAutostart(); err != nil {
 		return err
 	}
@@ -87,6 +92,10 @@ func createStartupShortcut(shortcutPath string, executablePath string, iconPath 
 	if iconPath == "" {
 		iconPath = executablePath
 	}
+	// WScript.Shell is used here deliberately instead of a third-party Go COM
+	// wrapper. The PowerShell bridge is not glamorous, but it is already present
+	// on supported Windows systems and keeps the dependency surface much smaller
+	// for a project that otherwise aims to stay light.
 	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); $shortcut.TargetPath = $env:GOSENTRY_TARGET_PATH; $shortcut.Arguments = $env:GOSENTRY_ARGUMENTS; $shortcut.WorkingDirectory = $env:GOSENTRY_WORKING_DIRECTORY; $shortcut.IconLocation = $env:GOSENTRY_ICON_PATH; $shortcut.Save()`
 	command := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	command.Env = append(os.Environ(),

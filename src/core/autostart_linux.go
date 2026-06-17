@@ -19,6 +19,11 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	if err != nil {
 		return err
 	}
+	// A desktop scheduler with a tray icon belongs to the graphical session, so
+	// Linux autostart is implemented through XDG Autostart instead of a systemd
+	// user service. systemd is tempting because it is explicit and scriptable,
+	// but it is the wrong owner for a windowed app that should inherit the
+	// desktop session environment and appear in the tray predictably.
 	if err := cleanupLegacySystemdAutostart(); err != nil {
 		return err
 	}
@@ -138,6 +143,9 @@ func cleanupLegacyDesktopAutostart() error {
 	if err != nil {
 		return err
 	}
+	// The old PySentry desktop file is removed proactively instead of tolerated
+	// alongside the new one. Leaving both files in place would risk duplicate
+	// launches or confusing status diagnostics after the rename.
 	if err := os.Remove(desktopPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
