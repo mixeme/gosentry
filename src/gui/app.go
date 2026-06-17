@@ -60,13 +60,17 @@ func Run(startInTray bool) {
 	w := a.NewWindow("GoSentry " + core.Version)
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
-	w.SetContent(newMainView(w, started))
+	content, recordStartup := newMainView(w)
+	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)
 	if startInTray {
+		recordStartup(time.Since(started), false)
 		a.Run()
 		return
 	}
-	w.ShowAndRun()
+	w.Show()
+	recordStartup(time.Since(started), true)
+	a.Run()
 }
 
 func loadAppIcon() fyne.Resource {
@@ -143,16 +147,15 @@ func serveSingleInstance(listener net.Listener, w fyne.Window) {
 	}()
 }
 
-func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
+func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 	store, jobs, err := core.OpenStore()
 	if err != nil {
-		return container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error()))
+		return container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error())), func(time.Duration, bool) {}
 	}
 	if iconPath, err := core.InstallDesktopIntegration(appID, store.Paths.ExecutablePath, assets.IconBytes()); err == nil {
 		store.Paths.DesktopIcon = iconPath
 	}
-	startupDuration := time.Since(started).Round(time.Millisecond)
-	events := append(collectActivity(jobs), newEvent(0, "Application", "Started", "Startup completed in "+startupDuration.String()))
+	events := collectActivity(jobs)
 
 	// The GUI keeps the loaded jobs slice in memory and persists changes after
 	// each edit/run. This keeps the first version responsive and easy to reason
@@ -179,6 +182,14 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	// against the theme when it is placed inside a scroll container.
 	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 	history := newHistoryView(&events)
+	recordStartup := func(duration time.Duration, windowShown bool) {
+		detail := "Window shown in " + duration.Round(time.Millisecond).String()
+		if !windowShown {
+			detail = "Started in tray in " + duration.Round(time.Millisecond).String()
+		}
+		events = append(events, newEvent(0, "Application", "Started", detail))
+		history.Refresh()
+	}
 	selectedLogs := append([]event(nil), jobs[selected].Logs...)
 	jobLogs := widget.NewList(
 		func() int {
@@ -480,7 +491,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	return tabs
+	return tabs, recordStartup
 }
 
 type minWidthLayout struct {

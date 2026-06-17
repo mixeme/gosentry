@@ -2,6 +2,11 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.3.1 - 2026-06-17
+
+- Changed startup timing in History to measure until the main window is actually shown instead of stopping during UI construction.
+- Added a separate startup History message for autostart launches that begin hidden in the tray.
+
 ## 0.3.0 - 2026-06-17
 
 - Renamed the project from PySentry to GoSentry across the GUI, module path, build scripts, generated artifacts, desktop integration, and documentation.
