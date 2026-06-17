@@ -77,11 +77,21 @@ func loadOrCreateConfig(paths Paths) (Config, error) {
 		NotifyOnFailure:   true,
 	}
 
-	if _, err := os.Stat(paths.ConfigPath); errors.Is(err, os.ErrNotExist) {
+	configPath := paths.ConfigPath
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
+		legacyPath := filepath.Join(paths.AppDir, LegacyConfigFileName)
+		if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
+			configPath = legacyPath
+		} else {
+			return config, writeYAML(paths.ConfigPath, config)
+		}
+	}
+
+	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
 		return config, writeYAML(paths.ConfigPath, config)
 	}
 
-	data, err := os.ReadFile(paths.ConfigPath)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return Config{}, err
 	}
@@ -146,7 +156,7 @@ func normalizeJobs(jobs []Job) {
 		if strings.TrimSpace(job.Command) == "" {
 			// An empty command would fail in a confusing way. A safe echo command
 			// gives the user something observable and harmless instead.
-			job.Command = echoCommand("PySentry job ran")
+			job.Command = echoCommand("GoSentry job ran")
 		}
 		if job.LastRun == "" {
 			job.LastRun = "Never"
@@ -209,7 +219,7 @@ func defaultJobs() []Job {
 			Name:     "Hello scheduler",
 			Folder:   "Examples",
 			Schedule: "@every 1m",
-			Command:  echoCommand("PySentry test job: scheduler is alive"),
+			Command:  echoCommand("GoSentry test job: scheduler is alive"),
 			Enabled:  true,
 		},
 		{
@@ -217,7 +227,7 @@ func defaultJobs() []Job {
 			Name:     "Write timestamp",
 			Folder:   "Examples",
 			Schedule: "*/1 * * * *",
-			Command:  echoCommand("PySentry test job: timestamp command ran"),
+			Command:  echoCommand("GoSentry test job: timestamp command ran"),
 			Enabled:  true,
 		},
 		{

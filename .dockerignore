@@ -2,6 +2,7 @@
 bin
 dist
 logs
+gosentry.yaml
 pysentry.yaml
 jobs.yaml
 *.exe

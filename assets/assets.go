@@ -14,7 +14,7 @@ import (
 // The blank import enables the compiler directive below; no runtime package
 // initialization from embed is required.
 //
-//go:embed pysentry-icon-big.png
+//go:embed gosentry-icon-big.png
 var iconBytes []byte
 
 func Icon() fyne.Resource {
@@ -22,7 +22,7 @@ func Icon() fyne.Resource {
 	// for the window icon and tray icon. The Windows Explorer icon is still added
 	// by the build script through the .ico resource, because Explorer reads PE
 	// resources rather than Fyne runtime state.
-	return fyne.NewStaticResource("pysentry-icon-big.png", iconBytes)
+	return fyne.NewStaticResource("gosentry-icon-big.png", iconBytes)
 }
 
 func IconBytes() []byte {

@@ -5,7 +5,7 @@ set -euo pipefail
 # default includes the application version and target platform.
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
-output="${1:-dist/linux/pysentry-${version}-linux-amd64}"
+output="${1:-dist/linux/gosentry-${version}-linux-amd64}"
 mkdir -p "$(dirname "$output")"
 
 # Fyne needs CGO for its native desktop backend. The script pins the target to
@@ -17,7 +17,7 @@ export GOARCH=amd64
 
 # -trimpath removes local machine paths from debug/build metadata. -s -w strips
 # symbol/debug tables to keep the desktop binary smaller.
-go build -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${version}" -o "$output" ./cmd/pysentry
+go build -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${version}" -o "$output" ./cmd/gosentry
 
 # The application icon is embedded by Go, so the Linux build does not need a
 # sidecar assets directory beside the executable.

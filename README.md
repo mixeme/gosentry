@@ -1,8 +1,8 @@
-# PySentry
+# GoSentry
 
-PySentry is a cross-platform desktop scheduler inspired by cron. It provides a native GUI for creating, grouping, pausing, running, and monitoring scheduled shell commands.
+GoSentry is a cross-platform desktop scheduler inspired by cron. It provides a native GUI for creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
-PySentry is being designed and implemented with assistance from OpenAI Codex.
+GoSentry is being designed and implemented with assistance from OpenAI Codex.
 
 Project notes:
 
@@ -72,7 +72,7 @@ sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 Windows:
 
 ```powershell
-# Builds dist\windows\pysentry-<version>-windows-amd64.exe. The script changes
+# Builds dist\windows\gosentry-<version>-windows-amd64.exe. The script changes
 # to the repository root first, so double-clicking it from Explorer works. It
 # also adds MSYS2 UCRT64 to PATH for this process only, embeds the Windows icon
 # when windres is available, and uses the Windows GUI subsystem so no console
@@ -86,7 +86,7 @@ The binary is written to:
 
 ```text
 # GUI executable produced by scripts\build-windows.bat.
-dist\windows\pysentry-0.2.5-windows-amd64.exe
+dist\windows\gosentry-0.3.0-windows-amd64.exe
 ```
 
 Linux:
@@ -101,14 +101,14 @@ The binary is written to:
 
 ```text
 # Linux executable produced by scripts/build-linux.sh.
-dist/linux/pysentry-0.2.5-linux-amd64
+dist/linux/gosentry-0.3.0-linux-amd64
 ```
 
 Linux using Docker:
 
 ```bash
 # Builds the Linux binary inside Docker using the versioned image tag
-# gitea.mixdep.ru/mix/pysentry-builder:<version>. Useful from hosts or CI jobs
+# gitea.mixdep.ru/mix/gosentry-builder:<version>. Useful from hosts or CI jobs
 # where the native Linux/Fyne packages are not installed locally.
 chmod +x ./scripts/build-linux-docker.sh
 ./scripts/build-linux-docker.sh
@@ -118,7 +118,7 @@ The binary is copied to:
 
 ```text
 # Linux executable copied out of the Docker build image.
-dist\linux\pysentry-0.2.5-linux-amd64
+dist\linux\gosentry-0.3.0-linux-amd64
 ```
 
 Release build from Linux:
@@ -143,13 +143,13 @@ The binaries are copied to:
 
 ```text
 # Linux artifact.
-dist/linux/pysentry-0.2.5-linux-amd64
+dist/linux/gosentry-0.3.0-linux-amd64
 
 # Linux arm64 artifact.
-dist/linux/pysentry-0.2.5-linux-arm64
+dist/linux/gosentry-0.3.0-linux-arm64
 
 # Windows artifact cross-compiled from Linux.
-dist/windows/pysentry-0.2.5-windows-amd64.exe
+dist/windows/gosentry-0.3.0-windows-amd64.exe
 ```
 
 ## Run From Source
@@ -164,7 +164,7 @@ $env:CGO_ENABLED = '1'
 
 # go run starts the app from source. Use scripts\build-windows.bat when you need
 # a standalone .exe without a console window.
-& 'C:\Program Files\Go\bin\go.exe' run ./cmd/pysentry
+& 'C:\Program Files\Go\bin\go.exe' run ./cmd/gosentry
 ```
 
 Linux:
@@ -172,14 +172,14 @@ Linux:
 ```bash
 # CGO must stay enabled because the Fyne GUI links against native Linux desktop
 # libraries.
-CGO_ENABLED=1 go run ./cmd/pysentry
+CGO_ENABLED=1 go run ./cmd/gosentry
 ```
 
 ## Troubleshooting
 
 ### Windows, VirtualBox, RDP, And OpenGL
 
-PySentry uses [Fyne](https://fyne.io/), and Fyne uses GLFW/OpenGL to create the
+GoSentry uses [Fyne](https://fyne.io/), and Fyne uses GLFW/OpenGL to create the
 desktop window. In a Windows virtual machine, especially when the session is
 opened through RDP inside VirtualBox, the available video driver can fail OpenGL
 initialization.
@@ -202,11 +202,11 @@ Known workaround:
    checksum files are not needed for this workaround.
 2. Open the downloaded archive and use the `x64` build from it.
 3. Copy the Mesa OpenGL DLL files from `x64` into the same directory as the
-   PySentry `.exe`, for example:
+   GoSentry `.exe`, for example:
 
 ```text
 dist\windows\
-  pysentry-0.2.5-windows-amd64.exe
+  gosentry-0.3.0-windows-amd64.exe
   opengl32.dll
   ...
 ```
@@ -217,12 +217,12 @@ driver does not provide usable OpenGL.
 
 ## Storage
 
-PySentry creates its runtime files next to the executable by default.
+GoSentry creates its runtime files next to the executable by default.
 
-`pysentry.yaml` stores application settings:
+`gosentry.yaml` stores application settings:
 
 ```yaml
-# Directory containing jobs.yaml. "." means "the folder where the PySentry
+# Directory containing jobs.yaml. "." means "the folder where the GoSentry
 # executable lives"; an absolute path can be used when jobs should live elsewhere.
 jobs_dir: .
 
@@ -236,7 +236,7 @@ max_log_files: 100
 # Delete .log files older than this many days during cleanup.
 max_log_age_days: 30
 
-# Start PySentry automatically when the current desktop user signs in.
+# Start GoSentry automatically when the current desktop user signs in.
 start_on_login: false
 
 # Closing the window hides it to the tray instead of stopping the scheduler.
@@ -267,7 +267,7 @@ jobs:
     schedule: '@every 1m'
 
     # Command passed to the platform shell: cmd.exe /C on Windows, sh -c on Linux.
-    command: echo PySentry test job: scheduler is alive
+    command: echo GoSentry test job: scheduler is alive
 
     # Disabled jobs remain in jobs.yaml but are skipped by the scheduler.
     enabled: true
@@ -302,7 +302,7 @@ Standard 5-field cron schedules:
 
 ## Using The App
 
-1. Start PySentry.
+1. Start GoSentry.
 2. Use `New job` to create a command.
 3. Set `Schedule`, `Command`, optional `Folder`, and `Enabled`.
 4. Use `Run now` for a manual test run.
@@ -318,29 +318,29 @@ Autostart entries add `--start-in-tray`, so scheduled jobs begin running after s
 
 ## Autostart
 
-PySentry is a user desktop application, not a system daemon, so autostart should be configured per user.
+GoSentry is a user desktop application, not a system daemon, so autostart should be configured per user.
 
 Linux:
 
 ```ini
-# PySentry writes an XDG Autostart desktop entry when Start on login is enabled.
+# GoSentry writes an XDG Autostart desktop entry when Start on login is enabled.
 # This is better for a GUI/tray application than a systemd user service because
 # the desktop environment starts it inside the graphical user session.
 # Saving the setting also removes the old ~/.config/systemd/user/pysentry.service
-# unit if it was created by an earlier PySentry build.
-~/.config/autostart/pysentry.desktop
+# unit if it was created by an earlier GoSentry build.
+~/.config/autostart/gosentry.desktop
 
 [Desktop Entry]
 Type=Application
-Name=PySentry
-Exec=/opt/pysentry/pysentry-0.2.5-linux-amd64 --start-in-tray
+Name=GoSentry
+Exec=/opt/gosentry/gosentry-0.3.0-linux-amd64 --start-in-tray
 Terminal=false
 ```
 
 Windows:
 
 ```text
-# PySentry writes a shortcut to the current user's Startup folder when Start on
+# GoSentry writes a shortcut to the current user's Startup folder when Start on
 # login is enabled. A .lnk stores the executable path as a structured TargetPath,
 # and stores --start-in-tray as Arguments, so paths with spaces do not need
 # fragile command-line quoting. Saving settings rewrites the shortcut and removes
@@ -350,7 +350,7 @@ Windows:
 
 ## Project Layout
 
-- `cmd/pysentry` starts the desktop app.
+- `cmd/gosentry` starts the desktop app.
 - `src/gui` contains the GUI.
 - `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
 - `assets` contains app icons that are embedded into the application binary.
@@ -361,7 +361,7 @@ Build outputs are written to `dist/`. The old local `bin/` directory is not used
 
 ## Dependencies
 
-PySentry keeps the direct dependency list intentionally small:
+GoSentry keeps the direct dependency list intentionally small:
 
 - [`fyne.io/fyne/v2`](https://fyne.io/) for the native GUI.
 - `github.com/robfig/cron/v3` for cron schedule parsing.

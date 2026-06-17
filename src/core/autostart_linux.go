@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-const autostartDesktopFileName = "pysentry.desktop"
+const autostartDesktopFileName = "gosentry.desktop"
+const legacyAutostartDesktopFileName = "pysentry.desktop"
 
 func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	desktopPath, err := autostartDesktopPath()
@@ -21,6 +22,9 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	if err := cleanupLegacySystemdAutostart(); err != nil {
 		return err
 	}
+	if err := cleanupLegacyDesktopAutostart(); err != nil {
+		return err
+	}
 
 	if enabled {
 		if err := os.MkdirAll(filepath.Dir(desktopPath), 0o755); err != nil {
@@ -28,8 +32,8 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 		}
 		desktopFile := fmt.Sprintf(`[Desktop Entry]
 Type=Application
-Name=PySentry
-Comment=PySentry desktop scheduler
+Name=GoSentry
+Comment=GoSentry desktop scheduler
 Exec=%s %s
 %s
 Terminal=false
@@ -51,6 +55,9 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	}
 	if legacySystemdAutostartExists() {
 		return false, "Legacy systemd autostart entry still exists"
+	}
+	if legacyDesktopAutostartExists() {
+		return false, "Legacy desktop autostart entry still exists"
 	}
 	data, readErr := os.ReadFile(desktopPath)
 
@@ -82,6 +89,18 @@ func autostartDesktopPath() (string, error) {
 	return filepath.Join(configHome, "autostart", autostartDesktopFileName), nil
 }
 
+func legacyAutostartDesktopPath() (string, error) {
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		configHome = filepath.Join(home, ".config")
+	}
+	return filepath.Join(configHome, "autostart", legacyAutostartDesktopFileName), nil
+}
+
 func quoteDesktopExec(path string) string {
 	return strconv.Quote(path)
 }
@@ -103,7 +122,7 @@ func cleanupLegacySystemdAutostart() error {
 	}
 
 	// Older PySentry builds used a systemd user unit for autostart. The current
-	// Linux implementation uses XDG Autostart because PySentry is a GUI/tray
+	// GoSentry implementation uses XDG Autostart because it is a GUI/tray
 	// application and should be launched by the desktop session. Disable and
 	// remove the old unit so the two mechanisms do not fight or start duplicates.
 	_ = exec.Command("systemctl", "--user", "disable", "pysentry.service").Run()
@@ -112,6 +131,26 @@ func cleanupLegacySystemdAutostart() error {
 	}
 	_ = exec.Command("systemctl", "--user", "daemon-reload").Run()
 	return nil
+}
+
+func cleanupLegacyDesktopAutostart() error {
+	desktopPath, err := legacyAutostartDesktopPath()
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(desktopPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+func legacyDesktopAutostartExists() bool {
+	desktopPath, err := legacyAutostartDesktopPath()
+	if err != nil {
+		return false
+	}
+	_, err = os.Stat(desktopPath)
+	return err == nil
 }
 
 func legacySystemdAutostartExists() bool {

@@ -1,4 +1,4 @@
-module github.com/pysentry/pysentry
+module gitea.mixdep.ru/mix/gosentry
 
 go 1.22
 

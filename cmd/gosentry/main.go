@@ -3,8 +3,8 @@ package main
 import (
 	"os"
 
-	"github.com/pysentry/pysentry/src/core"
-	"github.com/pysentry/pysentry/src/gui"
+	"gitea.mixdep.ru/mix/gosentry/src/core"
+	"gitea.mixdep.ru/mix/gosentry/src/gui"
 )
 
 func main() {

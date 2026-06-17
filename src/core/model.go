@@ -7,7 +7,7 @@ import "time"
 // launches omit this flag and open the normal window.
 const StartInTrayArgument = "--start-in-tray"
 
-// Config is stored in pysentry.yaml next to the program. It contains only
+// Config is stored in gosentry.yaml next to the program. It contains only
 // application-level choices: where to read jobs from, where to write logs, and
 // how the desktop shell should behave.
 type Config struct {
@@ -29,7 +29,7 @@ type JobsFile struct {
 // Job is the user-visible scheduled command.
 //
 // Fields with yaml:"-" are deliberately runtime-only. They are useful in the GUI
-// while PySentry is running, but writing them to jobs.yaml would make the jobs
+// while GoSentry is running, but writing them to jobs.yaml would make the jobs
 // file noisy and would mix durable configuration with transient execution state.
 type Job struct {
 	ID        int         `yaml:"id"`

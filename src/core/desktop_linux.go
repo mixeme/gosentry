@@ -18,7 +18,7 @@ func InstallDesktopIntegration(appID string, executablePath string, icon []byte)
 	// environment can match the window app id to an installed .desktop file and
 	// icon. Use the user's XDG data directory so portable builds do not need root
 	// access or a package manager install step.
-	iconPath := filepath.Join(dataHome, "icons", "hicolor", "256x256", "apps", "pysentry.png")
+	iconPath := filepath.Join(dataHome, "icons", "hicolor", "256x256", "apps", "gosentry.png")
 	if err := writeUserFile(iconPath, icon, 0o644); err != nil {
 		return "", err
 	}
@@ -26,8 +26,8 @@ func InstallDesktopIntegration(appID string, executablePath string, icon []byte)
 	desktopPath := filepath.Join(dataHome, "applications", appID+".desktop")
 	desktopFile := fmt.Sprintf(`[Desktop Entry]
 Type=Application
-Name=PySentry
-Comment=PySentry desktop scheduler
+Name=GoSentry
+Comment=GoSentry desktop scheduler
 Exec=%s
 Icon=%s
 Terminal=false

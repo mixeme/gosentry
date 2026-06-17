@@ -1,6 +1,14 @@
 # Changelog
 
-All notable PySentry changes are recorded in this file.
+All notable GoSentry changes are recorded in this file.
+
+## 0.3.0 - 2026-06-17
+
+- Renamed the project from PySentry to GoSentry across the GUI, module path, build scripts, generated artifacts, desktop integration, and documentation.
+- Renamed the command package to `cmd/gosentry` and Windows resource script to `packaging/windows/gosentry.rc`.
+- Renamed portable application settings from `pysentry.yaml` to `gosentry.yaml`, while keeping one-time read compatibility for existing `pysentry.yaml` files.
+- Renamed build artifacts from `pysentry-*` to `gosentry-*`.
+- Updated autostart and Linux desktop integration to use GoSentry names while cleaning up older PySentry autostart entries.
 
 ## 0.2.5 - 2026-06-16
 
@@ -27,7 +35,7 @@ All notable PySentry changes are recorded in this file.
 
 ## 0.2.2 - 2026-06-15
 
-- Added Linux desktop integration that installs a user-level `.desktop` file and icon so taskbars can match the running window to the PySentry icon.
+- Added Linux desktop integration that installs a user-level `.desktop` file and icon so taskbars can match the running window to the GoSentry icon.
 - Added the installed icon path to Linux autostart desktop entries when available.
 - Added `ARCHITECTURE.md` with a component interaction diagram and moved project documentation under `docs/`.
 - Adjusted the Mermaid architecture diagram to avoid line-break syntax that breaks rendering in Gitea.

@@ -94,7 +94,7 @@ func CleanupLogs(logsDir string, maxFiles int, maxAgeDays int) error {
 	var logs []logFile
 	cutoff := time.Now().AddDate(0, 0, -maxAgeDays)
 	for _, entry := range entries {
-		// Only PySentry run logs are managed here. Directories and non-.log files
+		// Only GoSentry run logs are managed here. Directories and non-.log files
 		// are intentionally ignored so the user can keep notes or other artifacts
 		// in the same folder without the cleanup policy deleting them.
 		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".log") {

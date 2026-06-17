@@ -6,8 +6,8 @@ set -euo pipefail
 # default includes the application version and target platform.
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
-tag="gitea.mixdep.ru/mix/pysentry-builder:${version}"
-output="${1:-dist/linux/pysentry-${version}-linux-amd64}"
+tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
+output="${1:-dist/linux/gosentry-${version}-linux-amd64}"
 docker_user_args=()
 if command -v id >/dev/null 2>&1; then
     docker_user_args=(--user "$(id -u):$(id -g)")
@@ -26,7 +26,7 @@ docker run --rm \
     -v "$(pwd):/src" \
     -w /src \
     "$tag" \
-    bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "${OUTPUT}" ./cmd/pysentry'
+    bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "${OUTPUT}" ./cmd/gosentry'
 
 # Icons are embedded in the Go binary, so there is no assets directory to copy
 # after extracting the Linux executable.

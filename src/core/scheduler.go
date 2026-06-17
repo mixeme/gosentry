@@ -222,7 +222,7 @@ func nextRunTime(schedule string, from time.Time) (time.Time, bool) {
 		}
 		return from.Add(interval), true
 	}
-	// Standard five-field cron keeps PySentry compatible with the mental model
+	// Standard five-field cron keeps GoSentry compatible with the mental model
 	// users already know from Unix cron, while robfig/cron handles edge cases
 	// such as ranges, steps, and day-of-week names.
 	parsed, err := cronParser.Parse(schedule)

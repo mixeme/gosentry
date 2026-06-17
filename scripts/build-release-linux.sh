@@ -11,7 +11,7 @@ cd "$repo_root"
 
 version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
 version="${version:-0.0.0-dev}"
-tag="gitea.mixdep.ru/mix/pysentry-builder:${version}"
+tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
 
 docker_user_args=()
 if command -v id >/dev/null 2>&1; then
@@ -24,9 +24,9 @@ Usage: $0 [target...]
 
 Targets:
   all            Build every release artifact.
-  linux-amd64    Build dist/linux/pysentry-${version}-linux-amd64.
-  linux-arm64    Build dist/linux/pysentry-${version}-linux-arm64.
-  windows-amd64  Build dist/windows/pysentry-${version}-windows-amd64.exe.
+  linux-amd64    Build dist/linux/gosentry-${version}-linux-amd64.
+  linux-arm64    Build dist/linux/gosentry-${version}-linux-arm64.
+  windows-amd64  Build dist/windows/gosentry-${version}-windows-amd64.exe.
 
 When no target is passed and the script runs in a terminal, it asks what to build.
 EOF
@@ -99,15 +99,15 @@ run_in_builder() {
 }
 
 build_linux_amd64() {
-    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-amd64" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-amd64" ./cmd/gosentry'
 }
 
 build_linux_arm64() {
-    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -buildvcs=false -trimpath -ldflags "-s -w -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/linux/pysentry-${VERSION}-linux-arm64" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-arm64" ./cmd/gosentry'
 }
 
 build_windows_amd64() {
-    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/pysentry/rsrc_windows_amd64.syso packaging/windows/pysentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui -X github.com/pysentry/pysentry/src/core.Version=${VERSION}" -o "dist/windows/pysentry-${VERSION}-windows-amd64.exe" ./cmd/pysentry'
+    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/gosentry/rsrc_windows_amd64.syso packaging/windows/gosentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/windows/gosentry-${VERSION}-windows-amd64.exe" ./cmd/gosentry'
 }
 
 mapfile -t targets < <(choose_targets "$@" | normalize_targets | awk '!seen[$0]++')

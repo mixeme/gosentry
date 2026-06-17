@@ -1,22 +1,6 @@
 # Roadmap
 
-This file tracks planned PySentry work that is larger than a single bug fix.
-
-## Project Rename
-
-Plan a rename from PySentry to GoSentry.
-
-Rename checklist:
-
-- Decide the final repository path and Go module path.
-- Update application name, window title, tray menu, and desktop integration text.
-- Update app ID and autostart entry names.
-- Rename build artifacts from `pysentry-*` to `gosentry-*`.
-- Decide whether runtime files should stay backward-compatible with existing
-  `pysentry.yaml`, `jobs.yaml`, and log directories or migrate to new names.
-- Update README, CHANGELOG, ROADMAP, build scripts, Docker image names, and
-  package metadata.
-- Consider a transition note for users with existing PySentry configuration.
+This file tracks planned GoSentry work that is larger than a single bug fix.
 
 ## Post-Field-Test Cleanup
 
@@ -56,7 +40,7 @@ runtime YAML files live next to the executable by default.
 
 Planned delivery variants:
 
-- Windows portable `.zip` with `pysentry.exe`, `README.md`, and `CHANGELOG.md`.
+- Windows portable `.zip` with `gosentry.exe`, `README.md`, and `CHANGELOG.md`.
 - Linux portable `.tar.gz` archives for `linux-amd64` and `linux-arm64`.
 - Debian/Ubuntu `.deb` package once the Linux runtime paths are settled.
 - Windows installer later, likely Inno Setup first and MSI/WiX only if needed.
@@ -68,8 +52,8 @@ Packaging design note:
 
 - Portable builds can keep settings and jobs next to the executable.
 - Installer/package builds should move runtime data to per-user locations:
-  `%APPDATA%\PySentry` on Windows, and XDG directories such as
-  `~/.config/pysentry` and `~/.local/share/pysentry` on Linux.
+  `%APPDATA%\GoSentry` on Windows, and XDG directories such as
+  `~/.config/gosentry` and `~/.local/share/gosentry` on Linux.
 
 Initial priority:
 

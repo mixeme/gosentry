@@ -1,6 +1,6 @@
-# PySentry Architecture
+# GoSentry Architecture
 
-This document shows the current component interaction model. PySentry is still a
+This document shows the current component interaction model. GoSentry is still a
 single desktop process: the GUI, scheduler, storage, and command runner live in
 one application and communicate through Go function calls and shared in-memory
 job state.
@@ -15,7 +15,7 @@ flowchart LR
     scheduler["src/core Scheduler - @every and cron timing"]
     runner["src/core Runner - shell command execution"]
     autostart["src/core Autostart - Windows Startup shortcut / Linux desktop startup"]
-    config["pysentry.yaml - application settings"]
+    config["gosentry.yaml - application settings"]
     jobs["jobs.yaml - job definitions"]
     logs["logs_dir - per-run command output logs"]
     shell["Platform shell - cmd.exe /C or sh -c"]
@@ -41,8 +41,8 @@ flowchart LR
 ## Main Flows
 
 1. Startup:
-   The executable starts `cmd/pysentry`, which calls the GUI package. The GUI
-   opens the store, loads `pysentry.yaml` and `jobs.yaml`, creates the main tabs,
+   The executable starts `cmd/gosentry`, which calls the GUI package. The GUI
+   opens the store, loads `gosentry.yaml` and `jobs.yaml`, creates the main tabs,
    then starts the scheduler with the loaded job slice.
 
 2. Editing settings or jobs:

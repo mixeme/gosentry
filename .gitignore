@@ -1,14 +1,15 @@
 # Build outputs
 dist/
 
-# Generated Windows resource compiled from packaging/windows/pysentry.rc.
-cmd/pysentry/*.syso
+# Generated Windows resource compiled from packaging/windows/gosentry.rc.
+cmd/gosentry/*.syso
 
 # Local binaries that may be produced by ad-hoc go build commands.
 *.exe
 *.test
 
 # Runtime files created next to the executable during local runs.
+gosentry.yaml
 pysentry.yaml
 jobs.yaml
 logs/

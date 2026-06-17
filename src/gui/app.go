@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pysentry/pysentry/assets"
-	"github.com/pysentry/pysentry/src/core"
+	"gitea.mixdep.ru/mix/gosentry/assets"
+	"gitea.mixdep.ru/mix/gosentry/src/core"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -25,7 +25,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const appID = "io.github.pysentry.desktop"
+const appID = "ru.mixdep.gosentry.desktop"
 const allFolders = "All"
 const noFolder = "No folder"
 const minJobsSidebarWidth float32 = 480
@@ -57,7 +57,7 @@ func Run(startInTray bool) {
 	a := app.NewWithID(appID)
 	a.SetIcon(loadAppIcon())
 
-	w := a.NewWindow("PySentry " + core.Version)
+	w := a.NewWindow("GoSentry " + core.Version)
 	configureSystemTray(a, w)
 	w.Resize(fyne.NewSize(1120, 720))
 	w.SetContent(newMainView(w, started))
@@ -81,7 +81,7 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 		return
 	}
 
-	menu := fyne.NewMenu("PySentry",
+	menu := fyne.NewMenu("GoSentry",
 		fyne.NewMenuItem("Show", func() {
 			w.Show()
 			w.RequestFocus()
@@ -146,7 +146,7 @@ func serveSingleInstance(listener net.Listener, w fyne.Window) {
 func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	store, jobs, err := core.OpenStore()
 	if err != nil {
-		return container.NewPadded(widget.NewLabel("Failed to load PySentry configuration: " + err.Error()))
+		return container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error()))
 	}
 	if iconPath, err := core.InstallDesktopIntegration(appID, store.Paths.ExecutablePath, assets.IconBytes()); err == nil {
 		store.Paths.DesktopIcon = iconPath
@@ -280,7 +280,7 @@ func newMainView(w fyne.Window, started time.Time) fyne.CanvasObject {
 	folderSelect.SetSelected(selectedFolder)
 
 	addButton := widget.NewButtonWithIcon("New job", theme.ContentAddIcon(), func() {
-		showJobDialog(w, "New job", job{Schedule: "@every 1m", Command: "echo PySentry job ran", Enabled: true, LastRun: "Never", NextRun: "After save", LastState: "Ready"}, func(saved job) {
+		showJobDialog(w, "New job", job{Schedule: "@every 1m", Command: "echo GoSentry job ran", Enabled: true, LastRun: "Never", NextRun: "After save", LastState: "Ready"}, func(saved job) {
 			saved.ID = nextJobID
 			nextJobID++
 			jobs = append(jobs, saved)
@@ -658,7 +658,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	schedule.SetPlaceHolder("@every 1m")
 	schedule.SetText(current.Schedule)
 	command := widget.NewEntry()
-	command.SetPlaceHolder("echo PySentry job ran")
+	command.SetPlaceHolder("echo GoSentry job ran")
 	command.SetText(current.Command)
 	enabled := widget.NewCheck("Enabled", nil)
 	enabled.SetChecked(current.Enabled)
