@@ -113,7 +113,14 @@ func createStartupShortcut(shortcutPath string, executablePath string, iconPath 
 }
 
 func readShortcut(shortcutPath string) (string, string, error) {
-	script := `$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); [Console]::Out.Write($shortcut.TargetPath + [Environment]::NewLine + $shortcut.Arguments)`
+	// Force UTF-8 before writing the path. PowerShell defaults to the system
+	// OEM code page (e.g. CP866 on Russian Windows). Without this override,
+	// [Console]::Out.Write encodes Cyrillic and other non-ASCII characters as
+	// OEM bytes; Go then reads them as UTF-8 and gets a different string from
+	// os.Executable, causing AutostartStatus to report "shortcut points to
+	// another executable" for any install path that contains non-ASCII chars.
+	// New-Object System.Text.UTF8Encoding($false) is UTF-8 without BOM.
+	script := `[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); [Console]::Out.Write($shortcut.TargetPath + [Environment]::NewLine + $shortcut.Arguments)`
 	command := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", script)
 	command.Env = append(os.Environ(), "GOSENTRY_SHORTCUT_PATH="+shortcutPath)
 	configureHiddenWindow(command)
@@ -178,7 +185,33 @@ func parseRegistryRunValue(output string) (string, bool) {
 }
 
 func sameWindowsPath(left string, right string) bool {
-	left = filepath.Clean(strings.Trim(left, `"`))
-	right = filepath.Clean(strings.Trim(right, `"`))
-	return strings.EqualFold(left, right)
+	left = normalizeWindowsPath(left)
+	right = normalizeWindowsPath(right)
+	if strings.EqualFold(left, right) {
+		return true
+	}
+	// If the string comparison fails, compare by filesystem object identity.
+	// os.SameFile uses the volume serial number and file index on Windows, so
+	// it correctly handles cases where one path uses an NTFS 8.3 short name
+	// while the other uses the long name. Windows generates 8.3 names for
+	// directory entries that contain spaces; when the process is launched via
+	// a Startup-folder shortcut the OS may resolve the PIDL to the short-name
+	// form, so os.Executable can return a different string than WScript reads
+	// back from TargetPath even though both point to the same file. The same
+	// fallback also covers directory junction points.
+	leftInfo, leftErr := os.Lstat(left)
+	rightInfo, rightErr := os.Lstat(right)
+	if leftErr == nil && rightErr == nil {
+		return os.SameFile(leftInfo, rightInfo)
+	}
+	return false
+}
+
+func normalizeWindowsPath(p string) string {
+	p = strings.Trim(p, `"`)
+	// filepath.Clean preserves the \\?\ extended-length device path prefix that
+	// Windows adds for paths exceeding MAX_PATH. Strip it so the cleaned result
+	// compares equal to the same path without the prefix.
+	p = strings.TrimPrefix(p, `\\?\`)
+	return filepath.Clean(p)
 }
