@@ -89,7 +89,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 
 ### Phase 2 — PySentry legacy removal
 - [x] P2.1 — Windows autostart legacy code
-- [ ] P2.2 — Linux autostart legacy code
+- [x] P2.2 — Linux autostart legacy code
 - [ ] P2.3 — Delete legacy autostart tests
 - [ ] P2.4 — `.gitignore` / `.dockerignore`
 
