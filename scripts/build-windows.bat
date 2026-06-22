@@ -6,7 +6,7 @@ REM directory. Move to the repository root (the parent of scripts\) before using
 REM relative paths such as .\cmd\gosentry and packaging\windows\gosentry.rc.
 cd /d "%~dp0\.."
 
-for /f "tokens=4" %%V in ('findstr /C:"var Version" src\core\version.go') do set "VERSION=%%~V"
+for /f "tokens=4" %%V in ('findstr /C:"var Version" src\app\version.go') do set "VERSION=%%~V"
 if "%VERSION%"=="" set "VERSION=0.0.0-dev"
 set "VERSION=%VERSION:"=%"
 
@@ -47,7 +47,7 @@ if %ERRORLEVEL%==0 (
 REM -trimpath removes local machine paths from the binary, -s -w reduce binary
 REM size, and -H=windowsgui prevents a separate console window from opening when
 REM the GUI app starts from Explorer or a shortcut.
-"%GOEXE%" build -trimpath -ldflags "-s -w -H=windowsgui -X gitea.mixdep.ru/mix/gosentry/src/core.Version=%VERSION%" -o "%OUTPUT%" .\cmd\gosentry
+"%GOEXE%" build -trimpath -ldflags "-s -w -H=windowsgui -X gitea.mixdep.ru/mix/gosentry/src/app.Version=%VERSION%" -o "%OUTPUT%" .\cmd\gosentry
 if errorlevel 1 exit /b 1
 
 REM Icons are embedded into the executable, so no assets directory is copied next

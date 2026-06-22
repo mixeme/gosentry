@@ -4,7 +4,7 @@ set -euo pipefail
 # Optional first argument mirrors build-linux.sh. The Docker build still writes
 # the final artifact into the local dist/ tree, not into the container. The
 # default includes the application version and target platform.
-version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
+version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go)"
 version="${version:-0.0.0-dev}"
 tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
 output="${1:-dist/linux/gosentry-${version}-linux-amd64}"
@@ -26,7 +26,7 @@ docker run --rm \
     -v "$(pwd):/src" \
     -w /src \
     "$tag" \
-    bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "${OUTPUT}" ./cmd/gosentry'
+    bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/app.Version=${VERSION}" -o "${OUTPUT}" ./cmd/gosentry'
 
 # Icons are embedded in the Go binary, so there is no assets directory to copy
 # after extracting the Linux executable.

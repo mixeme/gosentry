@@ -2,6 +2,68 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.4.0 - 2026-06-22
+
+**Architectural milestone: completed refactoring and reached target architecture.**
+
+- Completed Phase 5 refactoring: hardening, testing, and documentation.
+  - Surface all save/cleanup errors from service and storage; no more silently swallowed `_ = ...` on persistence.
+  - Introduced `platform/autostart.Manager` interface with per-platform implementations (Windows, Linux, other); inject into service instead of calling package functions.
+  - Filled test gaps: folder filtering, log cleanup (count and age), settings persistence and migration, concurrent run prevention.
+  - Verified `go test -race ./...` passes on Windows; no data races in the refactored codebase.
+  - Updated `docs/ARCHITECTURE.md`, `docs/TESTS.md`, and README with final package structure and build/test instructions.
+- **Refactoring target reached:** Service layer owns all state and is the sole writer; UI is a thin view marshaling updates via `fyne.Do`; core engines are stateless and injectable; domain layer is pure with no test noise.
+- Known follow-ups recorded in `ROADMAP.md`:
+  - Linux test build is currently broken (Windows-only test symbols need `//go:build windows`); will fix separately.
+  - File-size soft limits exceeded in a few places; revisit when next editing those files.
+- No observable behavior changes.
+
+## 0.3.6 - 2026-06-22
+
+- Completed Phase 4 refactoring: carved up the GUI into focused, testable components.
+  - Renamed `src/gui` → `src/ui` and split monolithic `app.go` into `run.go` (lifecycle) and `mainwindow.go` (view construction).
+  - Extracted view components into separate files: `jobs_view.go`, `job_dialog.go`, `history_view.go`, `settings_view.go`.
+  - Extracted platform wiring into separate files: `tray.go`, `singleinstance.go`, `layout.go`.
+  - Removed forbidden platform imports (autostart, desktop, paths) from `src/ui`; all platform concerns now flow through `app.Service`.
+  - Upgraded Fyne from v2.5.3 to v2.6.3 to enable `fyne.Do` for cross-thread widget marshaling (resolves concurrency issue #4).
+- Added `docs/PERFORMANCE.md` with measured startup-time analysis: the ~290ms increase from Phase 4 is entirely the Fyne 2.6.3 upgrade's `w.Show()` cost, not the restructuring.
+- Added `docs/PERFORMANCE.md` and wired post-Fyne-2.7.x re-check into `ROADMAP.md`.
+- No observable behavior changes; continued internal refactoring toward separated concerns and testability.
+
+## 0.3.5 - 2026-06-19
+
+- Completed Phase 3 refactoring: application service and state management.
+  - Added `app.Service` as the single owner of application state (job registry, settings, run history).
+  - Implemented event-driven observer dispatch: Services can emit events (JobAdded, JobChanged, etc.) to decouple state changes from UI updates.
+  - Added `app.Clock` interface for testable time-dependent behavior in scheduler and run tracking.
+  - Converted scheduler to drive app.Service instead of directly managing domain state.
+  - Created `app.Format` helpers for display rendering (job names, schedule summaries, run times).
+  - Added comprehensive unit tests for app.Service and supporting types.
+- No observable behavior changes; continued internal refactoring toward separated concerns and testability.
+
+## 0.3.4 - 2026-06-19
+
+- Completed Phase 2 refactoring: domain cleanup and value object extraction.
+  - Split durable job configuration (`domain.Job`) from transient execution state (`domain.JobRuntime`), keyed by job ID.
+  - Added `domain.Schedule` value object with `Parse`, `Validate`, and `Next(time.Time)` methods for cron/interval parsing.
+  - Migrated scheduler to parse schedules once at load/edit instead of per tick, removing duplicated parsing.
+  - Made `RunJob` pure: runner no longer mutates jobs, returning only `RunRecord` for the caller to fold into runtime state.
+  - Simplified `storage.normalizeJobs` to touch only durable configuration; runtime initialization moved to `domain.NewRuntime`.
+- No observable behavior changes; continued internal refactoring toward separated concerns.
+
+## 0.3.3 - 2026-06-18
+
+- Completed Phase 1 refactoring: split the flat `src/core` package into specialized, focused packages:
+  - `src/domain` for pure types (Job, RunRecord, Config)
+  - `src/storage` for persistence (Load/Save, Paths, YAML helpers)
+  - `src/runner` for job execution (RunJob orchestration, logging, exit codes)
+  - `src/scheduler` for timing loop
+  - `src/platform/winproc` for cross-platform hidden window configuration
+  - `src/platform/autostart` for system autostart integration
+  - `src/platform/desktop` for desktop environment integration
+  - `src/app` for application-level code (Version, future Service layer)
+- No observable behavior changes; internal structure improvements only.
+
 ## 0.3.1 - 2026-06-17
 
 - Changed startup timing in History to measure until the main window is actually shown instead of stopping during UI construction.

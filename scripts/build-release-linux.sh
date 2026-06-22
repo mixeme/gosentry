@@ -9,7 +9,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "$repo_root"
 
-version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/core/version.go)"
+version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go)"
 version="${version:-0.0.0-dev}"
 tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
 
@@ -99,15 +99,15 @@ run_in_builder() {
 }
 
 build_linux_amd64() {
-    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-amd64" ./cmd/gosentry'
+    run_in_builder 'mkdir -p dist/linux && CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/app.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-amd64" ./cmd/gosentry'
 }
 
 build_linux_arm64() {
-    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-arm64" ./cmd/gosentry'
+    run_in_builder 'mkdir -p dist/linux && CC=aarch64-linux-gnu-gcc CGO_ENABLED=1 GOOS=linux GOARCH=arm64 CGO_CFLAGS="--sysroot=/ -I/usr/include/aarch64-linux-gnu" CGO_LDFLAGS="--sysroot=/ -L/usr/lib/aarch64-linux-gnu" PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/app.Version=${VERSION}" -o "dist/linux/gosentry-${VERSION}-linux-arm64" ./cmd/gosentry'
 }
 
 build_windows_amd64() {
-    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/gosentry/rsrc_windows_amd64.syso packaging/windows/gosentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui -X gitea.mixdep.ru/mix/gosentry/src/core.Version=${VERSION}" -o "dist/windows/gosentry-${VERSION}-windows-amd64.exe" ./cmd/gosentry'
+    run_in_builder 'mkdir -p dist/windows && x86_64-w64-mingw32-windres -O coff -o cmd/gosentry/rsrc_windows_amd64.syso packaging/windows/gosentry.rc && CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -H=windowsgui -X gitea.mixdep.ru/mix/gosentry/src/app.Version=${VERSION}" -o "dist/windows/gosentry-${VERSION}-windows-amd64.exe" ./cmd/gosentry'
 }
 
 mapfile -t targets < <(choose_targets "$@" | normalize_targets | awk '!seen[$0]++')

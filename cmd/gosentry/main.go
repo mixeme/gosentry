@@ -3,15 +3,15 @@ package main
 import (
 	"os"
 
-	"gitea.mixdep.ru/mix/gosentry/src/core"
-	"gitea.mixdep.ru/mix/gosentry/src/gui"
+	"gitea.mixdep.ru/mix/gosentry/src/domain"
+	"gitea.mixdep.ru/mix/gosentry/src/ui"
 )
 
 func main() {
 	// The executable entry point intentionally delegates all startup work to the
-	// GUI package. Keeping main small makes it easier to add platform-specific
+	// UI package. Keeping main small makes it easier to add platform-specific
 	// packaging later without mixing window setup, storage, and scheduler logic.
-	gui.Run(hasArgument(core.StartInTrayArgument))
+	ui.Run(hasArgument(domain.StartInTrayArgument))
 }
 
 func hasArgument(argument string) bool {

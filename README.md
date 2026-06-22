@@ -9,6 +9,7 @@ Project notes:
 - [Changelog](docs/CHANGELOG.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Refactoring plan](docs/REFACTORING.md)
 
 ## Features
 
@@ -351,14 +352,21 @@ Windows:
 
 ## Project Layout
 
-- `cmd/gosentry` starts the desktop app.
-- `src/gui` contains the GUI.
-- `src/core` contains YAML storage, command execution, scheduling, and log cleanup.
-- `assets` contains app icons that are embedded into the application binary.
-- `scripts` contains build helpers.
-- `docs` contains architecture notes, the changelog, and the roadmap.
+- `cmd/gosentry` — entry point; starts the desktop app.
+- `src/domain` — pure value types: `Job`, `Config`, `RunRecord`, `Schedule`, `JobRuntime`.
+- `src/app` — `Service`: sole owner of job and runtime state; emits typed events to the UI.
+- `src/scheduler` — pure timing loop; calls `Service.RunDue` on every tick.
+- `src/runner` — shell command execution, log file writing, and log cleanup.
+- `src/storage` — YAML persistence (`gosentry.yaml`, `jobs.yaml`).
+- `src/platform/autostart` — `Manager` interface with Windows (shortcut) and Linux (XDG) implementations.
+- `src/platform/desktop` — display-scale helper (Linux only).
+- `src/platform/winproc` — hidden-window startup flags (Windows only).
+- `src/ui` — Fyne windows, tabs, and dialogs; reads service state through events.
+- `assets` — app icons embedded into the application binary.
+- `scripts` — build helpers.
+- `docs` — architecture notes, changelog, and roadmap.
 
-Build outputs are written to `dist/`. The old local `bin/` directory is not used.
+Build outputs are written to `dist/`.
 
 ## Dependencies
 
