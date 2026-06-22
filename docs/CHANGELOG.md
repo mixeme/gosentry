@@ -2,6 +2,15 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.6.0 - 2026-06-22
+
+**PySentry legacy code removed.**
+
+- Removed all PySentry registry autostart entries (Windows), systemd and desktop file cleanup (Linux), and associated legacy code paths.
+- Updated `.gitignore` and `.dockerignore` to ignore `gosentry.json` / `jobs.json` instead of the old YAML filenames;
+  added `*.yaml` wildcard to ignore legacy files during the import window.
+- No observable behavior changes; codebase cleanup after migration from PySentry naming.
+
 ## 0.5.0 - 2026-06-22
 
 **Storage migrated from YAML to JSON; exit-code flexibility removed.**
