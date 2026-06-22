@@ -2,6 +2,21 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.5.0 - 2026-06-22
+
+**Storage migrated from YAML to JSON; exit-code flexibility removed.**
+
+- Settings and jobs are now stored as `gosentry.json` and `jobs.json` (2-space indented JSON).
+  On first run after upgrading, existing `gosentry.yaml` / `jobs.yaml` files are imported
+  automatically and the JSON files are written; the YAML files are not deleted and can be
+  removed manually.
+- Removed `SuccessExitCodes` field from jobs. Exit-code handling is now fixed: exit code 0 is
+  success, any nonzero exit code is failure. Jobs that relied on nonzero success codes will now
+  show "Failed"; update those jobs to use `StartOnly` mode if the exit code is irrelevant.
+- Deleted `runner/exitcodes.go`; simplified `runStateDetail` accordingly.
+- Tests updated: JSON round-trip tests, YAML-import tests for both config and jobs,
+  exit-code flexibility tests removed.
+
 ## 0.4.0 - 2026-06-22
 
 **Architectural milestone: completed refactoring and reached target architecture.**
