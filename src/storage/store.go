@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -8,7 +9,6 @@ import (
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
-	"go.yaml.in/yaml/v4"
 )
 
 type Store struct {
@@ -55,14 +55,14 @@ func (s *Store) SaveConfig() error {
 	if err := os.MkdirAll(s.Paths.AppDir, 0o755); err != nil {
 		return err
 	}
-	return writeYAML(s.Paths.ConfigPath, s.Config)
+	return writeJSON(s.Paths.ConfigPath, s.Config)
 }
 
 func (s *Store) SaveJobs(jobs []domain.Job) error {
 	if err := os.MkdirAll(s.Paths.JobsDir, 0o755); err != nil {
 		return err
 	}
-	return writeYAML(s.Paths.JobsPath, domain.JobsFile{Jobs: jobs})
+	return writeJSON(s.Paths.JobsPath, domain.JobsFile{Jobs: jobs})
 }
 
 func loadOrCreateConfig(paths Paths) (domain.Config, error) {
@@ -89,19 +89,19 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 			// naturally rewrites it under gosentry.yaml.
 			configPath = legacyPath
 		} else {
-			return config, writeYAML(paths.ConfigPath, config)
+			return config, writeJSON(paths.ConfigPath, config)
 		}
 	}
 
 	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
-		return config, writeYAML(paths.ConfigPath, config)
+		return config, writeJSON(paths.ConfigPath, config)
 	}
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return domain.Config{}, err
 	}
-	if err := yaml.Unmarshal(data, &config); err != nil {
+	if err := json.Unmarshal(data, &config); err != nil {
 		return domain.Config{}, err
 	}
 	if strings.TrimSpace(config.JobsDir) == "" {
@@ -127,7 +127,7 @@ func loadOrCreateJobs(path string) ([]domain.Job, error) {
 		// see scheduled and manual execution without inventing a command.
 		jobs := defaultJobs()
 		normalizeJobs(jobs)
-		return jobs, writeYAML(path, domain.JobsFile{Jobs: jobs})
+		return jobs, writeJSON(path, domain.JobsFile{Jobs: jobs})
 	}
 
 	data, err := os.ReadFile(path)
@@ -135,7 +135,7 @@ func loadOrCreateJobs(path string) ([]domain.Job, error) {
 		return nil, err
 	}
 	var file domain.JobsFile
-	if err := yaml.Unmarshal(data, &file); err != nil {
+	if err := json.Unmarshal(data, &file); err != nil {
 		return nil, err
 	}
 	return file.Jobs, nil
@@ -195,16 +195,19 @@ func (s *Store) applyConfigPaths() {
 	s.Paths.LogsDir = resolveConfiguredDir(s.Paths.AppDir, s.Config.LogsDir)
 }
 
-func writeYAML(path string, value any) error {
+func writeJSON(path string, value any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	data, err := yaml.Marshal(value)
+	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
 		return err
 	}
+	// A trailing newline keeps the file friendly to editors and diff tools that
+	// expect text files to end with one.
+	data = append(data, '\n')
 	// WriteFile replaces the full file instead of patching it in place. For small
-	// YAML files this is simpler and prevents stale keys from older versions from
+	// JSON files this is simpler and prevents stale keys from older versions from
 	// lingering after the schema changes.
 	return os.WriteFile(path, data, 0o644)
 }
