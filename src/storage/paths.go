@@ -8,15 +8,16 @@ import (
 const (
 	// The config file stays beside the executable so the portable build behaves
 	// predictably: moving the program folder moves its settings with it.
-	ConfigFileName = "gosentry.yaml"
-	// Older builds were named PySentry. Keep the old config name readable during
-	// the rename window so portable installations can start once and rewrite the
-	// settings to gosentry.yaml without manual file copying.
-	LegacyConfigFileName = "pysentry.yaml"
-	// Jobs are kept in a separate YAML file because the user can choose a
+	ConfigFileName = "gosentry.json"
+	// Jobs are kept in a separate JSON file because the user can choose a
 	// different jobs directory, while application settings remain local to the
 	// installed/copied program.
-	JobsFileName = "jobs.yaml"
+	JobsFileName = "jobs.json"
+
+	// Legacy YAML file names used by builds before the JSON migration. These are
+	// read once on first start (P1.4) and then replaced by the JSON equivalents.
+	legacyYAMLConfigFileName = "gosentry.yaml"
+	legacyYAMLJobsFileName   = "jobs.yaml"
 )
 
 // Paths contains both the physical program location and the resolved runtime

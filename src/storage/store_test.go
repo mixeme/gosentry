@@ -155,15 +155,14 @@ func TestNormalizeJobsFillsDefaults(t *testing.T) {
 	}
 }
 
-// TestLoadOrCreateConfigMigratesFromLegacy verifies that when gosentry.yaml is
-// absent but pysentry.yaml exists the config is read from the legacy file. This
-// lets portable installs that still carry a pysentry.yaml start without manual
-// migration.
+// TestLoadOrCreateConfigMigratesFromLegacy verifies that when gosentry.json is
+// absent but gosentry.yaml exists the config is read from the legacy YAML file.
+// This lets installs that pre-date the JSON migration start without manual steps.
 func TestLoadOrCreateConfigMigratesFromLegacy(t *testing.T) {
 	dir := t.TempDir()
 	paths := Paths{
 		AppDir:     dir,
-		ConfigPath: filepath.Join(dir, ConfigFileName), // gosentry.yaml — not created
+		ConfigPath: filepath.Join(dir, ConfigFileName), // gosentry.json — not created
 	}
 
 	legacy := domain.Config{
@@ -173,7 +172,7 @@ func TestLoadOrCreateConfigMigratesFromLegacy(t *testing.T) {
 		MaxLogAgeDays: 13,
 		StartOnLogin:  true,
 	}
-	if err := writeYAML(filepath.Join(dir, LegacyConfigFileName), legacy); err != nil {
+	if err := writeYAML(filepath.Join(dir, legacyYAMLConfigFileName), legacy); err != nil {
 		t.Fatal(err)
 	}
 
@@ -199,7 +198,7 @@ func TestLoadOrCreateConfigMigratesFromLegacy(t *testing.T) {
 }
 
 // TestLoadOrCreateConfigCreatesDefaultsOnFirstRun verifies that the first run
-// (no config files present) writes gosentry.yaml and returns sensible defaults.
+// (no config files present) writes gosentry.json and returns sensible defaults.
 func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	dir := t.TempDir()
 	paths := Paths{
@@ -223,9 +222,9 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.MaxLogAgeDays != 30 {
 		t.Errorf("default MaxLogAgeDays = %d, want 30", got.MaxLogAgeDays)
 	}
-	// The function must have written the defaults to gosentry.yaml.
+	// The function must have written the defaults to gosentry.json.
 	if _, err := os.Stat(paths.ConfigPath); err != nil {
-		t.Errorf("gosentry.yaml should have been created: %v", err)
+		t.Errorf("gosentry.json should have been created: %v", err)
 	}
 }
 

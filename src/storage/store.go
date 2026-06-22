@@ -41,9 +41,9 @@ func OpenStore() (*Store, []domain.Job, error) {
 		return nil, nil, err
 	}
 	normalizeJobs(jobs)
-	// Jobs are also rewritten after normalization. That keeps jobs.yaml compact:
+	// Jobs are also rewritten after normalization. That keeps jobs.json compact:
 	// only durable job definitions remain, because runtime fields are tagged
-	// yaml:"-" in the model.
+	// json:"-" in the model.
 	if err := store.SaveJobs(jobs); err != nil {
 		return nil, nil, err
 	}
@@ -80,13 +80,11 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 
 	configPath := paths.ConfigPath
 	if _, err := os.Stat(configPath); errors.Is(err, os.ErrNotExist) {
-		legacyPath := filepath.Join(paths.AppDir, LegacyConfigFileName)
+		legacyPath := filepath.Join(paths.AppDir, legacyYAMLConfigFileName)
 		if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
-			// The rename from PySentry to GoSentry changed the preferred config
-			// filename. Read the old file once if it is still present so portable
-			// installs continue to start without a manual migration step. The
-			// caller later saves the loaded config back through SaveConfig, which
-			// naturally rewrites it under gosentry.yaml.
+			// gosentry.yaml is the pre-JSON-migration config file. Read it once
+			// when gosentry.json is absent so existing installs migrate without
+			// manual intervention. SaveConfig rewrites the result as gosentry.json.
 			configPath = legacyPath
 		} else {
 			return config, writeJSON(paths.ConfigPath, config)
