@@ -23,10 +23,9 @@ func echoCommand(message string) string {
 func TestRunJobLogFileAllHeaders(t *testing.T) {
 	logsDir := t.TempDir()
 	job := domain.Job{
-		ID:               99,
-		Name:             "Log Header Test",
-		Command:          echoCommand("header test output"),
-		SuccessExitCodes: "0,1",
+		ID:      99,
+		Name:    "Log Header Test",
+		Command: echoCommand("header test output"),
 	}
 
 	record := RunJob(context.Background(), &job, "Schedule", logsDir)
@@ -48,7 +47,6 @@ func TestRunJobLogFileAllHeaders(t *testing.T) {
 		"detail: ",
 		"command: " + job.Command,
 		"arguments: <empty>",
-		"success_exit_codes: 0,1",
 		"start_only: false",
 		"stdout:",
 		"stderr:",
@@ -256,40 +254,15 @@ func TestRunJobRunsWindowsCommandWithSeparateArguments(t *testing.T) {
 	}
 }
 
-func TestRunJobAcceptsConfiguredExitCode(t *testing.T) {
+func TestRunJobFailsOnNonZeroExitCode(t *testing.T) {
 	command := `sh -c 'exit 1'`
 	if runtime.GOOS == "windows" {
 		command = `C:\Windows\System32\cmd.exe`
 	}
 	job := domain.Job{
-		ID:               46,
-		Name:             "Accepted Exit Code",
-		Command:          command,
-		SuccessExitCodes: "0,1",
-	}
-	if runtime.GOOS == "windows" {
-		job.Arguments = "/C\nexit /b 1"
-	}
-
-	record := RunJob(context.Background(), &job, "Manual", t.TempDir())
-	if record.State != "OK" {
-		t.Fatalf("expected accepted exit code to be OK, got state %q detail %q", record.State, record.Detail)
-	}
-	if !strings.Contains(record.Detail, "accepted exit code 1") {
-		t.Fatalf("expected accepted exit code detail, got %q", record.Detail)
-	}
-}
-
-func TestRunJobRejectsUnconfiguredExitCode(t *testing.T) {
-	command := `sh -c 'exit 1'`
-	if runtime.GOOS == "windows" {
-		command = `C:\Windows\System32\cmd.exe`
-	}
-	job := domain.Job{
-		ID:               47,
-		Name:             "Rejected Exit Code",
-		Command:          command,
-		SuccessExitCodes: "0",
+		ID:      47,
+		Name:    "Non-zero Exit Code",
+		Command: command,
 	}
 	if runtime.GOOS == "windows" {
 		job.Arguments = "/C\nexit /b 1"
@@ -297,9 +270,9 @@ func TestRunJobRejectsUnconfiguredExitCode(t *testing.T) {
 
 	record := RunJob(context.Background(), &job, "Manual", t.TempDir())
 	if record.State != "Failed" {
-		t.Fatalf("expected rejected exit code to fail, got state %q detail %q", record.State, record.Detail)
+		t.Fatalf("expected non-zero exit code to fail, got state %q detail %q", record.State, record.Detail)
 	}
-	if !strings.Contains(record.Detail, "Exit code 1") {
+	if !strings.Contains(record.Detail, "exit code 1") {
 		t.Fatalf("expected exit code detail, got %q", record.Detail)
 	}
 }
@@ -346,19 +319,6 @@ func TestRunJobStartOnlyReportsStartFailure(t *testing.T) {
 	}
 	if !strings.Contains(record.Output, "Process did not start") {
 		t.Fatalf("expected start failure output, got:\n%s", record.Output)
-	}
-}
-
-func TestParseExitCodes(t *testing.T) {
-	got := parseExitCodes("0, 1;2\n3")
-	want := []int{0, 1, 2, 3}
-	if len(got) != len(want) {
-		t.Fatalf("expected %v, got %v", want, got)
-	}
-	for index := range want {
-		if got[index] != want[index] {
-			t.Fatalf("expected %v, got %v", want, got)
-		}
 	}
 }
 

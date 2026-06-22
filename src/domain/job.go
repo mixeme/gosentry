@@ -12,7 +12,6 @@ type Job struct {
 	Schedule         string `json:"schedule"`
 	Command          string `json:"command"`
 	Arguments        string `json:"arguments,omitempty"`
-	SuccessExitCodes string `json:"success_exit_codes,omitempty"`
 	StartOnly        bool   `json:"start_only,omitempty"`
 	Enabled          bool   `json:"enabled"`
 }

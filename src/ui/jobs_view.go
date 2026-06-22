@@ -60,7 +60,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	scheduleLabel := newJobDetailLabel(jobs[selected].Schedule)
 	commandLabel := newJobDetailLabel(jobs[selected].Command)
 	argumentsLabel := newJobDetailLabel(jobs[selected].Arguments)
-	successExitCodesLabel := newJobDetailLabel(app.DisplaySuccessExitCodes(jobs[selected].SuccessExitCodes))
 	runModeLabel := newJobDetailLabel(app.DisplayRunMode(jobs[selected]))
 	selectedRuntime := runtimeFor(selected)
 	lastRunLabel := newJobDetailLabel(selectedRuntime.LastRun)
@@ -93,7 +92,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			scheduleLabel.SetText("")
 			commandLabel.SetText("")
 			argumentsLabel.SetText("")
-			successExitCodesLabel.SetText("")
 			runModeLabel.SetText("")
 			lastRunLabel.SetText("")
 			nextRunLabel.SetText("")
@@ -110,7 +108,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		scheduleLabel.SetText(current.Schedule)
 		commandLabel.SetText(current.Command)
 		argumentsLabel.SetText(app.DisplayArguments(current.Arguments))
-		successExitCodesLabel.SetText(app.DisplaySuccessExitCodes(current.SuccessExitCodes))
 		runModeLabel.SetText(app.DisplayRunMode(current))
 		lastRunLabel.SetText(rt.LastRun)
 		nextRunLabel.SetText(rt.NextRun)
@@ -338,7 +335,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		detailRow("Schedule", scheduleLabel),
 		detailRow("Command", commandLabel),
 		detailRow("Arguments", argumentsLabel),
-		detailRow("Success exit codes", successExitCodesLabel),
 		detailRow("Run mode", runModeLabel),
 		detailRow("Last run", lastRunLabel),
 		detailRow("Next run", nextRunLabel),

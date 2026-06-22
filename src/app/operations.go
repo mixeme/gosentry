@@ -436,8 +436,6 @@ func runningOutput(job domain.Job, trigger string, started time.Time) string {
 	builder.WriteString(job.Command + "\n\n")
 	builder.WriteString("arguments:\n")
 	builder.WriteString(runner.LogArguments(job.Arguments))
-	builder.WriteString("\n\nsuccess_exit_codes:\n")
-	builder.WriteString(runner.SuccessExitCodesText(job))
 	builder.WriteString("\n\nstart_only:\n")
 	builder.WriteString(fmt.Sprintf("%t", job.StartOnly))
 	return builder.String()
@@ -451,10 +449,6 @@ func normalizeJob(job *domain.Job) {
 	job.Schedule = strings.TrimSpace(job.Schedule)
 	job.Command = strings.TrimSpace(job.Command)
 	job.Arguments = strings.TrimSpace(job.Arguments)
-	job.SuccessExitCodes = strings.TrimSpace(job.SuccessExitCodes)
-	if job.SuccessExitCodes == "" {
-		job.SuccessExitCodes = "0"
-	}
 }
 
 // validateJob enforces the minimum executable definition: name, schedule, and

@@ -68,15 +68,6 @@ func TestDisplayArguments(t *testing.T) {
 	}
 }
 
-func TestDisplaySuccessExitCodes(t *testing.T) {
-	if got := DisplaySuccessExitCodes("  "); got != "0" {
-		t.Errorf("empty codes = %q, want %q", got, "0")
-	}
-	if got := DisplaySuccessExitCodes(" 0,1 "); got != "0,1" {
-		t.Errorf("codes = %q, want %q", got, "0,1")
-	}
-}
-
 func TestDisplayRunMode(t *testing.T) {
 	if got := DisplayRunMode(domain.Job{StartOnly: true}); got != "Start only" {
 		t.Errorf("start-only = %q, want %q", got, "Start only")

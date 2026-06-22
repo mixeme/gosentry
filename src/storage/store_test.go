@@ -10,25 +10,32 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
+func writeYAML(path string, value any) error {
+	data, err := yaml.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 func TestJobsRoundTrip(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "jobs.yaml")
+	path := filepath.Join(dir, "jobs.json")
 
 	original := []domain.Job{
 		{
-			ID:               7,
-			Name:             "Backup data",
-			Folder:           "Maintenance",
-			Schedule:         "0 2 * * *",
-			Command:          "/usr/bin/backup",
-			Arguments:        "--compress\n--verbose",
-			SuccessExitCodes: "0,1",
-			StartOnly:        true,
-			Enabled:          true,
+			ID:        7,
+			Name:      "Backup data",
+			Folder:    "Maintenance",
+			Schedule:  "0 2 * * *",
+			Command:   "/usr/bin/backup",
+			Arguments: "--compress\n--verbose",
+			StartOnly: true,
+			Enabled:   true,
 		},
 	}
 
-	if err := writeYAML(path, domain.JobsFile{Jobs: original}); err != nil {
+	if err := writeJSON(path, domain.JobsFile{Jobs: original}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,9 +66,6 @@ func TestJobsRoundTrip(t *testing.T) {
 	if g.Arguments != w.Arguments {
 		t.Errorf("Arguments: got %q, want %q", g.Arguments, w.Arguments)
 	}
-	if g.SuccessExitCodes != w.SuccessExitCodes {
-		t.Errorf("SuccessExitCodes: got %q, want %q", g.SuccessExitCodes, w.SuccessExitCodes)
-	}
 	if g.StartOnly != w.StartOnly {
 		t.Errorf("StartOnly: got %v, want %v", g.StartOnly, w.StartOnly)
 	}
@@ -86,10 +90,10 @@ func TestConfigRoundTrip(t *testing.T) {
 		MaxLogFiles:       50,
 		MaxLogAgeDays:     14,
 		StartOnLogin:      true,
-		KeepRunningInTray: false,
-		NotifyOnFailure:   false,
+		KeepRunningInTray: true,
+		NotifyOnFailure:   true,
 	}
-	if err := writeYAML(paths.ConfigPath, want); err != nil {
+	if err := writeJSON(paths.ConfigPath, want); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,12 +129,12 @@ func TestNormalizeJobsFillsDefaults(t *testing.T) {
 	jobs := []domain.Job{
 		{Enabled: true},
 		{Enabled: false},
-		{ID: 5, Name: "Kept", Schedule: "*/10 * * * *", SuccessExitCodes: "0,1", Enabled: true},
+		{ID: 5, Name: "Kept", Schedule: "*/10 * * * *", Enabled: true},
 	}
 
 	normalizeJobs(jobs)
 
-	// Blank enabled job gets default name, schedule, command, and exit codes.
+	// Blank enabled job gets default name, schedule, and command.
 	// normalizeJobs only fills durable configuration now; runtime status is built
 	// separately by domain.NewRuntime.
 	if jobs[0].ID != 1 {
@@ -142,16 +146,10 @@ func TestNormalizeJobsFillsDefaults(t *testing.T) {
 	if jobs[0].Schedule != "@every 1m" {
 		t.Errorf("default schedule: got %q, want '@every 1m'", jobs[0].Schedule)
 	}
-	if jobs[0].SuccessExitCodes != "0" {
-		t.Errorf("default exit codes: got %q, want '0'", jobs[0].SuccessExitCodes)
-	}
 
 	// Pre-set fields survive normalization unchanged.
 	if jobs[2].ID != 5 {
 		t.Errorf("pre-set ID should be preserved: got %d, want 5", jobs[2].ID)
-	}
-	if jobs[2].SuccessExitCodes != "0,1" {
-		t.Errorf("pre-set exit codes should be preserved: got %q, want '0,1'", jobs[2].SuccessExitCodes)
 	}
 }
 
@@ -165,12 +163,12 @@ func TestLoadOrCreateConfigMigratesFromLegacy(t *testing.T) {
 		ConfigPath: filepath.Join(dir, ConfigFileName), // gosentry.json — not created
 	}
 
-	legacy := domain.Config{
-		JobsDir:       "/legacy/jobs",
-		LogsDir:       "/legacy/logs",
-		MaxLogFiles:   77,
+	legacy := yamlConfig{
+		JobsDir:      "/legacy/jobs",
+		LogsDir:      "/legacy/logs",
+		MaxLogFiles:  77,
 		MaxLogAgeDays: 13,
-		StartOnLogin:  true,
+		StartOnLogin: true,
 	}
 	if err := writeYAML(filepath.Join(dir, legacyYAMLConfigFileName), legacy); err != nil {
 		t.Fatal(err)

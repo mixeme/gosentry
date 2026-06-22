@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gitea.mixdep.ru/mix/gosentry/src/app"
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
 	"fyne.io/fyne/v2"
@@ -31,9 +30,6 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	argumentsEntry := widget.NewMultiLineEntry()
 	argumentsEntry.SetPlaceHolder(`D:\Local\Jobs\Auto.ffs_batch`)
 	argumentsEntry.SetText(current.Arguments)
-	successExitCodesEntry := widget.NewEntry()
-	successExitCodesEntry.SetPlaceHolder("0")
-	successExitCodesEntry.SetText(app.DisplaySuccessExitCodes(current.SuccessExitCodes))
 	startOnly := widget.NewCheck("Start only, do not wait for exit", nil)
 	startOnly.SetChecked(current.StartOnly)
 	enabled := widget.NewCheck("Enabled", nil)
@@ -49,7 +45,6 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			widget.NewFormItem("Schedule", scheduleEntry),
 			widget.NewFormItem("Command", commandEntry),
 			widget.NewFormItem("Arguments", argumentsEntry),
-			widget.NewFormItem("Success exit codes", successExitCodesEntry),
 			widget.NewFormItem("", startOnly),
 			widget.NewFormItem("", enabled),
 		},
@@ -72,10 +67,6 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			current.Schedule = strings.TrimSpace(scheduleEntry.Text)
 			current.Command = strings.TrimSpace(commandEntry.Text)
 			current.Arguments = strings.TrimSpace(argumentsEntry.Text)
-			current.SuccessExitCodes = strings.TrimSpace(successExitCodesEntry.Text)
-			if current.SuccessExitCodes == "" {
-				current.SuccessExitCodes = "0"
-			}
 			current.StartOnly = startOnly.Checked
 			current.Enabled = enabled.Checked
 			// The dialog only edits durable configuration. Runtime status is

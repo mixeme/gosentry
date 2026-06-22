@@ -40,8 +40,7 @@ type yamlJob struct {
 	Schedule         string `yaml:"schedule"`
 	Command          string `yaml:"command"`
 	Arguments        string `yaml:"arguments,omitempty"`
-	SuccessExitCodes string `yaml:"success_exit_codes,omitempty"`
-	StartOnly        bool   `yaml:"start_only,omitempty"`
+	StartOnly bool `yaml:"start_only,omitempty"`
 	Enabled          bool   `yaml:"enabled"`
 }
 
@@ -246,10 +245,6 @@ func normalizeJobs(jobs []domain.Job) {
 			job.Command = echoCommand("GoSentry job ran")
 		}
 		job.Arguments = strings.TrimSpace(job.Arguments)
-		job.SuccessExitCodes = strings.TrimSpace(job.SuccessExitCodes)
-		if job.SuccessExitCodes == "" {
-			job.SuccessExitCodes = "0"
-		}
 		// Runtime state (last run, next run, status, output, activity) is no longer
 		// part of Job. It is reconstructed each time the app starts via
 		// domain.NewRuntime, so normalizeJobs only touches durable configuration.

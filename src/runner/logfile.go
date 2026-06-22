@@ -23,8 +23,8 @@ func writeRunLog(logsDir string, job domain.Job, trigger string, state string, d
 	// avoid characters that are invalid on Windows or awkward on shells.
 	fileName := started.Format("20060102-150405") + "_" + sanitizeFileName(job.Name) + ".log"
 	path := filepath.Join(logsDir, fileName)
-	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\ncommand: %s\narguments: %s\nsuccess_exit_codes: %s\nstart_only: %t\n\n%s\n",
-		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, job.Command, logArguments(job.Arguments), successExitCodesText(job), job.StartOnly, output)
+	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
+		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, job.Command, logArguments(job.Arguments), job.StartOnly, output)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return ""
 	}

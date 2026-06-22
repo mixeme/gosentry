@@ -45,7 +45,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 		err := command.Run()
 		duration := time.Since(started).Round(time.Millisecond)
 		output = formatOutput(stdoutBuf.String(), stderrBuf.String())
-		state, detail = runStateDetail(err, runCtx.Err(), duration, *job)
+		state, detail = runStateDetail(err, runCtx.Err(), duration)
 	}
 
 	now := time.Now()
@@ -100,7 +100,7 @@ func startOnlyOutput(job domain.Job, pid int) string {
 	return builder.String()
 }
 
-func runStateDetail(err error, runErr error, duration time.Duration, job domain.Job) (string, string) {
+func runStateDetail(err error, runErr error, duration time.Duration) (string, string) {
 	if err == nil {
 		return "OK", fmt.Sprintf("Completed in %s (exit code 0)", duration)
 	}
@@ -110,14 +110,9 @@ func runStateDetail(err error, runErr error, duration time.Duration, job domain.
 	if errors.Is(err, exec.ErrWaitDelay) {
 		return "OK", fmt.Sprintf("Completed; output capture stopped after %s because a child process kept the stream open", commandWaitDelay)
 	}
-
 	var exitError *exec.ExitError
 	if errors.As(err, &exitError) {
-		exitCode := exitError.ExitCode()
-		if acceptedExitCode(exitCode, job.SuccessExitCodes) {
-			return "OK", fmt.Sprintf("Completed in %s with accepted exit code %d", duration, exitCode)
-		}
-		return "Failed", fmt.Sprintf("Exit code %d is not in success_exit_codes (%s)", exitCode, successExitCodesText(job))
+		return "Failed", fmt.Sprintf("Failed with exit code %d", exitError.ExitCode())
 	}
 	return "Failed", fmt.Sprintf("%T: %v", err, err)
 }

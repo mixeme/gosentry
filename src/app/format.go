@@ -50,15 +50,6 @@ func DisplayArguments(arguments string) string {
 	return strings.TrimSpace(arguments)
 }
 
-// DisplaySuccessExitCodes formats a job's success exit codes for display:
-// "0" (the default) if empty, else the trimmed codes.
-func DisplaySuccessExitCodes(codes string) string {
-	if strings.TrimSpace(codes) == "" {
-		return "0"
-	}
-	return strings.TrimSpace(codes)
-}
-
 // DisplayRunMode formats a job's execution mode: "Start only" or
 // "Wait for completion".
 func DisplayRunMode(job domain.Job) string {
