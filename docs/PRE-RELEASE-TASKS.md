@@ -83,7 +83,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P1.1 — JSON struct tags
 - [x] P1.2 — `writeJSON` + JSON unmarshal
 - [x] P1.3 — `gosentry.json` / `jobs.json` paths; drop pysentry name
-- [ ] P1.4 — One-time YAML import
+- [x] P1.4 — One-time YAML import
 - [ ] P1.5 — Remove `SuccessExitCodes` across code
 - [ ] P1.6 — Update storage/runner/format tests + TESTS.md
 
