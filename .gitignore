@@ -9,9 +9,9 @@ cmd/gosentry/*.syso
 *.test
 
 # Runtime files created next to the executable during local runs.
-gosentry.yaml
-pysentry.yaml
-jobs.yaml
+gosentry.json
+jobs.json
+*.yaml
 logs/
 
 # Go workspace/cache files that should stay local if a developer creates them.
