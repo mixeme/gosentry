@@ -85,7 +85,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P1.3 — `gosentry.json` / `jobs.json` paths; drop pysentry name
 - [x] P1.4 — One-time YAML import
 - [x] P1.5 — Remove `SuccessExitCodes` across code
-- [ ] P1.6 — Update storage/runner/format tests + TESTS.md
+- [x] P1.6 — Update storage/runner/format tests + TESTS.md
 
 ### Phase 2 — PySentry legacy removal
 - [ ] P2.1 — Windows autostart legacy code

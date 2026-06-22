@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -226,10 +227,10 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	}
 }
 
-func TestJobsYAMLDoesNotPersistRuntimeNoise(t *testing.T) {
+func TestJobsJSONDoesNotPersistRuntimeNoise(t *testing.T) {
 	// Job carries only durable configuration; runtime state lives in
 	// domain.JobRuntime and is never marshalled. This guards against a future
-	// runtime field accidentally being added back onto Job with a yaml tag.
+	// runtime field accidentally being added back onto Job with a json tag.
 	jobs := []domain.Job{
 		{
 			ID:       1,
@@ -240,14 +241,50 @@ func TestJobsYAMLDoesNotPersistRuntimeNoise(t *testing.T) {
 		},
 	}
 
-	data, err := yaml.Marshal(domain.JobsFile{Jobs: jobs})
+	data, err := json.Marshal(domain.JobsFile{Jobs: jobs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	text := string(data)
 	for _, unwanted := range []string{"last_run", "next_run", "last_state", "activity", "last_output", "stdout"} {
 		if strings.Contains(text, unwanted) {
-			t.Fatalf("jobs yaml should not contain %q:\n%s", unwanted, text)
+			t.Fatalf("jobs json should not contain %q:\n%s", unwanted, text)
 		}
+	}
+}
+
+// TestLoadOrCreateJobsMigratesFromLegacy verifies that when jobs.json is absent
+// but jobs.yaml exists the jobs are read from the legacy YAML file.
+func TestLoadOrCreateJobsMigratesFromLegacy(t *testing.T) {
+	dir := t.TempDir()
+	jsonPath := filepath.Join(dir, JobsFileName) // jobs.json — not created
+
+	legacy := yamlJobsFile{
+		Jobs: []yamlJob{
+			{ID: 10, Name: "Legacy job", Schedule: "@every 5m", Command: "echo legacy", Enabled: true},
+		},
+	}
+	if err := writeYAML(filepath.Join(dir, legacyYAMLJobsFileName), legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadOrCreateJobs(jsonPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 job, got %d", len(got))
+	}
+	if got[0].ID != 10 {
+		t.Errorf("ID: got %d, want 10", got[0].ID)
+	}
+	if got[0].Name != "Legacy job" {
+		t.Errorf("Name: got %q, want 'Legacy job'", got[0].Name)
+	}
+	if got[0].Schedule != "@every 5m" {
+		t.Errorf("Schedule: got %q, want '@every 5m'", got[0].Schedule)
+	}
+	if !got[0].Enabled {
+		t.Errorf("Enabled: got false, want true")
 	}
 }

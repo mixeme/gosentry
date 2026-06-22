@@ -98,7 +98,7 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 
 | Test | Purpose |
 |------|---------|
-| `TestCreateJobAssignsIDAndEmits` | Verifies that `CreateJob` assigns a unique ID, persists to YAML, and emits `JobChanged`. |
+| `TestCreateJobAssignsIDAndEmits` | Verifies that `CreateJob` assigns a unique ID, persists to JSON, and emits `JobChanged`. |
 | `TestCreateJobValidates` | Verifies that `CreateJob` rejects jobs with an invalid schedule. |
 | `TestUpdateJobKeepsRuntimeAndReflectsDisable` | Verifies that `UpdateJob` preserves existing runtime state and disables a job correctly. |
 | `TestUpdateJobReenablesPausedJob` | Verifies that re-enabling a previously-disabled job clears the paused runtime state. |
@@ -160,9 +160,8 @@ Tests display-formatting helpers used by the UI.
 | `TestEventText` | Verifies trigger-type labels for scheduled, manual, and UI triggers. |
 | `TestDisplayFolder` | Verifies that an empty folder string shows "No folder". |
 | `TestDisplayArguments` | Verifies that an empty arguments string shows "None". |
-| `TestDisplaySuccessExitCodes` | Verifies that an empty exit-codes string shows the default "0". |
 | `TestDisplayRunMode` | Verifies run-mode labels for normal and start-only modes. |
-| `TestDisplayInvocation` | Verifies that the full invocation display string includes command, arguments, and exit codes. |
+| `TestDisplayInvocation` | Verifies that the full invocation display string combines command and arguments with spacing. |
 | `TestDisplayIndex` | Verifies that the display index is one-based (job slice index + 1). |
 
 ---
@@ -171,16 +170,17 @@ Tests display-formatting helpers used by the UI.
 
 **Package:** `storage`
 
-Tests YAML round-tripping, migration, and default generation.
+Tests JSON round-tripping, YAML migration import, and default generation.
 
 | Test | Purpose |
 |------|---------|
-| `TestJobsRoundTrip` | Verifies that jobs saved to YAML are reloaded with identical field values. |
-| `TestConfigRoundTrip` | Verifies that settings saved to YAML are reloaded with identical field values. |
-| `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default enabled state for jobs missing those fields. |
-| `TestLoadOrCreateConfigMigratesFromLegacy` | Verifies that the old flat-config format is migrated to the current `gosentry.yaml` + `jobs_dir` layout on first load. |
+| `TestJobsRoundTrip` | Verifies that jobs saved to JSON are reloaded with identical field values. |
+| `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
+| `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
+| `TestLoadOrCreateConfigMigratesFromLegacy` | Verifies that when `gosentry.json` is absent but `gosentry.yaml` exists the config is imported from the legacy YAML file on first load. |
+| `TestLoadOrCreateJobsMigratesFromLegacy` | Verifies that when `jobs.json` is absent but `jobs.yaml` exists the jobs are imported from the legacy YAML file on first load. |
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
-| `TestJobsYAMLDoesNotPersistRuntimeNoise` | Verifies that `jobs.yaml` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
+| `TestJobsJSONDoesNotPersistRuntimeNoise` | Verifies that `jobs.json` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
 
 ---
 
@@ -232,8 +232,7 @@ Tests command execution, exit code handling, output capture, and Windows-specifi
 
 | Test | Purpose |
 |------|---------|
-| `TestRunJobAcceptsConfiguredExitCode` | Verifies that exit codes in `SuccessExitCodes` result in "OK" status even when nonzero. |
-| `TestRunJobRejectsUnconfiguredExitCode` | Verifies that exit codes absent from `SuccessExitCodes` result in "Failed" status. |
+| `TestRunJobFailsOnNonZeroExitCode` | Verifies that a nonzero process exit code results in "Failed" status with an "exit code N" detail. |
 
 #### Start-only mode
 
@@ -246,7 +245,6 @@ Tests command execution, exit code handling, output capture, and Windows-specifi
 
 | Test | Platform | Purpose |
 |------|----------|---------|
-| `TestParseExitCodes` | All | Verifies that mixed-separator exit-code strings (comma, semicolon, newline) are parsed correctly. |
 | `TestDirectCommandDoesNotHideWindow` | Windows | Verifies that direct executable commands do not request hidden-window startup. |
 | `TestShellCommandHidesWindow` | Windows | Verifies that shell commands request hidden-window startup to prevent console flash. |
 | `TestShellCommandUsesWindowsSafeQuoting` | Windows | Verifies `cmd.exe /S /C` quoting for paths with spaces and special characters. |
@@ -334,11 +332,9 @@ Tests pure helper functions in the jobs view (no Fyne widget construction).
 
 4. **Event-driven correctness** — `app` tests subscribe to the event bus and assert that the expected events are emitted, rather than inspecting internal fields directly.
 
-5. **Exit Code Flexibility** — The `SuccessExitCodes` field allows jobs to treat nonzero exit codes as success, tested explicitly.
+5. **Path Handling** — Extensive tests cover Windows path quoting, spaces in paths, and case-insensitive matching to avoid subtle shell escaping bugs.
 
-6. **Path Handling** — Extensive tests cover Windows path quoting, spaces in paths, and case-insensitive matching to avoid subtle shell escaping bugs.
-
-7. **Start-Only Mode** — Special handling for long-running processes that should be launched but not waited on, tested separately from normal execution flow.
+6. **Start-Only Mode** — Special handling for long-running processes that should be launched but not waited on, tested separately from normal execution flow.
 
 ---
 

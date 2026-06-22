@@ -20,9 +20,9 @@ func newTempService(t *testing.T, jobs []domain.Job) *Service {
 		Paths: storage.Paths{
 			ExecutablePath: filepath.Join(dir, "gosentry"),
 			AppDir:         dir,
-			ConfigPath:     filepath.Join(dir, "gosentry.yaml"),
+			ConfigPath:     filepath.Join(dir, "gosentry.json"),
 			JobsDir:        dir,
-			JobsPath:       filepath.Join(dir, "jobs.yaml"),
+			JobsPath:       filepath.Join(dir, "jobs.json"),
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
 		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30},
