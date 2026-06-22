@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Optional first argument lets a developer or CI job choose the output path. The
 # default includes the application version and target platform.
-version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go)"
+version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go | tr -d '\r')"
 version="${version:-0.0.0-dev}"
 output="${1:-dist/linux/gosentry-${version}-linux-amd64}"
 mkdir -p "$(dirname "$output")"

@@ -1,0 +1,3 @@
+# Keep shell scripts LF even on Windows checkouts so bash on Linux hosts
+# doesn't choke on trailing CRs (e.g. "set: pipefail: invalid parameter name").
+*.sh text eol=lf

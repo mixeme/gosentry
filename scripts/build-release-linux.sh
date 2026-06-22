@@ -9,7 +9,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd "${script_dir}/.." && pwd)"
 cd "$repo_root"
 
-version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go)"
+version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go | tr -d '\r')"
 version="${version:-0.0.0-dev}"
 tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
 

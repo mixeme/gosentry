@@ -4,7 +4,7 @@ set -euo pipefail
 # Optional first argument mirrors build-linux.sh. The Docker build still writes
 # the final artifact into the local dist/ tree, not into the container. The
 # default includes the application version and target platform.
-version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go)"
+version="$(sed -n 's/^var Version = "\(.*\)"/\1/p' src/app/version.go | tr -d '\r')"
 version="${version:-0.0.0-dev}"
 tag="gitea.mixdep.ru/mix/gosentry-builder:${version}"
 output="${1:-dist/linux/gosentry-${version}-linux-amd64}"
