@@ -80,7 +80,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 ## Completion checklist
 
 ### Phase 1 — Storage JSON + exit-code removal
-- [ ] P1.1 — JSON struct tags
+- [x] P1.1 — JSON struct tags
 - [ ] P1.2 — `writeJSON` + JSON unmarshal
 - [ ] P1.3 — `gosentry.json` / `jobs.json` paths; drop pysentry name
 - [ ] P1.4 — One-time YAML import
