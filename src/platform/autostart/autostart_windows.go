@@ -25,7 +25,6 @@ func (windowsManager) Status(expectedEnabled bool, executablePath string) (bool,
 }
 
 const autostartName = "GoSentry"
-const legacyAutostartName = "PySentry"
 const startupShortcutFile = autostartName + ".lnk"
 
 func SetAutostart(enabled bool, executablePath string, iconPath string) error {
@@ -34,10 +33,6 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	// the picture. A Startup-folder shortcut stores target path and arguments as
 	// separate structured fields, so it avoids quoting bugs and more closely
 	// matches how a user would configure a GUI app by hand.
-	if err := cleanupLegacyRegistryAutostart(); err != nil {
-		return err
-	}
-
 	shortcutPath, err := startupShortcutPath()
 	if err != nil {
 		return err
@@ -57,9 +52,6 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	_, statErr := os.Stat(shortcutPath)
 	if !expectedEnabled {
 		if os.IsNotExist(statErr) {
-			if legacyRegistryAutostartExists() {
-				return false, "Legacy registry autostart exists; save settings to repair"
-			}
 			return true, "Autostart is off"
 		}
 		if statErr != nil {
@@ -69,9 +61,6 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	}
 
 	if os.IsNotExist(statErr) {
-		if legacyRegistryAutostartExists() {
-			return false, "Legacy registry autostart exists; save settings to repair"
-		}
 		return false, "Autostart shortcut is missing"
 	}
 	if statErr != nil {
@@ -153,51 +142,12 @@ func readShortcut(shortcutPath string) (string, string, error) {
 	return target, arguments, nil
 }
 
-func readShortcutTarget(shortcutPath string) (string, error) {
-	target, _, err := readShortcut(shortcutPath)
-	return target, err
-}
-
 func removeIfExists(path string) error {
 	err := os.Remove(path)
 	if err == nil || os.IsNotExist(err) {
 		return nil
 	}
 	return err
-}
-
-func cleanupLegacyRegistryAutostart() error {
-	for _, name := range []string{legacyAutostartName, autostartName} {
-		command := exec.Command("reg.exe", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, "/v", name, "/f")
-		winproc.ConfigureHiddenWindow(command)
-		_ = command.Run()
-	}
-	return nil
-}
-
-func legacyRegistryAutostartExists() bool {
-	for _, name := range []string{legacyAutostartName, autostartName} {
-		command := exec.Command("reg.exe", "query", `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, "/v", name)
-		winproc.ConfigureHiddenWindow(command)
-		if command.Run() == nil {
-			return true
-		}
-	}
-	return false
-}
-
-func parseRegistryRunValue(output string) (string, bool) {
-	for _, line := range strings.Split(output, "\n") {
-		fields := strings.Fields(strings.TrimSpace(line))
-		for index, field := range fields {
-			if field == "REG_SZ" && index+1 < len(fields) {
-				value := strings.Join(fields[index+1:], " ")
-				value = strings.Trim(value, `"`)
-				return value, value != ""
-			}
-		}
-	}
-	return "", false
 }
 
 func sameWindowsPath(left string, right string) bool {
