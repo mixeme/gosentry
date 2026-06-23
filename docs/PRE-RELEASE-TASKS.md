@@ -109,7 +109,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P5.2 — Size-appropriate per-platform icons (tray small; window via `.ico`/`IconSmall`); verify `.ico`
 
 ### Phase 6 — Fyne 2.7 upgrade + tray click
-- [ ] P6.1 — Bump Fyne to 2.7.x; rebuild
+- [x] P6.1 — Bump Fyne to 2.7.x; rebuild
 - [ ] P6.2 — `SetSystemTrayWindow` left-click-to-show
 - [ ] P6.3 — Re-measure startup → PERFORMANCE.md
 
