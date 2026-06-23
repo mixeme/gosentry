@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"runtime"
 	"time"
 
 	"gitea.mixdep.ru/mix/gosentry/assets"
@@ -30,7 +31,20 @@ func Run(startInTray bool) {
 	// A stable app ID lets Fyne persist desktop preferences consistently across
 	// launches and gives tray/window integration a predictable identity.
 	a := fyneapp.NewWithID(appID)
-	a.SetIcon(loadAppIcon())
+	// On Windows the multi-resolution gosentry.ico (embedded under the GLFW_ICON
+	// resource name) drives the window: GLFW picks the hand-tuned 16x16 for the
+	// titlebar and the large artwork for the bigger taskbar icon — size-appropriate
+	// in a way a single Fyne SetIcon resource cannot be, since one PNG would be
+	// scaled to both sizes.
+	//
+	// Other platforms have no PE icon. Fyne's single SetIcon resource feeds
+	// _NET_WM_ICON, which the window manager renders small (~16px) in the titlebar,
+	// so use the hand-tuned small icon there to keep it crisp. The larger
+	// dock/launcher icon comes from the .desktop entry installed by
+	// InstallDesktopIcon, which uses the big artwork.
+	if runtime.GOOS != "windows" {
+		a.SetIcon(assets.IconSmall())
+	}
 
 	w := a.NewWindow("GoSentry " + app.Version)
 	configureSystemTray(a, w)
@@ -53,8 +67,4 @@ func Run(startInTray bool) {
 	w.Show()
 	recordStartup(time.Since(started), true)
 	a.Run()
-}
-
-func loadAppIcon() fyne.Resource {
-	return assets.Icon()
 }

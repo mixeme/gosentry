@@ -1,6 +1,10 @@
 package ui
 
 import (
+	"runtime"
+
+	"gitea.mixdep.ru/mix/gosentry/assets"
+
 	"fyne.io/fyne/v2"
 	fynedesktop "fyne.io/fyne/v2/driver/desktop"
 )
@@ -11,6 +15,17 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 		// Not every Fyne driver exposes desktop tray features. Returning silently
 		// keeps the same binary usable on platforms or sessions without a tray.
 		return
+	}
+
+	// The tray icon is platform-specific. The Windows notification area is
+	// ICO-native and renders at 16-24px, so a single 16x16 .ico frame keeps the
+	// hand-tuned glyph crisp with correct alpha. Linux/macOS trays
+	// (StatusNotifierItem) render much larger (22-48px) and take a PNG, so the
+	// full-size artwork scales down cleanly instead of upscaling the tiny 16x16.
+	if runtime.GOOS == "windows" {
+		desk.SetSystemTrayIcon(assets.IconSmallICO())
+	} else {
+		desk.SetSystemTrayIcon(assets.Icon())
 	}
 
 	// IsQuit marks this as the tray's quit item. Without it Fyne's

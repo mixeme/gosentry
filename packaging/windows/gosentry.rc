@@ -1,1 +1,10 @@
+// The same multi-size .ico is embedded under two resource names on purpose:
+//   IDI_ICON1 - the lowest-id icon, which Windows Explorer / shortcuts use for the
+//               executable's file icon.
+//   GLFW_ICON - the name GLFW looks up to icon the window. Because run.go does NOT
+//               call a.SetIcon on Windows, GLFW falls back to this resource and
+//               selects the right frame per size (hand-tuned 16 for the titlebar,
+//               a larger frame for the taskbar). See assets/assets.go for the full
+//               cross-platform icon strategy.
 IDI_ICON1 ICON "assets/gosentry.ico"
+GLFW_ICON ICON "assets/gosentry.ico"
