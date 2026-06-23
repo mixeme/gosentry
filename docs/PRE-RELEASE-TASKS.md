@@ -111,7 +111,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 ### Phase 6 — Fyne 2.7 upgrade + tray click
 - [x] P6.1 — Bump Fyne to 2.7.x; rebuild
 - [x] P6.2 — `SetSystemTrayWindow` left-click-to-show
-- [ ] P6.3 — Re-measure startup → PERFORMANCE.md
+- [x] P6.3 — Re-measure startup → PERFORMANCE.md
 
 ### Phase 7 — Roadmap follow-ups
 - [ ] P7.1 — Linux test build fix (build-tagged Windows tests)

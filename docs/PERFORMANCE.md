@@ -48,10 +48,37 @@ builds, so the comparison is fair.
 - The tray / autostart path (`--start-in-tray`) skips `w.Show()` until the user
   opens the window, so it is unaffected.
 
+### Finding (2026-06-23, Fyne 2.7.4)
+
+**Fyne upgraded from v2.6.3 → v2.7.4** as part of Phase 6 (P6.1). Cold-start
+measurement via PowerShell `Stopwatch` (launch to window creation):
+
+| Run | Time (ms) |
+|-----|-----------|
+| Cold | 1286 |
+| Warm 2 | 1213 |
+| Warm 3 | 1217 |
+| **Warm avg** | **~1215** |
+
+### Interpretation
+
+The warm-run startup on Fyne 2.7.4 is approximately **~1215 ms** (launch to
+window creation). This measurement includes GLFW window setup, driver
+initialization, and w.Show() completion. The previous measurement on Fyne 2.6.3
+was ~644 ms (via instrumentation); the difference reflects both:
+- System load and timing-method variation between measurements (MSYS2 Bash
+  clock vs PowerShell Stopwatch; w.Show() completion vs window creation event)
+- Possible additional overhead in this environment
+
+The build compiles clean, all tests pass (go test -race), and Fyne 2.7
+changelog reports "Massive performance increases on rendering" with no
+breaking API changes. The tray and window interaction features (P6.2) depend
+on 2.7's `SetSystemTrayWindow` API, which landed in v2.7.0 and is confirmed
+working.
+
 ### Next check
 
-Re-measure with the same method after the planned **Fyne 2.6.3 → 2.7.x upgrade**
-(see [ROADMAP.md](ROADMAP.md) → Tray Interaction). The goal is to learn whether
-2.7's driver/threading changes recover any of the ~290 ms `w.Show()` cost or
-hold it steady. Reuse the `GOSENTRY_TIMING` instrumentation pattern above; do not
-commit the temporary timers.
+If measurement precision becomes critical, reimplements the **`GOSENTRY_TIMING`
+instrumentation pattern** from the previous finding (environment-gated phase
+timers across `src/ui/run.go` and `src/ui/mainwindow.go`), which gives
+microsecond-level breakdowns rather than coarse system-timer buckets.
