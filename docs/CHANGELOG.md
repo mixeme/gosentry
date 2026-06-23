@@ -2,6 +2,20 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.7.0 - 2026-06-23
+
+**Execution modes and overlap policies for parallel and sequential job dispatch.**
+
+- Added `ExecutionMode` setting (parallel/sequential) and `OverlapPolicy` setting (skip/queue) in Settings under a new Queue group.
+  - **Parallel mode** (default): all due jobs start simultaneously.
+  - **Sequential mode**: due jobs run one at a time, in order; a new job waits for the previous one to finish.
+  - **Skip policy** (default): if a job comes due again while its previous run is still active, the new run is discarded.
+  - **Queue policy**: if a job comes due again while running, the run is held and automatically started when the current run completes.
+- Both settings are persisted to `gosentry.json` and validated on load; defaults ensure backward compatibility with existing installations.
+- Added comprehensive unit tests verifying parallel start, sequential serialization, skip drops, and queue re-runs.
+- Manual runs (`RunNow`) respect sequential mode: refused while any other job is running.
+- No observable behavior changes with default (parallel/skip) settings; installations upgrading from earlier versions continue unchanged.
+
 ## 0.6.0 - 2026-06-22
 
 **PySentry legacy code removed.**
