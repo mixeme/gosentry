@@ -50,17 +50,30 @@ builds, so the comparison is fair.
 
 ### Finding (2026-06-23, Fyne 2.7.4)
 
-**Fyne upgraded from v2.6.3 → v2.7.4** as part of Phase 6 (P6.1). Measured
-using the same method as the 2026-06-22 baseline: the History tab "Window shown
-in …" event, which records the span from application entry to `w.Show()`
-completion.
+**Fyne upgraded from v2.6.3 → v2.7.4** as part of Phase 6 (P6.1).
 
-**Warm-run average: ~400 ms** (down from ~644 ms on Fyne 2.6.3).
+### Method
+
+Same `GOSENTRY_TIMING` env-gated phase timers as the 2026-06-22 baseline:
+`fmt.Fprintf(os.Stderr, ...)` checkpoints added to `src/ui/run.go` across the
+startup path, built with the CGO / MSYS2 UCRT64 toolchain and run 5×; run 1
+(cold disk) is excluded. Timers were reverted before committing.
+
+### Results (warm-run averages, runs 2–5)
+
+| Phase (cumulative from start) | Fyne 2.6.3 | Fyne 2.7.4 | Δ |
+|-------------------------------|------------|------------|---------|
+| after single-instance check   | ~0.5 ms    | ~1 ms      | —       |
+| after Fyne app + window + tray | ~285 ms   | ~193 ms    | −92 ms  |
+| after newMainView             | ~328 ms    | ~249 ms    | −79 ms  |
+| after SetContent              | ~353 ms    | ~252 ms    | −101 ms |
+| **after w.Show() [TOTAL]**    | **~644 ms**| **~414 ms**| **−230 ms** |
 
 ### Interpretation
 
-Fyne 2.7 recovered roughly **~240 ms** (~37%) of the `w.Show()` regression that
-arrived with the 2.6 threading model change. Fyne 2.7.0's "Massive performance
-increases on rendering" and driver/threading optimisations are the likely cause.
-The upgrade is a net win: the `fyne.Do` threading API (required since 2.6) is
-retained, and the primary startup cost is substantially reduced.
+Fyne 2.7.4 is **~230 ms faster** (~36%) than Fyne 2.6.3 end-to-end. The gain is
+spread evenly: Fyne app + window + tray is 92 ms faster, `w.Show()` itself is
+~161 ms faster. This confirms Fyne 2.7.0's "Massive performance increases on
+rendering" and driver/threading improvements are real and material for GoSentry.
+The upgrade is a net win: `fyne.Do` threading (required since 2.6) is retained
+and the startup cost is substantially reduced.
