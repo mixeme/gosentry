@@ -46,6 +46,7 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 		quit,
 	)
 	desk.SetSystemTrayMenu(menu)
+	desk.SetSystemTrayWindow(w)
 	w.SetCloseIntercept(func() {
 		// Closing hides the window instead of quitting because scheduler tools are
 		// expected to keep working in the background. The explicit Quit tray item
