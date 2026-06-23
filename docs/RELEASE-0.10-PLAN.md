@@ -112,6 +112,12 @@ guarantee and does not have a clean per-job meaning).
 - **Post-field-test cleanup.** Sweep for stale diagnostics, over-defensive checks,
   obsolete autostart-migration code, and noisy README setup notes now that 0.9.0
   has had field use. Recheck `.gitignore` / Docker / packaging ignore rules.
+  Keep the startup-timing instrumentation (the History "Started … in Xms" event)
+  so startup time can keep being measured across future changes.
+- **Architecture doc update.** Refresh `docs/ARCHITECTURE.md` for this milestone:
+  the per-job overlap policy on `domain.Job` (§4), the run-time statistics added to
+  `domain.JobRuntime` and seeded from log files (§2), and any `jobs_view.go` split
+  (§6 file-size work).
 
 ## 7. Delivery and packaging (portable only)
 
@@ -134,7 +140,8 @@ have been dropped from the roadmap.
 4. §5 window sizing.
 5. §6 jobs_view split + cleanup (after the §1/§2/§4 edits land).
 6. §7 portable archives (Windows `.zip`, Linux `.tar.gz`).
-7. Version bump to `0.10.0` (`src/app/version.go`), CHANGELOG, ROADMAP tick-offs.
+7. Docs: update `docs/ARCHITECTURE.md` (§6); version bump to `0.10.0`
+   (`src/app/version.go`), CHANGELOG, ROADMAP tick-offs.
 
 ## Verification
 
