@@ -4,26 +4,14 @@ This file tracks planned GoSentry work that is larger than a single bug fix.
 
 ## Refactoring Follow-Ups
 
-Loose ends found while verifying the [refactoring plan](REFACTORING.md) against
-its Definition of done. The architecture target is reached and verified on
-Windows, but the items below remain.
+Loose ends found while verifying the refactoring against its Definition of done.
+The architecture target is reached and verified on Windows and Linux.
 
-- **Linux test build is broken (correctness, not cosmetic).** `src/runner/runner_test.go`
-  is a shared (untagged) test file that references Windows-only symbols
-  (`SysProcAttr.HideWindow`, `SysProcAttr.CmdLine`, `windowsShellCommandLine`).
-  The `runtime.GOOS != "windows"` guards are runtime skips and cannot save a file
-  that does not *compile*, so `go test ./...` fails to build on Linux. This
-  contradicts T5.4 ("go test -race clean on both platforms") and the DoD's
-  "green on Windows and Linux." Fix: move the Windows-only tests
-  (`TestShellCommandHidesWindow`, `TestShellCommandUsesWindowsSafeQuoting`, and any
-  peers touching `SysProcAttr` / `windowsShellCommandLine`) into a new
-  `src/runner/runner_windows_test.go` guarded by `//go:build windows`.
-- **File-size guidelines exceeded.** The DoD asks for no `src/ui` file over ~250
-  lines and no single file over ~400:
+- **File-size guidelines exceeded (soft limits).** The DoD suggests no `src/ui` file
+  over ~250 lines and no single file over ~400:
   - `src/ui/jobs_view.go` — 415 lines (over both the ~250 UI target and the ~400 cap).
-  - `src/app/operations.go` — 486 lines (over ~400).
-  - `src/app/operations_test.go` (536) and `src/runner/runner_test.go` (421) also
-    exceed 400 if the cap is read to include test files.
+  - `src/app/run.go` — dispatch logic split out of `operations.go` in this release.
+  - `src/app/operations_test.go` (536) also exceeds 400.
 
   These are soft ("~") limits; revisit when next touching those files rather than
   splitting purely for line count.
@@ -48,27 +36,18 @@ Cleanup checklist:
 - Recheck `.gitignore`, Docker scripts, and packaging scripts for rules or
   branches that only supported early experiments.
 
-## Tray Interaction
+## Tray Interaction (Resolved in 0.9.0)
 
 Improve tray icon interaction: click the tray icon to show and focus the main
 window.
 
-- Unblocked by Fyne 2.7.0, which added `desktop.App.SetSystemTrayWindow(window)`.
-  On Windows, macOS, and most Linux it shows the associated window on left-click;
-  any tray menu then moves to right-click. There is still no raw click /
-  double-click callback, so the behavior is single left-click (the conventional
-  tray gesture), not the double-click originally sketched here.
-- The project is currently on Fyne 2.6.3, so this depends on a Fyne 2.6.3 -> 2.7.x
-  upgrade first (minor bump; re-verify the CGO build under MSYS2 UCRT64 and check
-  for 2.7 breaking changes). Track the upgrade as its own task.
-- As part of that upgrade, **re-measure startup time** with the `GOSENTRY_TIMING`
-  method recorded in [PERFORMANCE.md](PERFORMANCE.md). The Fyne 2.5.3 -> 2.6.3 bump
-  added ~290 ms to startup, all inside `w.Show()`; check whether 2.7 recovers any
-  of it or holds steady, and append the result to PERFORMANCE.md.
-- After upgrading, the change in `src/ui/run.go` (configureSystemTray) is small:
-  call `desk.SetSystemTrayWindow(w)` alongside `SetSystemTrayMenu(menu)`. Keep the
-  existing "Show" menu item, which the Fyne docs recommend for less-compliant
-  Linux systems.
+- Upgraded to Fyne 2.7.4, which provides `desktop.App.SetSystemTrayWindow(window)`.
+  Left-clicking the tray icon now shows and focuses the main window without opening
+  the menu; the explicit "Show" menu item remains for right-click access and
+  less-compliant Linux systems.
+- Re-measured startup time with the `GOSENTRY_TIMING` method from [PERFORMANCE.md](PERFORMANCE.md).
+  The Fyne 2.6.3 -> 2.7.4 upgrade recovers ~230 ms (startup drops from ~644 ms to ~414 ms, a
+  −36% improvement). The 2.7.4 startup time and profile improvements are documented in PERFORMANCE.md.
 
 ## Delivery And Packaging
 

@@ -2,15 +2,60 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## 0.9.0 - 2026-06-23
+## 0.9.0 - 2026-06-24
 
-**Transparent per-platform icons; tray left-click to show window; Fyne 2.7.4.**
+**Storage migrated to JSON; queue execution modes; failure notifications; tray left-click; Fyne 2.7.4.**
 
-- Regenerated all icon assets with feathered color-to-alpha so the rounded-tile boundary is transparent — the opaque white halo visible on dark taskbars and trays is gone.
-- Rebuilt `gosentry.ico` as a multi-size file (16 hand-tuned + 32/48/256 from the large PNG) and added a dedicated 16×16 `gosentry-icon-16x16.ico` for the Windows tray.
-- Per-platform icon wiring: Windows window/taskbar uses the ICO resource so GLFW selects the right frame per slot (no `a.SetIcon` override); Windows tray uses the 16×16 ICO; Linux titlebar uses `IconSmall()` for a crisp ~16 px `_NET_WM_ICON`.
-- Left-clicking the tray icon now shows and focuses the main window (`SetSystemTrayWindow`) without opening the menu; the explicit "Show" menu item is preserved for right-click access.
-- Upgraded Fyne 2.6.3 → 2.7.4 (systray 1.11.0 → 1.12.1): startup time drops from ~644 ms to ~414 ms (−36%).
+**Storage and data model:**
+- Settings and jobs now stored as `gosentry.json` and `jobs.json` (2-space indented JSON).
+  On first run after upgrading, existing `gosentry.yaml` / `jobs.yaml` files are imported
+  automatically and rewritten as JSON; the YAML files are not deleted.
+- Removed `SuccessExitCodes` field. Exit-code handling is now fixed: exit code 0 = success,
+  any nonzero exit code = failure. Jobs relying on nonzero success codes must switch to
+  `StartOnly` mode if the exit code is irrelevant.
+
+**Execution modes and overlap policies:**
+- Added `ExecutionMode` (parallel/sequential) and `OverlapPolicy` (skip/queue) settings in
+  Settings under a new Queue group.
+  - **Parallel mode** (default): all due jobs start simultaneously.
+  - **Sequential mode**: due jobs run one at a time, in order.
+  - **Skip policy** (default): if a job comes due while its previous run is still active, the new
+    run is discarded.
+  - **Queue policy**: if a job comes due while running, the run is held and automatically started
+    when the current run completes.
+- Both settings are persisted to `gosentry.json` and validated on load; defaults ensure
+  backward compatibility.
+
+**Notifications and command input:**
+- Failed job runs now raise a desktop notification (when enabled in Settings) with the job name
+  and failure detail. Notifications fire for scheduled and manual runs; internal activity events
+  are not notified.
+- Added a Browse button next to the Command field in the job dialog for file picker selection.
+
+**UI and platform integration:**
+- Removed all PySentry legacy code: registry autostart entries (Windows), systemd and desktop
+  file cleanup (Linux).
+- Updated `.gitignore` and `.dockerignore` to track `gosentry.json` / `jobs.json` instead of
+  legacy YAML filenames; added `*.yaml` wildcard to ignore legacy files during import.
+- Moved developer documentation (Requirements, Build, Run From Source, Project Layout, Dependencies)
+  out of README into `docs/DEVELOPMENT.md`. README now focuses on end-user content.
+
+**Icons and tray:**
+- Regenerated all icon assets with feathered color-to-alpha so the rounded-tile boundary is
+  transparent — the opaque white halo visible on dark taskbars and trays is gone.
+- Rebuilt `gosentry.ico` as a multi-size file (16 hand-tuned + 32/48/256 from the large PNG)
+  and added a dedicated 16×16 icon for the Windows tray.
+- Per-platform icon wiring: Windows window/taskbar uses the ICO resource so GLFW selects the
+  right frame per slot; Windows tray uses the 16×16 ICO; Linux titlebar uses `IconSmall()` for
+  a crisp ~16 px `_NET_WM_ICON`.
+- Left-clicking the tray icon now shows and focuses the main window without opening the menu;
+  the explicit "Show" menu item is preserved for right-click access.
+
+**Performance:**
+- Upgraded Fyne 2.6.3 → 2.7.4 (systray 1.11.0 → 1.12.1): startup time drops from ~644 ms to
+  ~414 ms (−36%).
+- Moved Windows-only runner tests into `runner_windows_test.go` (guarded by `//go:build windows`)
+  to fix Linux test build.
 
 ## 0.8.0 - 2026-06-23
 
