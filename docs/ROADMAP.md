@@ -10,7 +10,6 @@ The architecture target is reached and verified on Windows and Linux.
 - **File-size guidelines exceeded (soft limits).** The DoD suggests no `src/ui` file
   over ~250 lines and no single file over ~400:
   - `src/ui/jobs_view.go` — 415 lines (over both the ~250 UI target and the ~400 cap).
-  - `src/app/run.go` — dispatch logic split out of `operations.go` in this release.
   - `src/app/operations_test.go` (536) also exceeds 400.
 
   These are soft ("~") limits; revisit when next touching those files rather than
@@ -35,19 +34,6 @@ Cleanup checklist:
   for normal users.
 - Recheck `.gitignore`, Docker scripts, and packaging scripts for rules or
   branches that only supported early experiments.
-
-## Tray Interaction (Resolved in 0.9.0)
-
-Improve tray icon interaction: click the tray icon to show and focus the main
-window.
-
-- Upgraded to Fyne 2.7.4, which provides `desktop.App.SetSystemTrayWindow(window)`.
-  Left-clicking the tray icon now shows and focuses the main window without opening
-  the menu; the explicit "Show" menu item remains for right-click access and
-  less-compliant Linux systems.
-- Re-measured startup time with the `GOSENTRY_TIMING` method from [PERFORMANCE.md](PERFORMANCE.md).
-  The Fyne 2.6.3 -> 2.7.4 upgrade recovers ~230 ms (startup drops from ~644 ms to ~414 ms, a
-  −36% improvement). The 2.7.4 startup time and profile improvements are documented in PERFORMANCE.md.
 
 ## Delivery And Packaging
 
