@@ -172,6 +172,17 @@ func mustParseURL(raw string) *url.URL {
 	return parsed
 }
 
+func chooseFile(w fyne.Window, target *widget.Entry) {
+	fileDialog := dialog.NewFileOpen(func(uri fyne.URIReadCloser, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		target.SetText(uri.URI().Path())
+	}, w)
+	fileDialog.Resize(fyne.NewSize(900, 640))
+	fileDialog.Show()
+}
+
 func chooseFolder(w fyne.Window, target *widget.Entry) {
 	folderDialog := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
 		if err != nil || uri == nil {

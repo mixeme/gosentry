@@ -102,7 +102,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 
 ### Phase 4 — Notifications + Command browse
 - [x] P4.1 — Failure notifications
-- [ ] P4.2 — Command Browse button
+- [x] P4.2 — Command Browse button
 
 ### Phase 5 — Icons
 - [ ] P5.1 — Embed small icon + `IconSmall()`

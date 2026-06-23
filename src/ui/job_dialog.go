@@ -7,7 +7,9 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -27,6 +29,10 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	commandEntry := widget.NewEntry()
 	commandEntry.SetPlaceHolder(`C:\Program Files\App\App.exe`)
 	commandEntry.SetText(current.Command)
+	commandBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
+		chooseFile(w, commandEntry)
+	})
+	commandRow := container.NewBorder(nil, nil, nil, commandBrowse, commandEntry)
 	argumentsEntry := widget.NewMultiLineEntry()
 	argumentsEntry.SetPlaceHolder(`D:\Local\Jobs\Auto.ffs_batch`)
 	argumentsEntry.SetText(current.Arguments)
@@ -43,7 +49,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			widget.NewFormItem("Name", name),
 			widget.NewFormItem("Folder", folderEntry),
 			widget.NewFormItem("Schedule", scheduleEntry),
-			widget.NewFormItem("Command", commandEntry),
+			widget.NewFormItem("Command", commandRow),
 			widget.NewFormItem("Arguments", argumentsEntry),
 			widget.NewFormItem("", startOnly),
 			widget.NewFormItem("", enabled),
