@@ -118,7 +118,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 
 ### Phase 8 — Docs + version
 - [x] P8.1 — `docs/DEVELOPMENT.md`
-- [ ] P8.2 — End-user README rewrite
+- [x] P8.2 — End-user README rewrite
 - [ ] P8.3 — CHANGELOG + ROADMAP updates
 
 ## Definition of done
