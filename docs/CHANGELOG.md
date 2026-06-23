@@ -2,6 +2,13 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.8.0 - 2026-06-23
+
+**Desktop notifications for failed jobs; Browse button for command paths.**
+
+- Failed job runs now raise a desktop notification (title "GoSentry: Job Failed", body shows the job name and failure detail) when the "Show desktop notifications for failed jobs" setting is enabled. Notifications fire for scheduled and manual runs only; internal activity events are not notified.
+- Added a Browse button next to the Command field in the job dialog so users can pick an executable from a file picker instead of typing the full path.
+
 ## 0.7.0 - 2026-06-23
 
 **Execution modes and overlap policies for parallel and sequential job dispatch.**
