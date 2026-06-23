@@ -114,6 +114,17 @@ guarantee and does not have a clean per-job meaning).
   has had field use. Recheck `.gitignore` / Docker / packaging ignore rules.
   Keep the startup-timing instrumentation (the History "Started … in Xms" event)
   so startup time can keep being measured across future changes.
+- **Drop the one-time YAML→JSON migration.** The import shipped in 0.9.0, so the
+  transition window has passed. Remove the legacy import path:
+  - `src/storage/store.go`: delete the `yamlConfig` / `yamlJob` / `yamlJobsFile`
+    shadow structs, `importYAMLConfig` / `importYAMLJobs`, and the legacy-import
+    branches in `loadOrCreateConfig` / `loadOrCreateJobs`.
+  - `src/storage/paths.go`: remove `legacyYAMLConfigFileName` /
+    `legacyYAMLJobsFileName`.
+  - `go.mod` / `go.sum`: drop `go.yaml.in/yaml/v4` (now unused) via `go mod tidy`.
+  - `src/storage/store_test.go`: remove the YAML-import tests and the `writeYAML`
+    helper.
+  - `.gitignore` / `.dockerignore`: drop the `*.yaml` import-window ignores.
 - **Architecture doc update.** Refresh `docs/ARCHITECTURE.md` for this milestone:
   the per-job overlap policy on `domain.Job` (§4), the run-time statistics added to
   `domain.JobRuntime` and seeded from log files (§2), and any `jobs_view.go` split
