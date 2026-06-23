@@ -95,7 +95,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 
 ### Phase 3 — Task-queue model + settings
 - [x] P3.1 — Config/runtime fields + defaults
-- [ ] P3.2 — Split dispatch into `app/run.go`
+- [x] P3.2 — Split dispatch into `app/run.go`
 - [ ] P3.3 — Rework `RunDue`/`executeRun` for mode + overlap policy
 - [ ] P3.4 — Settings Queue selects
 - [ ] P3.5 — Queue tests
