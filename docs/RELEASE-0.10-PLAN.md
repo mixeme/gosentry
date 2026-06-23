@@ -113,14 +113,18 @@ guarantee and does not have a clean per-job meaning).
   obsolete autostart-migration code, and noisy README setup notes now that 0.9.0
   has had field use. Recheck `.gitignore` / Docker / packaging ignore rules.
 
-## 7. Delivery and packaging (start the first variant)
+## 7. Delivery and packaging (portable only)
 
-Begin the packaging track from the roadmap rather than completing all of it:
+This milestone targets only the portable distribution variants, matching the
+ROADMAP delivery plan. Non-portable installer/package formats are out of scope and
+have been dropped from the roadmap.
 
 - Windows portable `.zip` bundling `gosentry.exe`, `README.md`, `CHANGELOG.md`
   (a `scripts\package-windows.*` helper).
-- Defer Linux `.tar.gz`, `.deb`, and the installer to a later milestone; leave the
-  per-user data-path design note in ROADMAP.
+- Linux portable `.tar.gz` for `linux-amd64` and `linux-arm64` bundling the
+  binary, `README.md`, and `CHANGELOG.md` (a `scripts/package-linux.*` helper).
+- Portable builds keep settings and jobs next to the executable — no per-user
+  data-path work is needed for this release.
 
 ## Implementation order
 
@@ -129,7 +133,7 @@ Begin the packaging track from the roadmap rather than completing all of it:
 3. §4 per-job overlap policy (domain → dispatch → dialog → tests).
 4. §5 window sizing.
 5. §6 jobs_view split + cleanup (after the §1/§2/§4 edits land).
-6. §7 Windows portable zip.
+6. §7 portable archives (Windows `.zip`, Linux `.tar.gz`).
 7. Version bump to `0.10.0` (`src/app/version.go`), CHANGELOG, ROADMAP tick-offs.
 
 ## Verification
