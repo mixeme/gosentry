@@ -18,6 +18,10 @@ type JobRuntime struct {
 	// scheduler comparisons. NextRun above is its formatted display string and is
 	// the only form shown in the GUI.
 	NextDue time.Time
+
+	// Pending is set when a run was skipped due to the overlap policy being
+	// "queue". The scheduler will start this job as soon as the current run ends.
+	Pending bool
 }
 
 // NewRuntime builds the initial runtime state for a freshly loaded or created

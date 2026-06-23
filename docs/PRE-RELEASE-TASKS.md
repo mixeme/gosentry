@@ -94,7 +94,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P2.4 — `.gitignore` / `.dockerignore`
 
 ### Phase 3 — Task-queue model + settings
-- [ ] P3.1 — Config/runtime fields + defaults
+- [x] P3.1 — Config/runtime fields + defaults
 - [ ] P3.2 — Split dispatch into `app/run.go`
 - [ ] P3.3 — Rework `RunDue`/`executeRun` for mode + overlap policy
 - [ ] P3.4 — Settings Queue selects

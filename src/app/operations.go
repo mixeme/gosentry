@@ -476,5 +476,11 @@ func validateConfig(config domain.Config) error {
 	if config.MaxLogAgeDays <= 0 {
 		return errors.New("max log age days must be a positive number")
 	}
+	if config.ExecutionMode != domain.ExecutionModeParallel && config.ExecutionMode != domain.ExecutionModeSequential {
+		return errors.New("execution mode must be 'parallel' or 'sequential'")
+	}
+	if config.OverlapPolicy != domain.OverlapPolicySkip && config.OverlapPolicy != domain.OverlapPolicyQueue {
+		return errors.New("overlap policy must be 'skip' or 'queue'")
+	}
 	return nil
 }

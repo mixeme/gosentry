@@ -25,7 +25,7 @@ func newTempService(t *testing.T, jobs []domain.Job) *Service {
 			JobsPath:       filepath.Join(dir, "jobs.json"),
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
-		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30},
+		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30, ExecutionMode: domain.ExecutionModeParallel, OverlapPolicy: domain.OverlapPolicySkip},
 	}
 	return NewService(store, jobs)
 }

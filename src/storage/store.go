@@ -24,13 +24,15 @@ type Store struct {
 // domain struct so the value conversions in importYAMLConfig / importYAMLJobs
 // remain valid.
 type yamlConfig struct {
-	JobsDir           string `yaml:"jobs_dir"`
-	LogsDir           string `yaml:"logs_dir"`
-	MaxLogFiles       int    `yaml:"max_log_files"`
-	MaxLogAgeDays     int    `yaml:"max_log_age_days"`
-	StartOnLogin      bool   `yaml:"start_on_login,omitempty"`
-	KeepRunningInTray bool   `yaml:"keep_running_in_tray,omitempty"`
-	NotifyOnFailure   bool   `yaml:"notify_on_failure,omitempty"`
+	JobsDir           string              `yaml:"jobs_dir"`
+	LogsDir           string              `yaml:"logs_dir"`
+	MaxLogFiles       int                 `yaml:"max_log_files"`
+	MaxLogAgeDays     int                 `yaml:"max_log_age_days"`
+	StartOnLogin      bool                `yaml:"start_on_login,omitempty"`
+	KeepRunningInTray bool                `yaml:"keep_running_in_tray,omitempty"`
+	NotifyOnFailure   bool                `yaml:"notify_on_failure,omitempty"`
+	ExecutionMode     domain.ExecutionMode `yaml:"execution_mode,omitempty"`
+	OverlapPolicy     domain.OverlapPolicy `yaml:"overlap_policy,omitempty"`
 }
 
 type yamlJob struct {
@@ -108,6 +110,8 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 		StartOnLogin:      false,
 		KeepRunningInTray: true,
 		NotifyOnFailure:   true,
+		ExecutionMode:     domain.ExecutionModeParallel,
+		OverlapPolicy:     domain.OverlapPolicySkip,
 	}
 
 	if _, err := os.Stat(paths.ConfigPath); errors.Is(err, os.ErrNotExist) {
@@ -146,6 +150,12 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	}
 	if config.MaxLogAgeDays <= 0 {
 		config.MaxLogAgeDays = 30
+	}
+	if config.ExecutionMode == "" {
+		config.ExecutionMode = domain.ExecutionModeParallel
+	}
+	if config.OverlapPolicy == "" {
+		config.OverlapPolicy = domain.OverlapPolicySkip
 	}
 	return config, nil
 }
