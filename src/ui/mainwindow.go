@@ -72,6 +72,15 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 		fyne.Do(func() {
 			if isRecorded {
 				events = append(events, recorded.Record)
+				r := recorded.Record
+				if r.State == "Failed" &&
+					(r.Trigger == "Manual" || r.Trigger == "Schedule") &&
+					svc.ShouldNotifyOnFailure() {
+					fyne.CurrentApp().SendNotification(&fyne.Notification{
+						Title:   "GoSentry: Job Failed",
+						Content: r.JobName + ": " + r.Detail,
+					})
+				}
 			}
 			if isError {
 				events = append(events, newEvent(0, "Service", "Error", errOccurred.Err.Error()))

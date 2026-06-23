@@ -101,7 +101,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P3.5 — Queue tests
 
 ### Phase 4 — Notifications + Command browse
-- [ ] P4.1 — Failure notifications
+- [x] P4.1 — Failure notifications
 - [ ] P4.2 — Command Browse button
 
 ### Phase 5 — Icons

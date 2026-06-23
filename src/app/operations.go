@@ -170,6 +170,15 @@ func (s *Service) SetGlobalPause(paused bool) error {
 	return err
 }
 
+// ShouldNotifyOnFailure reports whether the user has enabled desktop
+// notifications for failed job runs. It reads the config under mu so it is
+// safe to call from any goroutine.
+func (s *Service) ShouldNotifyOnFailure() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.store.Config.NotifyOnFailure
+}
+
 // UpdateSettings validates and persists a new application configuration. The
 // loaded jobs are re-saved because the jobs directory may have changed, and log
 // cleanup runs so a tightened retention policy takes effect immediately.
