@@ -40,33 +40,42 @@ Done first because both share a compact, single-line record formatter.
 | T3.3 | `ui/job_dialog.go`: overlap-policy `widget.Select` with "(Use global default)" → empty; `settings_view.go` wording; `app/format.go` reflects effective policy in details. | sonnet | medium |
 | T3.4 | `app/run_test.go`: per-job `queue` overrides global `skip` (and vice versa); empty inherits. | opus | high |
 
-## Phase 4 — Window sizing (§5)
+## Phase 4 — Persist global pause state (§6)
 
 | Task | Description | Model | Thinking |
 |------|-------------|-------|----------|
-| T4.1 | `ui/run.go`: lower default to a 720p-safe size (~`1024×660`) + sensible `MinSize`; re-check `commandOutputScroll` min size and `minJobsSidebarWidth` in `jobs_view.go`. Manual check on 1366×768. | sonnet | medium |
+| T4.1 | `domain/config.go`: add `Paused bool` (`json:"paused,omitempty"`). | haiku | low |
+| T4.2 | `app/operations.go` `SetGlobalPause`: persist into `s.store.Config` + `SaveConfig`. `app/service.go`: init `s.paused` from `Config.Paused` and apply paused next-run text at startup. | sonnet | medium |
+| T4.3 | `ui/jobs_view.go`: init `schedulerPaused`, the Pause-all/Resume-all button, and the scheduler-state label from the persisted state. | sonnet | low |
+| T4.4 | `app/operations_test.go`: `SetGlobalPause(true)` persists; a Service rebuilt from that store starts paused and refuses `RunDue`/`RunNow`. | sonnet | medium |
 
-## Phase 5 — Refactor + cleanup (§6)
-
-| Task | Description | Model | Thinking |
-|------|-------------|-------|----------|
-| T5.1 | `ui/jobs_view.go`: split a clean seam (details-panel build or toolbar/button wiring) to bring it back under the size guideline after §1/§2/§4 edits. | sonnet | medium |
-| T5.2 | Post-field-test cleanup sweep: stale diagnostics, over-defensive checks, obsolete autostart-migration code, noisy README notes, ignore rules. **Keep** the startup-timing History event. | sonnet | medium |
-| T5.3 | Drop the one-time YAML→JSON import: shadow structs + `importYAML*` + legacy branches in `storage/store.go`; legacy names in `paths.go`; `go.yaml.in/yaml/v4` via `go mod tidy`; YAML-import tests + `writeYAML` helper; `*.yaml` ignore rules. | sonnet | medium |
-| T5.4 | `docs/ARCHITECTURE.md`: document per-job overlap policy, run-time statistics (incl. log-file seeding), and the `jobs_view.go` split. | sonnet | medium |
-
-## Phase 6 — Portable packaging (§7)
+## Phase 5 — Window sizing (§5)
 
 | Task | Description | Model | Thinking |
 |------|-------------|-------|----------|
-| T6.1 | `scripts\package-windows.*`: build + bundle `gosentry.exe`, `README.md`, `CHANGELOG.md` into a portable `.zip`. | sonnet | medium |
-| T6.2 | `scripts/package-linux.*`: build + bundle binary, `README.md`, `CHANGELOG.md` into `.tar.gz` for `linux-amd64` and `linux-arm64`. | sonnet | medium |
+| T5.1 | `ui/run.go`: lower default to a 720p-safe size (~`1024×660`) + sensible `MinSize`; re-check `commandOutputScroll` min size and `minJobsSidebarWidth` in `jobs_view.go`. Manual check on 1366×768. | sonnet | medium |
 
-## Phase 7 — Release docs + version
+## Phase 6 — Refactor + cleanup (§7)
 
 | Task | Description | Model | Thinking |
 |------|-------------|-------|----------|
-| T7.1 | Bump `src/app/version.go` to `0.10.0`; update `docs/CHANGELOG.md`; tick the addressed `docs/ROADMAP.md` items; append any startup re-measure to `docs/PERFORMANCE.md`. | haiku | low |
+| T6.1 | `ui/jobs_view.go`: split a clean seam (details-panel build or toolbar/button wiring) to bring it back under the size guideline after the §1/§2/§4/§6 edits. | sonnet | medium |
+| T6.2 | Post-field-test cleanup sweep: stale diagnostics, over-defensive checks, obsolete autostart-migration code, noisy README notes, ignore rules. **Keep** the startup-timing History event. | sonnet | medium |
+| T6.3 | Drop the one-time YAML→JSON import: shadow structs + `importYAML*` + legacy branches in `storage/store.go`; legacy names in `paths.go`; `go.yaml.in/yaml/v4` via `go mod tidy`; YAML-import tests + `writeYAML` helper; `*.yaml` ignore rules. | sonnet | medium |
+| T6.4 | `docs/ARCHITECTURE.md`: document per-job overlap policy, run-time statistics (incl. log-file seeding), the persisted pause flag, and the `jobs_view.go` split. | sonnet | medium |
+
+## Phase 7 — Portable packaging (§8)
+
+| Task | Description | Model | Thinking |
+|------|-------------|-------|----------|
+| T7.1 | `scripts\package-windows.*`: build + bundle `gosentry.exe`, `README.md`, `CHANGELOG.md` into a portable `.zip`. | sonnet | medium |
+| T7.2 | `scripts/package-linux.*`: build + bundle binary, `README.md`, `CHANGELOG.md` into `.tar.gz` for `linux-amd64` and `linux-arm64`. | sonnet | medium |
+
+## Phase 8 — Release docs + version
+
+| Task | Description | Model | Thinking |
+|------|-------------|-------|----------|
+| T8.1 | Bump `src/app/version.go` to `0.10.0`; update `docs/CHANGELOG.md`; tick the addressed `docs/ROADMAP.md` items; append any startup re-measure to `docs/PERFORMANCE.md`. | haiku | low |
 
 ---
 
@@ -93,21 +102,27 @@ Done first because both share a compact, single-line record formatter.
 - [ ] T3.3 — dialog select + settings/format wording
 - [ ] T3.4 — per-job override tests
 
-### Phase 4 — Window sizing
-- [ ] T4.1 — 720p-safe default + MinSize
+### Phase 4 — Persist global pause state
+- [ ] T4.1 — `Config.Paused` field
+- [ ] T4.2 — persist in `SetGlobalPause` + init from config
+- [ ] T4.3 — UI inits from persisted state
+- [ ] T4.4 — persistence + restored-paused tests
 
-### Phase 5 — Refactor + cleanup
-- [ ] T5.1 — `jobs_view.go` split
-- [ ] T5.2 — post-field-test cleanup (keep startup timing)
-- [ ] T5.3 — drop YAML→JSON migration
-- [ ] T5.4 — ARCHITECTURE.md update
+### Phase 5 — Window sizing
+- [ ] T5.1 — 720p-safe default + MinSize
 
-### Phase 6 — Portable packaging
-- [ ] T6.1 — Windows `.zip`
-- [ ] T6.2 — Linux `.tar.gz` (amd64 + arm64)
+### Phase 6 — Refactor + cleanup
+- [ ] T6.1 — `jobs_view.go` split
+- [ ] T6.2 — post-field-test cleanup (keep startup timing)
+- [ ] T6.3 — drop YAML→JSON migration
+- [ ] T6.4 — ARCHITECTURE.md update
 
-### Phase 7 — Release docs + version
-- [ ] T7.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
+### Phase 7 — Portable packaging
+- [ ] T7.1 — Windows `.zip`
+- [ ] T7.2 — Linux `.tar.gz` (amd64 + arm64)
+
+### Phase 8 — Release docs + version
+- [ ] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
 
 ## Definition of done
 
@@ -117,6 +132,7 @@ Done first because both share a compact, single-line record formatter.
 - Details panel shows run-time statistics that update after runs and survive a
   restart (seeded from log files).
 - A per-job overlap policy overrides the global default; an unset job inherits it.
+- "Pause all" survives a restart: a paused install relaunches paused.
 - The window opens fully visible on a 1366×768 / 720p screen.
 - No YAML→JSON import code remains; `go.yaml.in/yaml/v4` is gone from `go.mod`.
 - Portable `.zip` and `.tar.gz` artifacts build; ARCHITECTURE.md, CHANGELOG, and

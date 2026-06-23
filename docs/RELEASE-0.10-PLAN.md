@@ -1,9 +1,10 @@
 # Release 0.10.0 — Milestone Plan
 
-This milestone bundles the open [roadmap](ROADMAP.md) follow-ups with five
+This milestone bundles the open [roadmap](ROADMAP.md) follow-ups with six
 feature/bug-fix requests. It is a polish-and-fill release on top of 0.9.0: no new
 storage format and no architectural rework, just per-job run control, run-time
-statistics, UI compaction, and screen-fit + packaging groundwork.
+statistics, UI compaction, persisted pause state, and screen-fit + packaging
+groundwork.
 
 Build/test note: the GUI needs CGO + MSYS2 UCRT64; the default Bash env has CGO
 off. Use `scripts\test.bat` / `scripts\build-windows.bat` on Windows. Confirm the
@@ -102,13 +103,32 @@ guarantee and does not have a clean per-job meaning).
   still lays out without forcing horizontal overflow.
 - Manual verification on a 1366×768 display (or a forced-resolution VM).
 
-## 6. Roadmap follow-ups (carried from ROADMAP.md)
+## 6. Persist the global "Pause all" state
+
+The global pause (`Service.paused`, flipped by `SetGlobalPause` in
+`src/app/operations.go`) is in-memory only, so "Pause all" is forgotten on restart
+and the scheduler silently resumes — surprising for a deliberate emergency stop.
+
+- `src/domain/config.go`: add `Paused bool \`json:"paused,omitempty"\``.
+- `src/app/operations.go` `SetGlobalPause`: persist the new value into
+  `s.store.Config` and `SaveConfig`, alongside the existing runtime updates and
+  `SchedulerStateChanged` emit.
+- `src/app/service.go`: initialize `s.paused` from `store.Config.Paused` when the
+  Service is built, and apply the paused next-run text to runtimes at startup so a
+  restored-paused launch shows the right state before the first tick.
+- `src/ui/jobs_view.go`: initialize the local `schedulerPaused` flag, the
+  "Pause all"/"Resume all" button, and the scheduler-state label from the
+  persisted state instead of hard-coding `false`.
+- Tests: `src/app/operations_test.go` — `SetGlobalPause(true)` persists to config;
+  a Service rebuilt from that store starts paused and refuses `RunDue`/`RunNow`.
+
+## 7. Roadmap follow-ups (carried from ROADMAP.md)
 
 - **File-size soft limits.** `src/ui/jobs_view.go` (415) and
   `src/app/operations_test.go` (536) exceed the ~250 UI / ~400 cap guideline.
-  This milestone adds rows to `jobs_view.go` (§1, §2, §4) — split a clean seam out
-  (e.g. the details-panel construction or the toolbar/button wiring) while it is
-  already being edited.
+  This milestone adds rows to `jobs_view.go` (§1, §2, §4, §6) — split a clean seam
+  out (e.g. the details-panel construction or the toolbar/button wiring) while it
+  is already being edited.
 - **Post-field-test cleanup.** Sweep for stale diagnostics, over-defensive checks,
   obsolete autostart-migration code, and noisy README setup notes now that 0.9.0
   has had field use. Recheck `.gitignore` / Docker / packaging ignore rules.
@@ -127,10 +147,10 @@ guarantee and does not have a clean per-job meaning).
   - `.gitignore` / `.dockerignore`: drop the `*.yaml` import-window ignores.
 - **Architecture doc update.** Refresh `docs/ARCHITECTURE.md` for this milestone:
   the per-job overlap policy on `domain.Job` (§4), the run-time statistics added to
-  `domain.JobRuntime` and seeded from log files (§2), and any `jobs_view.go` split
-  (§6 file-size work).
+  `domain.JobRuntime` and seeded from log files (§2), the persisted global pause
+  flag (§6), and any `jobs_view.go` split (§7 file-size work).
 
-## 7. Delivery and packaging (portable only)
+## 8. Delivery and packaging (portable only)
 
 This milestone targets only the portable distribution variants, matching the
 ROADMAP delivery plan. Non-portable installer/package formats are out of scope and
@@ -148,10 +168,11 @@ have been dropped from the roadmap.
 1. §3 log-name fix + §1 one-line activity (shared compact formatter).
 2. §2 execution-time stats (record → runtime aggregate → details row).
 3. §4 per-job overlap policy (domain → dispatch → dialog → tests).
-4. §5 window sizing.
-5. §6 jobs_view split + cleanup (after the §1/§2/§4 edits land).
-6. §7 portable archives (Windows `.zip`, Linux `.tar.gz`).
-7. Docs: update `docs/ARCHITECTURE.md` (§6); version bump to `0.10.0`
+4. §6 persist the global pause state (config → service → UI init).
+5. §5 window sizing.
+6. §7 jobs_view split + cleanup (after the §1/§2/§4/§6 edits land).
+7. §8 portable archives (Windows `.zip`, Linux `.tar.gz`).
+8. Docs: update `docs/ARCHITECTURE.md` (§7); version bump to `0.10.0`
    (`src/app/version.go`), CHANGELOG, ROADMAP tick-offs.
 
 ## Verification
@@ -161,5 +182,6 @@ have been dropped from the roadmap.
   full `.log` extension (no `..lo`).
 - Details panel shows live run-time statistics that update after runs.
 - A per-job overlap policy overrides the global default; an unset job inherits it.
+- "Pause all" survives a restart: a paused install relaunches paused.
 - The window opens fully visible on a 1366×768 / 720p screen.
 - Bump and document the release; append any startup re-measure to PERFORMANCE.md.
