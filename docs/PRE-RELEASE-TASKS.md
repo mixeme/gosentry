@@ -97,7 +97,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P3.1 — Config/runtime fields + defaults
 - [x] P3.2 — Split dispatch into `app/run.go`
 - [x] P3.3 — Rework `RunDue`/`executeRun` for mode + overlap policy
-- [ ] P3.4 — Settings Queue selects
+- [x] P3.4 — Settings Queue selects
 - [ ] P3.5 — Queue tests
 
 ### Phase 4 — Notifications + Command browse

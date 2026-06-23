@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/app"
+	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -46,6 +47,16 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
+	executionModeSelect := widget.NewSelect(
+		[]string{string(domain.ExecutionModeParallel), string(domain.ExecutionModeSequential)},
+		nil,
+	)
+	executionModeSelect.SetSelected(string(store.Config.ExecutionMode))
+	overlapPolicySelect := widget.NewSelect(
+		[]string{string(domain.OverlapPolicySkip), string(domain.OverlapPolicyQueue)},
+		nil,
+	)
+	overlapPolicySelect.SetSelected(string(store.Config.OverlapPolicy))
 	jobsDir := widget.NewEntry()
 	jobsDir.SetText(store.Config.JobsDir)
 	jobsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
@@ -92,6 +103,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		config.StartOnLogin = startOnLogin.Checked
 		config.KeepRunningInTray = minimizeToTray.Checked
 		config.NotifyOnFailure = notifications.Checked
+		config.ExecutionMode = domain.ExecutionMode(executionModeSelect.Selected)
+		config.OverlapPolicy = domain.OverlapPolicy(overlapPolicySelect.Selected)
 		if err := svc.UpdateSettings(config); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
@@ -110,6 +123,10 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
 		settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
 		settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
+		settingsRow("Overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
