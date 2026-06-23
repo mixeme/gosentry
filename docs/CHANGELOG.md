@@ -2,6 +2,16 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.9.0 - 2026-06-23
+
+**Transparent per-platform icons; tray left-click to show window; Fyne 2.7.4.**
+
+- Regenerated all icon assets with feathered color-to-alpha so the rounded-tile boundary is transparent — the opaque white halo visible on dark taskbars and trays is gone.
+- Rebuilt `gosentry.ico` as a multi-size file (16 hand-tuned + 32/48/256 from the large PNG) and added a dedicated 16×16 `gosentry-icon-16x16.ico` for the Windows tray.
+- Per-platform icon wiring: Windows window/taskbar uses the ICO resource so GLFW selects the right frame per slot (no `a.SetIcon` override); Windows tray uses the 16×16 ICO; Linux titlebar uses `IconSmall()` for a crisp ~16 px `_NET_WM_ICON`.
+- Left-clicking the tray icon now shows and focuses the main window (`SetSystemTrayWindow`) without opening the menu; the explicit "Show" menu item is preserved for right-click access.
+- Upgraded Fyne 2.6.3 → 2.7.4 (systray 1.11.0 → 1.12.1): startup time drops from ~644 ms to ~414 ms (−36%).
+
 ## 0.8.0 - 2026-06-23
 
 **Desktop notifications for failed jobs; Browse button for command paths.**
