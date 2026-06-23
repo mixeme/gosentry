@@ -51,7 +51,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 | Task | Description | Model | Thinking |
 |------|-------------|-------|----------|
 | P5.1 | `assets/assets.go`: embed `gosentry-icon-16x16.png`; add `IconSmall()`; keep `Icon()`/`IconBytes()` (large). | haiku | low |
-| P5.2 | `ui/tray.go`: `desk.SetSystemTrayIcon(assets.IconSmall())`; confirm window/app icon stays large in `run.go`. Verify `gosentry.ico` carries both sizes. | sonnet | low |
+| P5.2 | Size-appropriate, transparent icons per platform. `ui/tray.go`: tray uses the small icon (Windows `IconSmallICO()` 16×16 `.ico`; Linux big PNG). `run.go`: Windows window/taskbar draws from multi-size `gosentry.ico` via the `GLFW_ICON` resource (hand-tuned 16 titlebar + large taskbar, so `a.SetIcon` is skipped); Linux titlebar uses `IconSmall()`. Verify `gosentry.ico` carries 16/32/48/256. | sonnet | low |
 
 ## Phase 6 — Fyne 2.7 upgrade + tray click (§6)
 
@@ -105,8 +105,8 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P4.2 — Command Browse button
 
 ### Phase 5 — Icons
-- [ ] P5.1 — Embed small icon + `IconSmall()`
-- [ ] P5.2 — Tray uses small icon; verify `.ico`
+- [x] P5.1 — Embed small icon + `IconSmall()`
+- [x] P5.2 — Size-appropriate per-platform icons (tray small; window via `.ico`/`IconSmall`); verify `.ico`
 
 ### Phase 6 — Fyne 2.7 upgrade + tray click
 - [ ] P6.1 — Bump Fyne to 2.7.x; rebuild
