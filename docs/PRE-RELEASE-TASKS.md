@@ -117,7 +117,7 @@ These land together because both edit `domain/job.go` and `storage/store.go`.
 - [x] P7.1 — Linux test build fix (build-tagged Windows tests)
 
 ### Phase 8 — Docs + version
-- [ ] P8.1 — `docs/DEVELOPMENT.md`
+- [x] P8.1 — `docs/DEVELOPMENT.md`
 - [ ] P8.2 — End-user README rewrite
 - [ ] P8.3 — CHANGELOG + ROADMAP updates
 
