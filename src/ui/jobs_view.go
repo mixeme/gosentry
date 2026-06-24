@@ -61,7 +61,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 
 	selected := 0
 	selectedFolder := allFolders
-	schedulerPaused := false
+	schedulerPaused := svc.Store().Config.Paused
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
 	title := widget.NewLabelWithStyle(jobs[selected].Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
@@ -77,7 +77,11 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	stateLabel := newJobDetailLabel(selectedRuntime.LastState)
 	statsLabel := newJobDetailLabel(app.DisplayStats(selectedRuntime))
 	overlapPolicyLabel := newJobDetailLabel(app.DisplayOverlapPolicy(jobs[selected], svc.Store().Config.OverlapPolicy))
-	schedulerState := widget.NewLabel("Scheduler running")
+	schedulerStateText := "Scheduler running"
+	if schedulerPaused {
+		schedulerStateText = "Scheduler paused"
+	}
+	schedulerState := widget.NewLabel(schedulerStateText)
 	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(selectedRuntime.Output)
 	commandOutputScroll := container.NewScroll(commandOutput)
@@ -265,7 +269,11 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		list.Refresh()
 		refreshView()
 	})
-	stopAllButton := widget.NewButtonWithIcon("Pause all", theme.MediaStopIcon(), nil)
+	stopAllText, stopAllIcon := "Pause all", theme.MediaStopIcon()
+	if schedulerPaused {
+		stopAllText, stopAllIcon = "Resume all", theme.MediaPlayIcon()
+	}
+	stopAllButton := widget.NewButtonWithIcon(stopAllText, stopAllIcon, nil)
 	stopAllButton.OnTapped = func() {
 		// SetGlobalPause flips the Service's pause flag, updates every job's
 		// next-run text, and emits the activity record the observer logs. Mirror the
