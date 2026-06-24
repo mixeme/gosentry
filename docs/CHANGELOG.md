@@ -30,6 +30,44 @@ All notable GoSentry changes are recorded in this file.
   (`N runs, M failed, last X ms, avg Y ms, max X ms`) that refreshes after
   each run and is pre-populated from log files after a restart.
 
+**Per-job overlap policy:**
+- Added an `OverlapPolicy` field to `domain.Job`; a job can now override the
+  global skip/queue default. `RunDue` resolves the effective policy per job
+  (the job's value if set, otherwise `Config.OverlapPolicy`).
+- The job dialog gains an overlap-policy selector with a
+  "(Use global default)" option that saves empty so the job inherits the
+  global setting. The details panel reflects the effective policy.
+
+**Persisted global pause:**
+- Added `Paused` to the config so the global "Pause all" state survives a
+  restart. `SetGlobalPause` persists the new value, and the service initializes
+  its paused state from config at startup — a paused install now relaunches
+  paused instead of silently resuming the scheduler.
+- The Pause-all/Resume-all button and scheduler-state label initialize from the
+  persisted state.
+
+**Window sizing (720p-safe):**
+- Lowered the default window size to `1024×660` with a sensible `MinSize` so the
+  window opens fully visible on a 1366×768 / 720p screen. Layout minimums in the
+  Jobs view were tightened to match.
+
+**Packaging:**
+- Added portable-distribution helpers: `scripts\package-windows.bat` builds and
+  bundles `gosentry.exe`, `README.md`, and `CHANGELOG.md` into a versioned
+  `.zip`; `scripts/package-linux.sh` does the same for `linux-amd64` and
+  `linux-arm64` into `.tar.gz` archives.
+
+**Internal cleanup:**
+- Split `ui/jobs_view.go` into focused files (`jobs_view_details.go`,
+  `jobs_view_helpers.go`) to bring it back under the file-size guideline.
+- Removed the one-time YAML→JSON import path (shadow structs, `importYAML*`,
+  legacy path names) now that the 0.9.0 transition window has passed;
+  `go.yaml.in/yaml/v4` is dropped from `go.mod`.
+- Post-field-test sweep of stale diagnostics, obsolete autostart-migration code,
+  and noisy README/ignore rules. The startup-timing History event is retained.
+- Removed the completed release-milestone docs and trimmed `ROADMAP.md` to open
+  items only.
+
 ## 0.9.0 - 2026-06-24
 
 **Storage migrated to JSON; queue execution modes; failure notifications; tray left-click; Fyne 2.7.4.**
