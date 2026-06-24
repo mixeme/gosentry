@@ -98,3 +98,27 @@ func TestDisplayIndex(t *testing.T) {
 		t.Errorf("DisplayIndex(missing) = %d, want 0", got)
 	}
 }
+
+func TestEventLine(t *testing.T) {
+	withLog := domain.RunRecord{
+		Time: "2026-06-19 12:00:00", Trigger: "Schedule", JobName: "Build",
+		State: "Success", Detail: "ok", LogFile: "/home/user/logs/build-20260619.log",
+	}
+	if got, want := EventLine(withLog), "2026-06-19 12:00:00  Schedule  Build  Success  ok  build-20260619.log"; got != want {
+		t.Errorf("EventLine with log = %q, want %q", got, want)
+	}
+
+	noLog := domain.RunRecord{
+		Time: "2026-06-19 12:00:00", Trigger: "Manual", JobName: "Build",
+		State: "Success", Detail: "ok",
+	}
+	if got, want := EventLine(noLog), "2026-06-19 12:00:00  Manual  Build  Success  ok"; got != want {
+		t.Errorf("EventLine without log = %q, want %q", got, want)
+	}
+
+	// An empty trigger is shown as "Unknown".
+	blank := domain.RunRecord{Time: "t", JobName: "J", State: "S", Detail: "d", LogFile: "/path/to/file.log"}
+	if got, want := EventLine(blank), "t  Unknown  J  S  d  file.log"; got != want {
+		t.Errorf("EventLine blank trigger = %q, want %q", got, want)
+	}
+}
