@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
@@ -28,6 +29,19 @@ func EventText(e domain.RunRecord) string {
 	}
 	if e.LogFile != "" {
 		return fmt.Sprintf("%s  %s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail, e.LogFile)
+	}
+	return fmt.Sprintf("%s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail)
+}
+
+// EventLine formats a run record as a compact single line for the jobs log
+// view, using only the base name of the log file instead of the full path.
+func EventLine(e domain.RunRecord) string {
+	trigger := e.Trigger
+	if trigger == "" {
+		trigger = "Unknown"
+	}
+	if e.LogFile != "" {
+		return fmt.Sprintf("%s  %s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail, filepath.Base(e.LogFile))
 	}
 	return fmt.Sprintf("%s  %s  %s  %s  %s", e.Time, trigger, e.JobName, e.State, e.Detail)
 }
