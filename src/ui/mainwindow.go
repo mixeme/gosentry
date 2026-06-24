@@ -40,7 +40,7 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 
 	jobsPanel, refreshJobsView := newJobsView(w, svc)
 
-	history := newHistoryView(&events)
+	history, refreshHistory := newHistoryView(&events)
 	recordStartup := func(duration time.Duration, windowShown bool) {
 		// Startup is recorded as an in-memory History event instead of being
 		// persisted into jobs.yaml. It is session diagnostics, not durable job
@@ -51,12 +51,12 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 			detail = "Started in tray in " + duration.Round(time.Millisecond).String()
 		}
 		events = append(events, newEvent(0, "Application", "Started", detail))
-		history.Refresh()
+		refreshHistory()
 	}
 
 	refresh := func() {
 		refreshJobsView()
-		history.Refresh()
+		refreshHistory()
 	}
 
 	// The Service announces every change through events. This single listener is
