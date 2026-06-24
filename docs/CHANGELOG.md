@@ -2,6 +2,12 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.10.1 - 2026-06-24
+
+**Refactoring:**
+- Unified icon asset naming from mixed scheme (big/16x16) to consistent
+  size-based names (large/small) for clarity and maintainability.
+
 ## 0.10.0 - 2026-06-24
 
 **Compact activity rows; per-job execution-time statistics seeded from log files.**
