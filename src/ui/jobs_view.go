@@ -23,10 +23,10 @@ const minJobsSidebarWidth float32 = 400
 // view; this panel is a quick at-a-glance summary anchored below the output.
 const maxJobActivityRows = 3
 
-// jobActivityHeight is the fixed height reserved for the activity panel at the
-// bottom of the details pane, sized for maxJobActivityRows rows so the command
-// output above it can claim the remaining vertical space.
-const jobActivityHeight float32 = 120
+// detailRowSpacing is the (negative) gap applied between metadata rows in the
+// details panel. Pulling rows together overlaps the labels' built-in vertical
+// padding, tightening the block so it fits comfortably on 720p screens.
+const detailRowSpacing float32 = -8
 
 // newJobsView builds the Jobs tab: list sidebar, details panel, and toolbar.
 // It returns the assembled panel and a refresh function the caller invokes

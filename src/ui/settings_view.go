@@ -22,6 +22,11 @@ const settingsControlWidth float32 = 330
 const settingsStatusWidth float32 = 280
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
 
+// settingsRowSpacing is the (negative) gap between rows of the settings form,
+// overlapping each control's built-in vertical padding so the column is tighter
+// and more compact, matching the condensed job details panel.
+const settingsRowSpacing float32 = -6
+
 func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	store := svc.Store()
 	startOnLogin := widget.NewCheck("Start on login", nil)
@@ -118,7 +123,11 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		settingsStatus.SetText("Saved")
 	})
 
-	return container.NewPadded(container.NewVBox(
+	// The settings form is a tall fixed-height column. Wrapping it in a vertical
+	// scroll keeps its minimum height small so it does not dictate the whole
+	// window's minimum height (AppTabs sizes to the tallest tab); on short 720p
+	// screens the window can shrink and the form scrolls instead.
+	return container.NewVScroll(container.NewPadded(container.New(compactVBoxLayout{spacing: settingsRowSpacing},
 		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
 		settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
@@ -142,7 +151,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		settingsRow("Go", widget.NewLabel(runtime.Version())),
 		settingsRow("Fyne", widget.NewLabel(fyneVersion())),
 		settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
-	))
+	)))
 }
 
 func fyneVersion() string {

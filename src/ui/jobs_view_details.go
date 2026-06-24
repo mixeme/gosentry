@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -53,7 +54,10 @@ func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy do
 	// Command output can contain long lines and preserved whitespace. TextGrid is
 	// used instead of Label so stdout/stderr remains readable and does not vanish
 	// against the theme when it is placed inside a scroll container.
-	d.commandOutputScroll.SetMinSize(fyne.NewSize(460, 120))
+	// The height here is only a floor: the scroll grows to fill whatever space the
+	// border layout gives it, so keep the minimum small so the whole window can be
+	// shrunk on short (720p) screens. Long output stays reachable by scrolling.
+	d.commandOutputScroll.SetMinSize(fyne.NewSize(460, 70))
 	d.logs = widget.NewList(
 		func() int { return len(d.selectedLogs) },
 		func() fyne.CanvasObject {
@@ -104,28 +108,49 @@ func (d *detailsPanel) clear() {
 // container assembles the details pane layout: metadata rows pin to the top,
 // the activity panel pins to the bottom, and command output fills the remainder.
 func (d *detailsPanel) container() fyne.CanvasObject {
+	// Metadata is laid out in two columns so the block stays half as tall,
+	// keeping the details pane usable on 720p screens where a single column of
+	// ten rows pushes the minimum window height past the available space.
+	rows := container.New(compactVBoxLayout{spacing: detailRowSpacing},
+		detailRowPair("Folder", d.folder, "Schedule", d.schedule),
+		detailRowPair("Command", d.command, "Arguments", d.arguments),
+		detailRowPair("Run mode", d.runMode, "Overlap policy", d.overlapPolicy),
+		detailRowPair("Last run", d.lastRun, "Next run", d.nextRun),
+		detailRowPair("State", d.state, "Statistics", d.stats),
+	)
 	top := container.NewVBox(
 		d.title,
 		widget.NewSeparator(),
-		detailRow("Folder", d.folder),
-		detailRow("Schedule", d.schedule),
-		detailRow("Command", d.command),
-		detailRow("Arguments", d.arguments),
-		detailRow("Run mode", d.runMode),
-		detailRow("Overlap policy", d.overlapPolicy),
-		detailRow("Last run", d.lastRun),
-		detailRow("Next run", d.nextRun),
-		detailRow("State", d.state),
-		detailRow("Statistics", d.stats),
+		rows,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Command output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 	)
 	activity := container.NewVBox(
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Selected job activity", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.New(fixedHeightLayout{height: jobActivityHeight}, d.logs),
+		container.New(fixedHeightLayout{height: activityRowsHeight(maxJobActivityRows)}, d.logs),
 	)
 	return container.NewBorder(top, activity, nil, nil, d.commandOutputScroll)
+}
+
+// activityRowsHeight returns the fixed height needed to show the given number of
+// activity-list rows without scrolling. It mirrors widget.List's own content
+// height — (itemHeight + padding) per row, less one separator — using the same
+// label template the list builds its rows from, so it tracks the theme's text
+// size and DPI instead of relying on a hand-tuned constant. The trailing pixel
+// absorbs sub-pixel rounding so the last row is never clipped behind a scrollbar.
+func activityRowsHeight(rows int) float32 {
+	sample := widget.NewLabel("log")
+	sample.Wrapping = fyne.TextTruncate
+	itemHeight := sample.MinSize().Height
+	padding := theme.Padding()
+	return (itemHeight+padding)*float32(rows) - padding + 1
+}
+
+// detailRowPair places two label/value pairs side by side, producing the
+// four-column caption|value|caption|value rows the compact metadata grid uses.
+func detailRowPair(l1 string, v1 fyne.CanvasObject, l2 string, v2 fyne.CanvasObject) fyne.CanvasObject {
+	return container.NewGridWithColumns(2, detailRow(l1, v1), detailRow(l2, v2))
 }
 
 func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
@@ -136,9 +161,6 @@ func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
 
 func newJobDetailLabel(text string) *widget.Label {
 	label := widget.NewLabel(text)
-	// Job names, commands, and paths can be much wider than the details panel.
-	// Breaking long runs of text keeps Label.MinSize stable when the selection
-	// changes, so the right panel does not force the whole window to resize.
-	label.Wrapping = fyne.TextWrapBreak
+	label.Wrapping = fyne.TextTruncate
 	return label
 }
