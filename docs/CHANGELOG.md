@@ -2,6 +2,34 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.10.0 - 2026-06-24
+
+**Compact activity rows; per-job execution-time statistics seeded from log files.**
+
+**Activity panel (one-line rows):**
+- Each entry in the job log list is now a single truncated line using only the
+  base name of the log file (e.g. `20260624-120000_Build.log`) instead of the
+  full path. Long lines are clipped rather than wrapped, keeping the panel
+  compact with many runs.
+- History table retains the full log path for reference; base-name truncation
+  applies only to the activity rows in the Jobs details panel.
+
+**Execution-time statistics:**
+- Added `DurationMS` field to `RunRecord`; the runner measures wall-clock
+  start-to-finish and writes it to both the record and a `duration:` header
+  line in the log file. `StartOnly` jobs record `0`.
+- Added aggregate counters to `JobRuntime`: `RunCount`, `FailCount`,
+  `LastDurationMS`, `AvgDurationMS`, `MaxDurationMS`. Updated after every
+  completed run in `executeRun`.
+- On startup the statistics are seeded from existing log files: the runner
+  parses `state:` and `duration:` headers for each job's newest log files
+  (bounded by `MaxLogFiles`). Legacy logs without a `duration:` line still
+  count toward `RunCount`/`FailCount` but are excluded from duration
+  aggregates so a missing duration cannot appear as a zero-millisecond run.
+- A **Statistics** row in the Jobs details panel shows a one-line summary
+  (`N runs, M failed, last X ms, avg Y ms, max X ms`) that refreshes after
+  each run and is pre-populated from log files after a restart.
+
 ## 0.9.0 - 2026-06-24
 
 **Storage migrated to JSON; queue execution modes; failure notifications; tray left-click; Fyne 2.7.4.**
