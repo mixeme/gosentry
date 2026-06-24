@@ -67,7 +67,6 @@ func (s *Service) RunDue(now time.Time) {
 	var startErr error
 	if !s.paused {
 		sequential := s.store.Config.ExecutionMode == domain.ExecutionModeSequential
-		queue := s.store.Config.OverlapPolicy == domain.OverlapPolicyQueue
 		running := s.anyRunningLocked()
 		for index := range s.jobs {
 			job := &s.jobs[index]
@@ -77,8 +76,9 @@ func (s *Service) RunDue(now time.Time) {
 			}
 			if runtime.LastState == "Running" {
 				// The job came due again while its own run is still in flight.
-				// Apply the overlap policy and step past this occurrence.
-				if queue {
+				// Apply the effective overlap policy and step past this
+				// occurrence.
+				if s.effectiveOverlapPolicy(job) == domain.OverlapPolicyQueue {
 					runtime.Pending = true
 				}
 				s.advanceNextDueLocked(job, runtime, now)
@@ -163,6 +163,17 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 	}
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: jobCopy.ID})
+}
+
+// effectiveOverlapPolicy resolves the overlap policy that actually governs a
+// job: the job's own value when set, otherwise the global Config default. An
+// empty Job.OverlapPolicy means "inherit the global default", which is why
+// normalizeJobs leaves it empty rather than backfilling the configured value.
+func (s *Service) effectiveOverlapPolicy(job *domain.Job) domain.OverlapPolicy {
+	if policy := domain.OverlapPolicy(strings.TrimSpace(job.OverlapPolicy)); policy != "" {
+		return policy
+	}
+	return s.store.Config.OverlapPolicy
 }
 
 // anyRunningLocked reports whether any loaded job is currently in the "Running"
