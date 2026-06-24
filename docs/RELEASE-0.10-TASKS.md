@@ -122,7 +122,7 @@ Done first because both share a compact, single-line record formatter.
 - [ ] T7.2 — Linux `.tar.gz` (amd64 + arm64)
 
 ### Phase 8 — Release docs + version
-- [x] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
+- [ ] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
 
 ## Definition of done
 
