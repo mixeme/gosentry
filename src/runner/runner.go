@@ -27,9 +27,12 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	var output string
 	var state string
 	var detail string
+	var durationMS int64
 	if job.StartOnly {
 		invocation := jobInvocation(context.Background(), *job)
 		state, detail, output = startJobOnly(invocation, *job, started)
+		// StartOnly jobs don't wait for process exit, so no meaningful duration.
+		durationMS = 0
 	} else {
 		var stdoutBuf strings.Builder
 		var stderrBuf strings.Builder
@@ -44,6 +47,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 
 		err := command.Run()
 		duration := time.Since(started).Round(time.Millisecond)
+		durationMS = duration.Milliseconds()
 		output = formatOutput(stdoutBuf.String(), stderrBuf.String())
 		state, detail = runStateDetail(err, runCtx.Err(), duration)
 	}
@@ -56,14 +60,15 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	// lets the caller fold that record into the job's JobRuntime. Run state no
 	// longer lives on Job, so there is nothing on the job to mutate here.
 	return domain.RunRecord{
-		Time:    timestamp,
-		JobID:   job.ID,
-		JobName: job.Name,
-		Trigger: trigger,
-		State:   state,
-		Detail:  detail,
-		LogFile: logFile,
-		Output:  output,
+		Time:       timestamp,
+		JobID:      job.ID,
+		JobName:    job.Name,
+		Trigger:    trigger,
+		State:      state,
+		Detail:     detail,
+		LogFile:    logFile,
+		Output:     output,
+		DurationMS: durationMS,
 	}
 }
 
