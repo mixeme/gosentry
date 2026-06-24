@@ -286,6 +286,147 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 	}
 }
 
+// TestRunDuePerJobQueueOverridesGlobalSkip verifies that a job carrying its own
+// "queue" policy queues a re-run even though the global default is "skip": the
+// effective policy is resolved per job, so the job-level value wins.
+func TestRunDuePerJobQueueOverridesGlobalSkip(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicySkip, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true, OverlapPolicy: string(domain.OverlapPolicyQueue)},
+	})
+
+	entered := make(chan int, 2)
+	release := make(chan struct{})
+	var calls int32
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+		atomic.AddInt32(&calls, 1)
+		entered <- job.ID
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+	}
+	done := completions(svc)
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	if id := <-entered; id != 1 {
+		t.Fatalf("started job = %d, want 1", id)
+	}
+
+	// Re-due the running job and tick. Despite the global "skip", the job's own
+	// "queue" policy must mark it Pending.
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	expectNoEntry(t, entered)
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].Pending
+	svc.mu.Unlock()
+	if !pending {
+		t.Fatal("per-job queue policy must mark the job Pending despite global skip")
+	}
+
+	// Releasing the first run lets executeRun start the deferred re-run.
+	close(release)
+	waitRecord(t, done)
+	if id := <-entered; id != 1 {
+		t.Fatalf("re-run job = %d, want 1", id)
+	}
+	waitRecord(t, done)
+	if got := atomic.LoadInt32(&calls); got != 2 {
+		t.Errorf("runner called %d time(s), want 2 (original + queued re-run)", got)
+	}
+}
+
+// TestRunDuePerJobSkipOverridesGlobalQueue verifies the reverse override: a job
+// carrying its own "skip" policy drops an overlapping run even though the global
+// default is "queue".
+func TestRunDuePerJobSkipOverridesGlobalQueue(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true, OverlapPolicy: string(domain.OverlapPolicySkip)},
+	})
+
+	entered := make(chan int, 2)
+	release := make(chan struct{})
+	var calls int32
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+		atomic.AddInt32(&calls, 1)
+		entered <- job.ID
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+	}
+	done := completions(svc)
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	if id := <-entered; id != 1 {
+		t.Fatalf("started job = %d, want 1", id)
+	}
+
+	// Re-due the running job and tick. Despite the global "queue", the job's own
+	// "skip" policy must drop it without marking Pending.
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	expectNoEntry(t, entered)
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].Pending
+	svc.mu.Unlock()
+	if pending {
+		t.Error("per-job skip policy must not mark the job Pending despite global queue")
+	}
+
+	close(release)
+	waitRecord(t, done)
+	expectNoEntry(t, entered)
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("runner called %d time(s), want 1", got)
+	}
+}
+
+// TestRunDueEmptyOverlapInheritsGlobal verifies that a job with no own policy
+// inherits the global default: with global "queue" and an empty Job.OverlapPolicy
+// the job queues a re-run.
+func TestRunDueEmptyOverlapInheritsGlobal(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
+	})
+	if svc.jobs[0].OverlapPolicy != "" {
+		t.Fatalf("test setup: job OverlapPolicy = %q, want empty (inherit)", svc.jobs[0].OverlapPolicy)
+	}
+
+	entered := make(chan int, 2)
+	release := make(chan struct{})
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+		entered <- job.ID
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+	}
+	done := completions(svc)
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	if id := <-entered; id != 1 {
+		t.Fatalf("started job = %d, want 1", id)
+	}
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	expectNoEntry(t, entered)
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].Pending
+	svc.mu.Unlock()
+	if !pending {
+		t.Fatal("empty per-job policy must inherit the global queue and mark Pending")
+	}
+
+	close(release)
+	waitRecord(t, done)
+	if id := <-entered; id != 1 {
+		t.Fatalf("inherited-queue re-run job = %d, want 1", id)
+	}
+	waitRecord(t, done)
+}
+
 // TestRunNowSequentialGuard verifies the sequential-mode guard in RunNow: a manual
 // run is refused while another job is running, and allowed once nothing is.
 func TestRunNowSequentialGuard(t *testing.T) {

@@ -97,10 +97,10 @@ Done first because both share a compact, single-line record formatter.
 - [x] T2.7 — stats tests
 
 ### Phase 3 — Per-job run policy
-- [ ] T3.1 — `Job.OverlapPolicy` field
-- [ ] T3.2 — effective-policy dispatch + inherit
-- [ ] T3.3 — dialog select + settings/format wording
-- [ ] T3.4 — per-job override tests
+- [x] T3.1 — `Job.OverlapPolicy` field
+- [x] T3.2 — effective-policy dispatch + inherit
+- [x] T3.3 — dialog select + settings/format wording
+- [x] T3.4 — per-job override tests
 
 ### Phase 4 — Persist global pause state
 - [ ] T4.1 — `Config.Paused` field
