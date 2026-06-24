@@ -11,7 +11,6 @@ cmd/gosentry/*.syso
 # Runtime files created next to the executable during local runs.
 gosentry.json
 jobs.json
-*.yaml
 logs/
 
 # Go workspace/cache files that should stay local if a developer creates them.
