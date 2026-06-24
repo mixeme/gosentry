@@ -93,6 +93,20 @@ func NewService(store *storage.Store, jobs []domain.Job) *Service {
 		s.parseScheduleLocked(job)
 		s.refreshNextRunFromLocked(job, s.runtimes[job.ID], now)
 	}
+	// Seed execution-time statistics from existing log files so the details panel
+	// shows accumulated run history immediately after a restart, not just runs
+	// since this process started.
+	for id, seed := range runner.SeedStats(store.Paths.LogsDir, jobs, store.Config.MaxLogFiles) {
+		runtime := s.runtimes[id]
+		if runtime == nil {
+			continue
+		}
+		runtime.RunCount = seed.RunCount
+		runtime.FailCount = seed.FailCount
+		runtime.LastDurationMS = seed.LastDurationMS
+		runtime.AvgDurationMS = seed.AvgDurationMS
+		runtime.MaxDurationMS = seed.MaxDurationMS
+	}
 	return s
 }
 
