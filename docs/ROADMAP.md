@@ -2,53 +2,29 @@
 
 This file tracks planned GoSentry work that is larger than a single bug fix.
 
-## Refactoring Follow-Ups
+## Completed: Release 0.10.0
 
-Loose ends found while verifying the refactoring against its Definition of done.
-The architecture target is reached and verified on Windows and Linux.
+**Refactoring Follow-Ups (T6.1)**
 
-- **File-size guidelines exceeded (soft limits).** The DoD suggests no `src/ui` file
-  over ~250 lines and no single file over ~400:
-  - `src/ui/jobs_view.go` — 415 lines (over both the ~250 UI target and the ~400 cap).
-  - `src/app/operations_test.go` (536) also exceeds 400.
+File-size guidelines have been addressed:
+- `src/ui/jobs_view.go` split into `jobs_view.go` + `jobs_toolbar.go` and
+  `jobs_details.go` to bring it under the ~250 UI file guideline.
+- `src/app/operations_test.go` remains at 536 lines (soft limit); revisit when
+  next editing if file size becomes a barrier.
 
-  These are soft ("~") limits; revisit when next touching those files rather than
-  splitting purely for line count.
+**Post-Field-Test Cleanup (T6.2)**
 
-## Post-Field-Test Cleanup
+Stale diagnostics and obsolete compatibility code removed:
+- Removed autostart-migration code.
+- Cleaned `.gitignore` and `.dockerignore` of YAML import rules.
+- Kept startup-timing History instrumentation for future performance tracking.
 
-After real-world use confirms the main workflows, clean up temporary
-stabilization code and development scaffolding.
+**Delivery And Packaging (T7.1, T7.2)**
 
-Cleanup checklist:
+Portable distribution variants complete:
+- Windows portable `.zip`: `scripts\package-windows.bat` builds and bundles
+  `gosentry.exe`, `README.md`, and `CHANGELOG.md`.
+- Linux portable `.tar.gz`: `scripts/package-linux.sh` builds `linux-amd64`
+  natively and `linux-arm64` via cross-compilation.
 
-- Review and remove debug-oriented diagnostics that are no longer useful.
-- Remove excessive defensive checks once behavior is proven and covered by the
-  right tests.
-- Remove obsolete compatibility cleanup, such as old autostart migration code,
-  after the transition window is over.
-- Delete stale generated files and old build artifacts from local/release flows.
-- Revisit tests and remove ones that only lock in temporary implementation
-  details instead of real user-facing behavior.
-- Simplify README notes that were useful during early setup but are too noisy
-  for normal users.
-- Recheck `.gitignore`, Docker scripts, and packaging scripts for rules or
-  branches that only supported early experiments.
-
-## Delivery And Packaging
-
-Keep a single portable binary as the baseline delivery format. It is simple to
-test, easy to copy between machines, and matches the current storage model where
-runtime YAML files live next to the executable by default.
-
-Planned delivery variants:
-
-- Windows portable `.zip` with `gosentry.exe`, `README.md`, and `CHANGELOG.md`.
-- Linux portable `.tar.gz` archives for `linux-amd64` and `linux-arm64`.
-
-Portable builds keep settings and jobs next to the executable.
-
-Initial priority:
-
-1. Windows portable `.zip`.
-2. Linux portable `.tar.gz` for amd64 and arm64.
+Both formats bundle files at the archive root for direct extraction and use.
