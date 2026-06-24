@@ -11,7 +11,7 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 )
 
-func writeRunLog(logsDir string, job domain.Job, trigger string, state string, detail string, output string, started time.Time) string {
+func writeRunLog(logsDir string, job domain.Job, trigger string, state string, detail string, output string, durationMS int64, started time.Time) string {
 	if strings.TrimSpace(logsDir) == "" {
 		return ""
 	}
@@ -23,8 +23,8 @@ func writeRunLog(logsDir string, job domain.Job, trigger string, state string, d
 	// avoid characters that are invalid on Windows or awkward on shells.
 	fileName := started.Format("20060102-150405") + "_" + sanitizeFileName(job.Name) + ".log"
 	path := filepath.Join(logsDir, fileName)
-	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
-		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, job.Command, logArguments(job.Arguments), job.StartOnly, output)
+	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\nduration: %d\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
+		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, durationMS, job.Command, logArguments(job.Arguments), job.StartOnly, output)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		return ""
 	}

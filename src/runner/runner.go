@@ -54,7 +54,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 
 	now := time.Now()
 	timestamp := now.Format("2006-01-02 15:04:05")
-	logFile := writeRunLog(logsDir, *job, trigger, state, detail, output, now)
+	logFile := writeRunLog(logsDir, *job, trigger, state, detail, output, durationMS, now)
 
 	// The runner is now pure with respect to the job: it returns a RunRecord and
 	// lets the caller fold that record into the job's JobRuntime. Run state no
