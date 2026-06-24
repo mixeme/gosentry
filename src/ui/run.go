@@ -48,7 +48,7 @@ func Run(startInTray bool) {
 
 	w := a.NewWindow("GoSentry " + app.Version)
 	configureSystemTray(a, w)
-	w.Resize(fyne.NewSize(1120, 720))
+	w.Resize(fyne.NewSize(1024, 660))
 	content, recordStartup := newMainView(w)
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)

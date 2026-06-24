@@ -17,7 +17,7 @@ import (
 
 const allFolders = "All"
 const noFolder = "No folder"
-const minJobsSidebarWidth float32 = 480
+const minJobsSidebarWidth float32 = 400
 
 // maxJobActivityRows caps the "Selected job activity" panel to the most recent
 // entries. The full per-job history (up to maxJobLogs) remains in the History
@@ -88,7 +88,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	// Command output can contain long lines and preserved whitespace. TextGrid is
 	// used instead of Label so stdout/stderr remains readable and does not vanish
 	// against the theme when it is placed inside a scroll container.
-	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
+	commandOutputScroll.SetMinSize(fyne.NewSize(460, 120))
 
 	selectedLogs := lastJobLogs(selectedRuntime.Logs)
 	jobLogs := widget.NewList(
