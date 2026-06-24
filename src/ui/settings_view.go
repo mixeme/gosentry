@@ -123,35 +123,57 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		settingsStatus.SetText("Saved")
 	})
 
-	// The settings form is a tall fixed-height column. Wrapping it in a vertical
-	// scroll keeps its minimum height small so it does not dictate the whole
-	// window's minimum height (AppTabs sizes to the tallest tab); on short 720p
-	// screens the window can shrink and the form scrolls instead.
-	return container.NewVScroll(container.NewPadded(container.New(compactVBoxLayout{spacing: settingsRowSpacing},
-		widget.NewLabelWithStyle("Application", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
-		settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
-		settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
+	// The form is grouped into sections in an outer VBox. The outer box keeps the
+	// theme's normal padding, so the separators and the editable Storage fields
+	// get proper breathing room; only the label-only sections are condensed with
+	// the tight settingsSection spacing. Wrapping the whole thing in a vertical
+	// scroll keeps its minimum height small so it does not dictate the window's
+	// minimum height (AppTabs sizes to the tallest tab) and it scrolls on short
+	// 720p screens.
+	return container.NewVScroll(container.NewPadded(container.NewVBox(
+		settingsSection("Application",
+			settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
+			settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
+			settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
+		),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
-		settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
+		settingsSection("Queue",
+			settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
+			settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
+		),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
-		settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
-		settingsRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
-		settingsRow("Max log files", maxLogFiles),
-		settingsRow("Max log age days", maxLogAgeDays),
+		// Storage holds editable entry fields. It uses the default VBox spacing
+		// (not the condensed section layout) so the entry boxes keep a visible
+		// gap between them instead of merging into one block.
+		container.NewVBox(
+			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
+			settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
+			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
+			settingsRow("Max log files", maxLogFiles),
+			settingsRow("Max log age days", maxLogAgeDays),
+		),
 		saveSettings,
 		settingsStatus,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("About", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		settingsRow("GoSentry", widget.NewLabel(app.Version)),
-		settingsRow("Go", widget.NewLabel(runtime.Version())),
-		settingsRow("Fyne", widget.NewLabel(fyneVersion())),
-		settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
+		settingsSection("About",
+			settingsRow("GoSentry", widget.NewLabel(app.Version)),
+			settingsRow("Go", widget.NewLabel(runtime.Version())),
+			settingsRow("Fyne", widget.NewLabel(fyneVersion())),
+			settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
+		),
 	)))
+}
+
+// settingsSection groups a bold header above its rows using the tight
+// settingsRowSpacing so a block of label rows reads as one compact unit. The
+// caller keeps separators and entry-heavy sections in the surrounding VBox so
+// they retain the theme's normal spacing.
+func settingsSection(title string, rows ...fyne.CanvasObject) fyne.CanvasObject {
+	children := make([]fyne.CanvasObject, 0, len(rows)+1)
+	children = append(children, widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	children = append(children, rows...)
+	return container.New(compactVBoxLayout{spacing: settingsRowSpacing}, children...)
 }
 
 func fyneVersion() string {

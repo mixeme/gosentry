@@ -2,6 +2,35 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.10.2 - 2026-06-25
+
+**Condensed details/settings panels and a window that shrinks to 720p.**
+
+**Jobs details panel:**
+- Job metadata is laid out in two columns (Folder/Schedule, Command/Arguments,
+  Run mode/Overlap policy, Last run/Next run, State/Statistics), roughly halving
+  the block height.
+- Metadata rows are stacked with a tight, negative-gap layout so the interval
+  between rows is no longer oversized.
+- The command-output area's minimum height was reduced so the details pane can
+  get shorter; long output still scrolls.
+- The "Selected job activity" panel is now sized to exactly fit
+  `maxJobActivityRows`, derived from `widget.List`'s own row metrics, so all
+  three rows are visible without a scrollbar regardless of theme or DPI.
+
+**Settings tab:**
+- The form is wrapped in a vertical scroll so it no longer dictates the window's
+  minimum height (tab containers size to the tallest tab); it scrolls on short
+  screens instead.
+- Label-only sections (Application, Queue, About) are condensed, while
+  separators and the editable Storage fields keep normal spacing so dividers
+  have breathing room and entry boxes stay visibly separated.
+
+**Window sizing:**
+- Together these changes drop the minimum window height from ~891px to ~570px,
+  so the window can be resized noticeably shorter and fits comfortably on 720p
+  screens.
+
 ## 0.10.1 - 2026-06-24
 
 **Refactoring:**
