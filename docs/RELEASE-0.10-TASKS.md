@@ -103,10 +103,10 @@ Done first because both share a compact, single-line record formatter.
 - [x] T3.4 — per-job override tests
 
 ### Phase 4 — Persist global pause state
-- [ ] T4.1 — `Config.Paused` field
-- [ ] T4.2 — persist in `SetGlobalPause` + init from config
-- [ ] T4.3 — UI inits from persisted state
-- [ ] T4.4 — persistence + restored-paused tests
+- [x] T4.1 — `Config.Paused` field
+- [x] T4.2 — persist in `SetGlobalPause` + init from config
+- [x] T4.3 — UI inits from persisted state
+- [x] T4.4 — persistence + restored-paused tests
 
 ### Phase 5 — Window sizing
 - [ ] T5.1 — 720p-safe default + MinSize
