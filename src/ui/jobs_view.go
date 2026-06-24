@@ -19,6 +19,16 @@ const allFolders = "All"
 const noFolder = "No folder"
 const minJobsSidebarWidth float32 = 480
 
+// maxJobActivityRows caps the "Selected job activity" panel to the most recent
+// entries. The full per-job history (up to maxJobLogs) remains in the History
+// view; this panel is a quick at-a-glance summary anchored below the output.
+const maxJobActivityRows = 3
+
+// jobActivityHeight is the fixed height reserved for the activity panel at the
+// bottom of the details pane, sized for maxJobActivityRows rows so the command
+// output above it can claim the remaining vertical space.
+const jobActivityHeight float32 = 120
+
 // newJobsView builds the Jobs tab: list sidebar, details panel, and toolbar.
 // It returns the assembled panel and a refresh function the caller invokes
 // whenever the service state may have changed (e.g., from the event subscriber
@@ -75,7 +85,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	// against the theme when it is placed inside a scroll container.
 	commandOutputScroll.SetMinSize(fyne.NewSize(520, 160))
 
-	selectedLogs := append([]event(nil), selectedRuntime.Logs...)
+	selectedLogs := lastJobLogs(selectedRuntime.Logs)
 	jobLogs := widget.NewList(
 		func() int { return len(selectedLogs) },
 		func() fyne.CanvasObject {
@@ -120,7 +130,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		stateLabel.SetText(rt.LastState)
 		statsLabel.SetText(app.DisplayStats(rt))
 		commandOutput.SetText(rt.Output)
-		selectedLogs = append(selectedLogs[:0], rt.Logs...)
+		selectedLogs = lastJobLogs(rt.Logs)
 	}
 
 	// list and folderSelect are declared early so closures below can reference
@@ -335,7 +345,10 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), folderSelect, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
-	details := container.NewVBox(
+	// The details pane is a Border: the fixed metadata rows pin to the top, the
+	// activity panel pins to the bottom, and the command output fills whatever
+	// vertical space is left in between so long output stays readable.
+	topDetails := container.NewVBox(
 		title,
 		widget.NewSeparator(),
 		detailRow("Folder", folderLabel),
@@ -349,17 +362,31 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		detailRow("Statistics", statsLabel),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Command output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		commandOutputScroll,
+	)
+	activitySection := container.NewVBox(
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Selected job activity", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		jobLogs,
+		container.New(fixedHeightLayout{height: jobActivityHeight}, jobLogs),
 	)
+	details := container.NewBorder(topDetails, activitySection, nil, nil, commandOutputScroll)
 
 	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)
 	panel := container.NewBorder(nil, nil, fixedSidebar, nil, container.NewPadded(details))
 	return panel, refreshView
 }
 
+
+// lastJobLogs returns a fresh slice of the most recent activity entries for the
+// "Selected job activity" panel. Logs are stored newest-first (see
+// app.Service.recordRun), so the leading entries are the latest; the result is
+// capped at maxJobActivityRows.
+func lastJobLogs(logs []event) []event {
+	n := len(logs)
+	if n > maxJobActivityRows {
+		n = maxJobActivityRows
+	}
+	return append([]event(nil), logs[:n]...)
+}
 
 func filteredJobIndexes(jobs []job, folder string) []int {
 	indexes := make([]int, 0, len(jobs))
