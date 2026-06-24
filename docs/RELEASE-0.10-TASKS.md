@@ -82,10 +82,10 @@ Done first because both share a compact, single-line record formatter.
 ## Completion checklist
 
 ### Phase 1 — Log-name + one-line activity
-- [ ] T1.1 — compact one-line formatter
-- [ ] T1.2 — `jobLogs` single-line rows
-- [ ] T1.3 — History `.log` truncation verified
-- [ ] T1.4 — formatter tests
+- [x] T1.1 — compact one-line formatter
+- [x] T1.2 — `jobLogs` single-line rows
+- [x] T1.3 — History `.log` truncation verified
+- [x] T1.4 — formatter tests
 
 ### Phase 2 — Execution-time statistics
 - [ ] T2.1 — `DurationMS` on `RunRecord`
