@@ -26,13 +26,13 @@ import (
 // leaves the anti-aliased edge fully opaque as a light halo that reads as a
 // border on a dark taskbar/tray, so the background is removed with feathered
 // color-to-alpha instead):
-//   - gosentry-icon-big.png   detailed large artwork (teal rounded-tile emblem)
-//   - gosentry-icon-16x16.png hand-tuned for legibility at 16px
-//   - gosentry.ico            multi-size 16/32/48/256 (16 = the hand-tuned PNG,
-//                             the rest downscaled from big). Embedded into the PE
-//                             binary by windres (see scripts/build-windows.bat),
-//                             NOT via Go embed.
-//   - gosentry-icon-16x16.ico single 16px frame, for the Windows tray
+//   - gosentry-icon-large.png  detailed large artwork (teal rounded-tile emblem)
+//   - gosentry-icon-small.png  hand-tuned for legibility at 16px
+//   - gosentry.ico             multi-size 16/32/48/256 (16 = the hand-tuned PNG,
+//                              the rest downscaled from large). Embedded into the PE
+//                              binary by windres (see scripts/build-windows.bat),
+//                              NOT via Go embed.
+//   - gosentry-icon-small.ico  single 16px frame, for the Windows tray
 //
 // Windows:
 //   - Window titlebar + taskbar: the multi-size gosentry.ico, embedded by the .rc
@@ -54,20 +54,20 @@ import (
 //   - Tray: SetSystemTrayIcon(Icon()). StatusNotifierItem renders 22-48px and takes
 //     a PNG, so the big artwork scales down cleanly (the 16x16 would look tiny).
 
-//go:embed gosentry-icon-16x16.png
+//go:embed gosentry-icon-small.png
 var iconSmallBytes []byte
 
-//go:embed gosentry-icon-big.png
-var iconBytes []byte
+//go:embed gosentry-icon-large.png
+var iconLargeBytes []byte
 
-//go:embed gosentry-icon-16x16.ico
+//go:embed gosentry-icon-small.ico
 var iconSmallICOBytes []byte
 
 // IconSmall returns the hand-tuned 16x16 PNG. It is the Linux window-titlebar
 // icon (via a.SetIcon -> _NET_WM_ICON, which the WM renders at ~16px). On Windows
 // the titlebar comes from gosentry.ico instead; see the package strategy above.
 func IconSmall() fyne.Resource {
-	return fyne.NewStaticResource("gosentry-icon-16x16.png", iconSmallBytes)
+	return fyne.NewStaticResource("gosentry-icon-small.png", iconSmallBytes)
 }
 
 // IconSmallICO returns a single-frame 16x16 Windows .ico of the hand-tuned small
@@ -75,18 +75,18 @@ func IconSmall() fyne.Resource {
 // pinning a single 16x16 frame keeps the hand-tuned glyph crisp at tray size — a
 // multi-size .ico lets the tray pick and downscale a larger, muddier frame.
 func IconSmallICO() fyne.Resource {
-	return fyne.NewStaticResource("gosentry-icon-16x16.ico", iconSmallICOBytes)
+	return fyne.NewStaticResource("gosentry-icon-small.ico", iconSmallICOBytes)
 }
 
 // Icon returns the large artwork PNG. It is the Linux tray icon (StatusNotifierItem
 // renders 22-48px) and the source for the Linux .desktop dock icon via IconBytes.
 // The Windows window/taskbar icon comes from gosentry.ico, not this resource.
 func Icon() fyne.Resource {
-	return fyne.NewStaticResource("gosentry-icon-big.png", iconBytes)
+	return fyne.NewStaticResource("gosentry-icon-large.png", iconLargeBytes)
 }
 
 // IconBytes is the large artwork as raw PNG bytes for InstallDesktopIcon, which
 // writes the Linux .desktop launcher/dock icon.
 func IconBytes() []byte {
-	return append([]byte(nil), iconBytes...)
+	return append([]byte(nil), iconLargeBytes...)
 }
