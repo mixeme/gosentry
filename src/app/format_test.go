@@ -99,6 +99,35 @@ func TestDisplayIndex(t *testing.T) {
 	}
 }
 
+func TestDisplayStats(t *testing.T) {
+	// Zero RunCount → sentinel string.
+	if got := DisplayStats(nil); got != "No runs recorded" {
+		t.Errorf("nil runtime = %q, want %q", got, "No runs recorded")
+	}
+	if got := DisplayStats(&domain.JobRuntime{}); got != "No runs recorded" {
+		t.Errorf("zero runtime = %q, want %q", got, "No runs recorded")
+	}
+
+	rt := &domain.JobRuntime{
+		RunCount:       5,
+		FailCount:      2,
+		LastDurationMS: 450,
+		AvgDurationMS:  380,
+		MaxDurationMS:  520,
+	}
+	want := "5 runs, 2 failed, last 450 ms, avg 380 ms, max 520 ms"
+	if got := DisplayStats(rt); got != want {
+		t.Errorf("DisplayStats = %q, want %q", got, want)
+	}
+
+	// Zero failures are included in the output (not hidden).
+	rtNoFail := &domain.JobRuntime{RunCount: 3, FailCount: 0, LastDurationMS: 100, AvgDurationMS: 90, MaxDurationMS: 110}
+	wantNoFail := "3 runs, 0 failed, last 100 ms, avg 90 ms, max 110 ms"
+	if got := DisplayStats(rtNoFail); got != wantNoFail {
+		t.Errorf("DisplayStats no-fail = %q, want %q", got, wantNoFail)
+	}
+}
+
 func TestEventLine(t *testing.T) {
 	withLog := domain.RunRecord{
 		Time: "2026-06-19 12:00:00", Trigger: "Schedule", JobName: "Build",

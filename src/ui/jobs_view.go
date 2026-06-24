@@ -65,6 +65,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	lastRunLabel := newJobDetailLabel(selectedRuntime.LastRun)
 	nextRunLabel := newJobDetailLabel(selectedRuntime.NextRun)
 	stateLabel := newJobDetailLabel(selectedRuntime.LastState)
+	statsLabel := newJobDetailLabel(app.DisplayStats(selectedRuntime))
 	schedulerState := widget.NewLabel("Scheduler running")
 	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(selectedRuntime.Output)
@@ -100,6 +101,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			lastRunLabel.SetText("")
 			nextRunLabel.SetText("")
 			stateLabel.SetText("")
+			statsLabel.SetText("")
 			commandOutput.SetText("")
 			selectedLogs = nil
 			return
@@ -116,6 +118,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		lastRunLabel.SetText(rt.LastRun)
 		nextRunLabel.SetText(rt.NextRun)
 		stateLabel.SetText(rt.LastState)
+		statsLabel.SetText(app.DisplayStats(rt))
 		commandOutput.SetText(rt.Output)
 		selectedLogs = append(selectedLogs[:0], rt.Logs...)
 	}
@@ -343,6 +346,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		detailRow("Last run", lastRunLabel),
 		detailRow("Next run", nextRunLabel),
 		detailRow("State", stateLabel),
+		detailRow("Statistics", statsLabel),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Command output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		commandOutputScroll,

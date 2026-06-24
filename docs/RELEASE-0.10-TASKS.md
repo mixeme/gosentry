@@ -93,8 +93,8 @@ Done first because both share a compact, single-line record formatter.
 - [x] T2.3 — `duration` log header
 - [x] T2.4 — runtime aggregate + `executeRun` update
 - [ ] T2.5 — seed stats from log files
-- [ ] T2.6 — `DisplayStats` + Statistics row
-- [ ] T2.7 — stats tests
+- [x] T2.6 — `DisplayStats` + Statistics row
+- [x] T2.7 — stats tests
 
 ### Phase 3 — Per-job run policy
 - [ ] T3.1 — `Job.OverlapPolicy` field

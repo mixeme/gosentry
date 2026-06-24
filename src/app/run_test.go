@@ -68,6 +68,43 @@ func expectNoEntry(t *testing.T, entered <-chan int) {
 	}
 }
 
+// TestUpdateStats verifies that aggregate statistics are folded correctly after
+// a sequence of fake runs with varying durations and states.
+func TestUpdateStats(t *testing.T) {
+	rt := &domain.JobRuntime{}
+
+	// First run: success, 200 ms.
+	updateStats(rt, domain.RunRecord{State: "OK", DurationMS: 200})
+	if rt.RunCount != 1 || rt.FailCount != 0 {
+		t.Fatalf("after run 1: RunCount=%d FailCount=%d, want 1/0", rt.RunCount, rt.FailCount)
+	}
+	if rt.LastDurationMS != 200 || rt.MaxDurationMS != 200 || rt.AvgDurationMS != 200 {
+		t.Errorf("after run 1: last=%d max=%d avg=%d, want 200/200/200",
+			rt.LastDurationMS, rt.MaxDurationMS, rt.AvgDurationMS)
+	}
+
+	// Second run: failure, 400 ms.
+	updateStats(rt, domain.RunRecord{State: "Failed", DurationMS: 400})
+	if rt.RunCount != 2 || rt.FailCount != 1 {
+		t.Fatalf("after run 2: RunCount=%d FailCount=%d, want 2/1", rt.RunCount, rt.FailCount)
+	}
+	if rt.LastDurationMS != 400 || rt.MaxDurationMS != 400 {
+		t.Errorf("after run 2: last=%d max=%d, want 400/400", rt.LastDurationMS, rt.MaxDurationMS)
+	}
+	if rt.AvgDurationMS != 300 {
+		t.Errorf("after run 2: avg=%d, want 300", rt.AvgDurationMS)
+	}
+
+	// Third run: success, 100 ms — avg should be (200+400+100)/3 = 233.
+	updateStats(rt, domain.RunRecord{State: "OK", DurationMS: 100})
+	if rt.LastDurationMS != 100 || rt.MaxDurationMS != 400 {
+		t.Errorf("after run 3: last=%d max=%d, want 100/400", rt.LastDurationMS, rt.MaxDurationMS)
+	}
+	if rt.AvgDurationMS != 233 {
+		t.Errorf("after run 3: avg=%d, want 233", rt.AvgDurationMS)
+	}
+}
+
 // TestRunDueParallelStartsAllDueJobs verifies that in parallel mode every due job
 // starts at once: both runs are in flight (blocked in the runner) before either
 // is released.

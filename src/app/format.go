@@ -82,6 +82,16 @@ func DisplayInvocation(job domain.Job) string {
 	return job.Command + "    " + strings.ReplaceAll(strings.TrimSpace(job.Arguments), "\n", " ")
 }
 
+// DisplayStats returns a one-line execution-time summary for a job runtime.
+// Returns "No runs recorded" when no runs have been counted yet.
+func DisplayStats(rt *domain.JobRuntime) string {
+	if rt == nil || rt.RunCount == 0 {
+		return "No runs recorded"
+	}
+	return fmt.Sprintf("%d runs, %d failed, last %d ms, avg %d ms, max %d ms",
+		rt.RunCount, rt.FailCount, rt.LastDurationMS, rt.AvgDurationMS, rt.MaxDurationMS)
+}
+
 // DisplayIndex returns the position of jobIndex in the given slice of indexes,
 // or 0 if not found.
 func DisplayIndex(indexes []int, jobIndex int) int {
