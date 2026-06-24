@@ -118,8 +118,8 @@ Done first because both share a compact, single-line record formatter.
 - [x] T6.4 — ARCHITECTURE.md update
 
 ### Phase 7 — Portable packaging
-- [ ] T7.1 — Windows `.zip`
-- [ ] T7.2 — Linux `.tar.gz` (amd64 + arm64)
+- [x] T7.1 — Windows `.zip`
+- [x] T7.2 — Linux `.tar.gz` (amd64 + arm64)
 
 ### Phase 8 — Release docs + version
 - [ ] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
