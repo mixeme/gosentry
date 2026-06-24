@@ -140,6 +140,7 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 		runtime.LastState = record.State
 		runtime.Output = record.Output
 		prependLog(runtime, record)
+		updateStats(runtime, record)
 		rerun := runtime.Pending && current.Enabled && !s.paused
 		runtime.Pending = false
 		if rerun {
@@ -188,6 +189,20 @@ func (s *Service) advanceNextDueLocked(job *domain.Job, runtime *domain.JobRunti
 		return
 	}
 	runtime.NextDue = sched.Next(from)
+}
+
+// updateStats folds one completed RunRecord into the runtime's aggregate
+// execution-time statistics. Called under mu inside executeRun.
+func updateStats(rt *domain.JobRuntime, r domain.RunRecord) {
+	rt.RunCount++
+	if r.State == "Failed" {
+		rt.FailCount++
+	}
+	rt.LastDurationMS = r.DurationMS
+	if r.DurationMS > rt.MaxDurationMS {
+		rt.MaxDurationMS = r.DurationMS
+	}
+	rt.AvgDurationMS = (rt.AvgDurationMS*int64(rt.RunCount-1) + r.DurationMS) / int64(rt.RunCount)
 }
 
 // runningOutput is the placeholder output shown while a job is running, before

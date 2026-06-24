@@ -88,10 +88,10 @@ Done first because both share a compact, single-line record formatter.
 - [x] T1.4 — formatter tests
 
 ### Phase 2 — Execution-time statistics
-- [ ] T2.1 — `DurationMS` on `RunRecord`
-- [ ] T2.2 — measure duration in runner
-- [ ] T2.3 — `duration` log header
-- [ ] T2.4 — runtime aggregate + `executeRun` update
+- [x] T2.1 — `DurationMS` on `RunRecord`
+- [x] T2.2 — measure duration in runner
+- [x] T2.3 — `duration` log header
+- [x] T2.4 — runtime aggregate + `executeRun` update
 - [ ] T2.5 — seed stats from log files
 - [ ] T2.6 — `DisplayStats` + Statistics row
 - [ ] T2.7 — stats tests

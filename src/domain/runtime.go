@@ -22,6 +22,14 @@ type JobRuntime struct {
 	// Pending is set when a run was skipped due to the overlap policy being
 	// "queue". The scheduler will start this job as soon as the current run ends.
 	Pending bool
+
+	// Execution-time statistics accumulated since the last process start.
+	// Seeded from log files on startup by T2.5; zero until then.
+	RunCount     int
+	FailCount    int
+	LastDurationMS int64
+	AvgDurationMS  int64
+	MaxDurationMS  int64
 }
 
 // NewRuntime builds the initial runtime state for a freshly loaded or created
