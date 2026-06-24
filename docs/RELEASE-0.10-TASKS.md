@@ -109,13 +109,13 @@ Done first because both share a compact, single-line record formatter.
 - [x] T4.4 — persistence + restored-paused tests
 
 ### Phase 5 — Window sizing
-- [ ] T5.1 — 720p-safe default + MinSize
+- [x] T5.1 — 720p-safe default + MinSize
 
 ### Phase 6 — Refactor + cleanup
-- [ ] T6.1 — `jobs_view.go` split
-- [ ] T6.2 — post-field-test cleanup (keep startup timing)
-- [ ] T6.3 — drop YAML→JSON migration
-- [ ] T6.4 — ARCHITECTURE.md update
+- [x] T6.1 — `jobs_view.go` split
+- [x] T6.2 — post-field-test cleanup (keep startup timing)
+- [x] T6.3 — drop YAML→JSON migration
+- [x] T6.4 — ARCHITECTURE.md update
 
 ### Phase 7 — Portable packaging
 - [ ] T7.1 — Windows `.zip`

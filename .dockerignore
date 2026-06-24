@@ -4,5 +4,4 @@ dist
 logs
 gosentry.json
 jobs.json
-*.yaml
 *.exe

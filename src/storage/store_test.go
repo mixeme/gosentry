@@ -8,16 +8,7 @@ import (
 	"testing"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
-	"go.yaml.in/yaml/v4"
 )
-
-func writeYAML(path string, value any) error {
-	data, err := yaml.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
-}
 
 func TestJobsRoundTrip(t *testing.T) {
 	dir := t.TempDir()
@@ -154,50 +145,6 @@ func TestNormalizeJobsFillsDefaults(t *testing.T) {
 	}
 }
 
-// TestLoadOrCreateConfigMigratesFromLegacy verifies that when gosentry.json is
-// absent but gosentry.yaml exists the config is read from the legacy YAML file.
-// This lets installs that pre-date the JSON migration start without manual steps.
-func TestLoadOrCreateConfigMigratesFromLegacy(t *testing.T) {
-	dir := t.TempDir()
-	paths := Paths{
-		AppDir:     dir,
-		ConfigPath: filepath.Join(dir, ConfigFileName), // gosentry.json — not created
-	}
-
-	legacy := yamlConfig{
-		JobsDir:      "/legacy/jobs",
-		LogsDir:      "/legacy/logs",
-		MaxLogFiles:  77,
-		MaxLogAgeDays: 13,
-		StartOnLogin: true,
-	}
-	if err := writeYAML(filepath.Join(dir, legacyYAMLConfigFileName), legacy); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := loadOrCreateConfig(paths)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.JobsDir != legacy.JobsDir {
-		t.Errorf("JobsDir: got %q, want %q", got.JobsDir, legacy.JobsDir)
-	}
-	if got.LogsDir != legacy.LogsDir {
-		t.Errorf("LogsDir: got %q, want %q", got.LogsDir, legacy.LogsDir)
-	}
-	if got.MaxLogFiles != legacy.MaxLogFiles {
-		t.Errorf("MaxLogFiles: got %d, want %d", got.MaxLogFiles, legacy.MaxLogFiles)
-	}
-	if got.MaxLogAgeDays != legacy.MaxLogAgeDays {
-		t.Errorf("MaxLogAgeDays: got %d, want %d", got.MaxLogAgeDays, legacy.MaxLogAgeDays)
-	}
-	if got.StartOnLogin != legacy.StartOnLogin {
-		t.Errorf("StartOnLogin: got %v, want %v", got.StartOnLogin, legacy.StartOnLogin)
-	}
-}
-
-// TestLoadOrCreateConfigCreatesDefaultsOnFirstRun verifies that the first run
-// (no config files present) writes gosentry.json and returns sensible defaults.
 func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	dir := t.TempDir()
 	paths := Paths{
@@ -250,41 +197,5 @@ func TestJobsJSONDoesNotPersistRuntimeNoise(t *testing.T) {
 		if strings.Contains(text, unwanted) {
 			t.Fatalf("jobs json should not contain %q:\n%s", unwanted, text)
 		}
-	}
-}
-
-// TestLoadOrCreateJobsMigratesFromLegacy verifies that when jobs.json is absent
-// but jobs.yaml exists the jobs are read from the legacy YAML file.
-func TestLoadOrCreateJobsMigratesFromLegacy(t *testing.T) {
-	dir := t.TempDir()
-	jsonPath := filepath.Join(dir, JobsFileName) // jobs.json — not created
-
-	legacy := yamlJobsFile{
-		Jobs: []yamlJob{
-			{ID: 10, Name: "Legacy job", Schedule: "@every 5m", Command: "echo legacy", Enabled: true},
-		},
-	}
-	if err := writeYAML(filepath.Join(dir, legacyYAMLJobsFileName), legacy); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := loadOrCreateJobs(jsonPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 1 {
-		t.Fatalf("expected 1 job, got %d", len(got))
-	}
-	if got[0].ID != 10 {
-		t.Errorf("ID: got %d, want 10", got[0].ID)
-	}
-	if got[0].Name != "Legacy job" {
-		t.Errorf("Name: got %q, want 'Legacy job'", got[0].Name)
-	}
-	if got[0].Schedule != "@every 5m" {
-		t.Errorf("Schedule: got %q, want '@every 5m'", got[0].Schedule)
-	}
-	if !got[0].Enabled {
-		t.Errorf("Enabled: got false, want true")
 	}
 }

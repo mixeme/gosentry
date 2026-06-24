@@ -75,10 +75,6 @@ include the run timestamp and job name:
 20260614-224306_Hello_scheduler.log
 ```
 
-**Upgrading from an earlier build:** if `gosentry.yaml` / `jobs.yaml` exist
-next to the executable, GoSentry imports them once and rewrites the data as
-JSON. The old `.yaml` files are left untouched.
-
 ## Schedules
 
 Interval schedules using Go duration syntax:

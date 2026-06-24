@@ -14,10 +14,6 @@ const (
 	// installed/copied program.
 	JobsFileName = "jobs.json"
 
-	// Legacy YAML file names used by builds before the JSON migration. These are
-	// read once on first start (P1.4) and then replaced by the JSON equivalents.
-	legacyYAMLConfigFileName = "gosentry.yaml"
-	legacyYAMLJobsFileName   = "jobs.yaml"
 )
 
 // Paths contains both the physical program location and the resolved runtime

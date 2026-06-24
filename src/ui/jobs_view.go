@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/app"
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
@@ -64,80 +63,17 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	schedulerPaused := svc.Store().Config.Paused
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
-	title := widget.NewLabelWithStyle(jobs[selected].Name, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	title.Wrapping = fyne.TextWrapBreak
-	folderLabel := newJobDetailLabel(jobs[selected].Folder)
-	scheduleLabel := newJobDetailLabel(jobs[selected].Schedule)
-	commandLabel := newJobDetailLabel(jobs[selected].Command)
-	argumentsLabel := newJobDetailLabel(jobs[selected].Arguments)
-	runModeLabel := newJobDetailLabel(app.DisplayRunMode(jobs[selected]))
-	selectedRuntime := runtimeFor(selected)
-	lastRunLabel := newJobDetailLabel(selectedRuntime.LastRun)
-	nextRunLabel := newJobDetailLabel(selectedRuntime.NextRun)
-	stateLabel := newJobDetailLabel(selectedRuntime.LastState)
-	statsLabel := newJobDetailLabel(app.DisplayStats(selectedRuntime))
-	overlapPolicyLabel := newJobDetailLabel(app.DisplayOverlapPolicy(jobs[selected], svc.Store().Config.OverlapPolicy))
-	schedulerStateText := "Scheduler running"
-	if schedulerPaused {
-		schedulerStateText = "Scheduler paused"
-	}
-	schedulerState := widget.NewLabel(schedulerStateText)
-	commandOutput := widget.NewTextGrid()
-	commandOutput.SetText(selectedRuntime.Output)
-	commandOutputScroll := container.NewScroll(commandOutput)
-	// Command output can contain long lines and preserved whitespace. TextGrid is
-	// used instead of Label so stdout/stderr remains readable and does not vanish
-	// against the theme when it is placed inside a scroll container.
-	commandOutputScroll.SetMinSize(fyne.NewSize(460, 120))
-
-	selectedLogs := lastJobLogs(selectedRuntime.Logs)
-	jobLogs := widget.NewList(
-		func() int { return len(selectedLogs) },
-		func() fyne.CanvasObject {
-			l := widget.NewLabel("log")
-			l.Wrapping = fyne.TextTruncate
-			return l
-		},
-		func(id widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(app.EventLine(selectedLogs[id]))
-		},
-	)
+	dp := newDetailsPanel(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
 
 	updateDetails := func(index int) {
 		if index < 0 || index >= len(jobs) {
 			// A folder filter can temporarily leave no selectable rows. Clearing
 			// the details panel avoids showing stale information for a hidden job.
-			title.SetText("No job selected")
-			folderLabel.SetText("")
-			scheduleLabel.SetText("")
-			commandLabel.SetText("")
-			argumentsLabel.SetText("")
-			runModeLabel.SetText("")
-			lastRunLabel.SetText("")
-			nextRunLabel.SetText("")
-			stateLabel.SetText("")
-			statsLabel.SetText("")
-			overlapPolicyLabel.SetText("")
-			commandOutput.SetText("")
-			selectedLogs = nil
+			dp.clear()
 			return
 		}
 		selected = index
-		current := jobs[selected]
-		rt := runtimeFor(selected)
-		title.SetText(current.Name)
-		folderLabel.SetText(app.DisplayFolder(current.Folder))
-		scheduleLabel.SetText(current.Schedule)
-		commandLabel.SetText(current.Command)
-		argumentsLabel.SetText(app.DisplayArguments(current.Arguments))
-		runModeLabel.SetText(app.DisplayRunMode(current))
-		overlapPolicyLabel.SetText(app.DisplayOverlapPolicy(current, svc.Store().Config.OverlapPolicy))
-		lastRunLabel.SetText(rt.LastRun)
-		nextRunLabel.SetText(rt.NextRun)
-		stateLabel.SetText(rt.LastState)
-		statsLabel.SetText(app.DisplayStats(rt))
-		commandOutput.SetText(rt.Output)
-		selectedLogs = lastJobLogs(rt.Logs)
+		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
 	}
 
 	// list and folderSelect are declared early so closures below can reference
@@ -149,7 +85,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		syncFromService()
 		filteredJobs = filteredJobIndexes(jobs, selectedFolder)
 		updateDetails(selected)
-		jobLogs.Refresh()
+		dp.logs.Refresh()
 		if list != nil {
 			list.Refresh()
 		}
@@ -208,9 +144,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 
 	addButton := widget.NewButtonWithIcon("New job", theme.ContentAddIcon(), func() {
 		showJobDialog(w, "New job", job{Schedule: "@every 1m", Command: "echo GoSentry job ran", Enabled: true}, func(saved job) {
-			// The Service assigns the ID, stores the job, records the "Created"
-			// activity, and emits events. The observer appends those to History; we
-			// only refresh the snapshot and move the selection to the new job.
 			created, err := svc.CreateJob(saved)
 			if err != nil {
 				dialog.ShowError(err, w)
@@ -236,9 +169,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			return
 		}
 		showJobDialog(w, "Edit job", jobs[selected], func(saved job) {
-			// The job keeps its ID, so the Service preserves the runtime (keyed by
-			// ID), reflects any enabled/disabled change, recomputes the next run, and
-			// emits the "Updated" activity the observer records.
 			saved.ID = jobs[selected].ID
 			if err := svc.UpdateJob(saved); err != nil {
 				dialog.ShowError(err, w)
@@ -269,15 +199,20 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		list.Refresh()
 		refreshView()
 	})
+
 	stopAllText, stopAllIcon := "Pause all", theme.MediaStopIcon()
 	if schedulerPaused {
 		stopAllText, stopAllIcon = "Resume all", theme.MediaPlayIcon()
 	}
+	schedulerStateText := "Scheduler running"
+	if schedulerPaused {
+		schedulerStateText = "Scheduler paused"
+	}
+	schedulerState := widget.NewLabel(schedulerStateText)
 	stopAllButton := widget.NewButtonWithIcon(stopAllText, stopAllIcon, nil)
 	stopAllButton.OnTapped = func() {
-		// SetGlobalPause flips the Service's pause flag, updates every job's
-		// next-run text, and emits the activity record the observer logs. Mirror the
-		// new state into the local flag and the controls; revert it if the save fails.
+		// SetGlobalPause flips the pause flag, updates every job's next-run text,
+		// and emits the activity record the observer logs. Revert if the save fails.
 		schedulerPaused = !schedulerPaused
 		if err := svc.SetGlobalPause(schedulerPaused); err != nil {
 			schedulerPaused = !schedulerPaused
@@ -300,8 +235,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		if selected < 0 || selected >= len(jobs) {
 			return
 		}
-		// SetEnabled toggles the job, updates its runtime/next-run, and records the
-		// "Resumed"/"Paused" activity the observer logs.
 		current := jobs[selected]
 		if err := svc.SetEnabled(current.ID, !current.Enabled); err != nil {
 			dialog.ShowError(err, w)
@@ -322,9 +255,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			if !confirm {
 				return
 			}
-			// The Service removes the job and its runtime, persists, and records the
-			// "Deleted" activity the observer logs; the UI re-reads the snapshot and
-			// fixes up the folder filter and selection.
 			if err := svc.DeleteJob(deleted.ID); err != nil {
 				dialog.ShowError(err, w)
 				return
@@ -356,103 +286,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), folderSelect, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
-	// The details pane is a Border: the fixed metadata rows pin to the top, the
-	// activity panel pins to the bottom, and the command output fills whatever
-	// vertical space is left in between so long output stays readable.
-	topDetails := container.NewVBox(
-		title,
-		widget.NewSeparator(),
-		detailRow("Folder", folderLabel),
-		detailRow("Schedule", scheduleLabel),
-		detailRow("Command", commandLabel),
-		detailRow("Arguments", argumentsLabel),
-		detailRow("Run mode", runModeLabel),
-		detailRow("Overlap policy", overlapPolicyLabel),
-		detailRow("Last run", lastRunLabel),
-		detailRow("Next run", nextRunLabel),
-		detailRow("State", stateLabel),
-		detailRow("Statistics", statsLabel),
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Command output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-	)
-	activitySection := container.NewVBox(
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Selected job activity", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.New(fixedHeightLayout{height: jobActivityHeight}, jobLogs),
-	)
-	details := container.NewBorder(topDetails, activitySection, nil, nil, commandOutputScroll)
-
 	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)
-	panel := container.NewBorder(nil, nil, fixedSidebar, nil, container.NewPadded(details))
+	panel := container.NewBorder(nil, nil, fixedSidebar, nil, container.NewPadded(dp.container()))
 	return panel, refreshView
-}
-
-
-// lastJobLogs returns a fresh slice of the most recent activity entries for the
-// "Selected job activity" panel. Logs are stored newest-first (see
-// app.Service.recordRun), so the leading entries are the latest; the result is
-// capped at maxJobActivityRows.
-func lastJobLogs(logs []event) []event {
-	n := len(logs)
-	if n > maxJobActivityRows {
-		n = maxJobActivityRows
-	}
-	return append([]event(nil), logs[:n]...)
-}
-
-func filteredJobIndexes(jobs []job, folder string) []int {
-	indexes := make([]int, 0, len(jobs))
-	for index, current := range jobs {
-		if folder == allFolders || filterValue(current.Folder) == folder {
-			indexes = append(indexes, index)
-		}
-	}
-	return indexes
-}
-
-func folderOptions(jobs []job) []string {
-	// "All" and "No folder" are always present so the filter UI is stable even
-	// before the user creates folders.
-	options := []string{allFolders, noFolder}
-	seen := map[string]bool{allFolders: true, noFolder: true}
-	for _, current := range jobs {
-		folder := strings.TrimSpace(current.Folder)
-		if folder == "" || seen[folder] {
-			continue
-		}
-		seen[folder] = true
-		options = append(options, folder)
-	}
-	return options
-}
-
-func filterValue(folder string) string {
-	if strings.TrimSpace(folder) == "" {
-		return noFolder
-	}
-	return strings.TrimSpace(folder)
-}
-
-func indexOfID(jobs []job, id int) int {
-	for index, current := range jobs {
-		if current.ID == id {
-			return index
-		}
-	}
-	return 0
-}
-
-func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
-	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	caption.Wrapping = fyne.TextTruncate
-	return container.NewGridWithColumns(2, caption, value)
-}
-
-func newJobDetailLabel(text string) *widget.Label {
-	label := widget.NewLabel(text)
-	// Job names, commands, and paths can be much wider than the details panel.
-	// Breaking long runs of text keeps Label.MinSize stable when the selection
-	// changes, so the right panel does not force the whole window to resize.
-	label.Wrapping = fyne.TextWrapBreak
-	return label
 }

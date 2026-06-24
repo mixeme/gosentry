@@ -9,47 +9,11 @@ import (
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
-	"go.yaml.in/yaml/v4"
 )
 
 type Store struct {
 	Paths  Paths
 	Config domain.Config
-}
-
-// yamlConfig and yamlJob / yamlJobsFile mirror the durable domain types using the
-// yaml tags that pre-JSON-migration files carried. They exist only so the
-// one-time import can parse a legacy gosentry.yaml / jobs.yaml; the domain types
-// themselves stay JSON-only. Field layout must stay identical to the matching
-// domain struct so the value conversions in importYAMLConfig / importYAMLJobs
-// remain valid.
-type yamlConfig struct {
-	JobsDir           string               `yaml:"jobs_dir"`
-	LogsDir           string               `yaml:"logs_dir"`
-	MaxLogFiles       int                  `yaml:"max_log_files"`
-	MaxLogAgeDays     int                  `yaml:"max_log_age_days"`
-	StartOnLogin      bool                 `yaml:"start_on_login,omitempty"`
-	KeepRunningInTray bool                 `yaml:"keep_running_in_tray,omitempty"`
-	NotifyOnFailure   bool                 `yaml:"notify_on_failure,omitempty"`
-	ExecutionMode     domain.ExecutionMode `yaml:"execution_mode,omitempty"`
-	OverlapPolicy     domain.OverlapPolicy `yaml:"overlap_policy,omitempty"`
-	Paused            bool                 `yaml:"paused,omitempty"`
-}
-
-type yamlJob struct {
-	ID            int    `yaml:"id"`
-	Name          string `yaml:"name"`
-	Folder        string `yaml:"folder,omitempty"`
-	Schedule      string `yaml:"schedule"`
-	Command       string `yaml:"command"`
-	Arguments     string `yaml:"arguments,omitempty"`
-	StartOnly     bool   `yaml:"start_only,omitempty"`
-	Enabled       bool   `yaml:"enabled"`
-	OverlapPolicy string `yaml:"overlap_policy,omitempty"`
-}
-
-type yamlJobsFile struct {
-	Jobs []yamlJob `yaml:"jobs"`
 }
 
 func OpenStore() (*Store, []domain.Job, error) {
@@ -117,26 +81,15 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	}
 
 	if _, err := os.Stat(paths.ConfigPath); errors.Is(err, os.ErrNotExist) {
-		// No JSON config yet. Import a pre-migration gosentry.yaml once if it is
-		// present; otherwise write the defaults so later starts read a normal JSON
-		// file. The caller's SaveConfig rewrites whatever is loaded as gosentry.json.
-		legacyPath := filepath.Join(paths.AppDir, legacyYAMLConfigFileName)
-		imported, ok, err := importYAMLConfig(legacyPath, config)
-		if err != nil {
-			return domain.Config{}, err
-		}
-		if !ok {
-			return config, writeJSON(paths.ConfigPath, config)
-		}
-		config = imported
-	} else {
-		data, err := os.ReadFile(paths.ConfigPath)
-		if err != nil {
-			return domain.Config{}, err
-		}
-		if err := json.Unmarshal(data, &config); err != nil {
-			return domain.Config{}, err
-		}
+		return config, writeJSON(paths.ConfigPath, config)
+	}
+
+	data, err := os.ReadFile(paths.ConfigPath)
+	if err != nil {
+		return domain.Config{}, err
+	}
+	if err := json.Unmarshal(data, &config); err != nil {
+		return domain.Config{}, err
 	}
 
 	if strings.TrimSpace(config.JobsDir) == "" {
@@ -164,19 +117,8 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 
 func loadOrCreateJobs(path string) ([]domain.Job, error) {
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		// No JSON jobs file yet. Import a pre-migration jobs.yaml once if present;
-		// otherwise seed harmless sample jobs so a new user can immediately see
-		// scheduled and manual execution without inventing a command. Imported jobs
-		// are returned unsaved here — the caller's SaveJobs rewrites them as
-		// jobs.json after normalization.
-		legacyPath := filepath.Join(filepath.Dir(path), legacyYAMLJobsFileName)
-		imported, ok, err := importYAMLJobs(legacyPath)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			return imported, nil
-		}
+		// Seed harmless sample jobs so a new user can immediately see scheduled
+		// and manual execution without inventing a command.
 		jobs := defaultJobs()
 		normalizeJobs(jobs)
 		return jobs, writeJSON(path, domain.JobsFile{Jobs: jobs})
@@ -191,46 +133,6 @@ func loadOrCreateJobs(path string) ([]domain.Job, error) {
 		return nil, err
 	}
 	return file.Jobs, nil
-}
-
-// importYAMLConfig reads a pre-migration gosentry.yaml into the current Config
-// shape. It returns ok=false when the file is absent so the caller falls back to
-// writing fresh defaults. The supplied base seeds the shadow struct so keys that
-// the YAML omits keep their default value instead of becoming zero.
-func importYAMLConfig(path string, base domain.Config) (domain.Config, bool, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return domain.Config{}, false, nil
-	}
-	if err != nil {
-		return domain.Config{}, false, err
-	}
-	shadow := yamlConfig(base)
-	if err := yaml.Unmarshal(data, &shadow); err != nil {
-		return domain.Config{}, false, err
-	}
-	return domain.Config(shadow), true, nil
-}
-
-// importYAMLJobs reads a pre-migration jobs.yaml into durable domain jobs. It
-// returns ok=false when the file is absent so the caller can seed default jobs.
-func importYAMLJobs(path string) ([]domain.Job, bool, error) {
-	data, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil, false, nil
-	}
-	if err != nil {
-		return nil, false, err
-	}
-	var file yamlJobsFile
-	if err := yaml.Unmarshal(data, &file); err != nil {
-		return nil, false, err
-	}
-	jobs := make([]domain.Job, len(file.Jobs))
-	for i := range file.Jobs {
-		jobs[i] = domain.Job(file.Jobs[i])
-	}
-	return jobs, true, nil
 }
 
 func normalizeJobs(jobs []domain.Job) {
