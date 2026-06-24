@@ -92,6 +92,16 @@ func DisplayStats(rt *domain.JobRuntime) string {
 		rt.RunCount, rt.FailCount, rt.LastDurationMS, rt.AvgDurationMS, rt.MaxDurationMS)
 }
 
+// DisplayOverlapPolicy formats a job's effective overlap policy for the details
+// panel. When the job has its own policy it is shown as-is; when empty (inherit
+// global), the global default is shown with "(global default)" appended.
+func DisplayOverlapPolicy(job domain.Job, globalPolicy domain.OverlapPolicy) string {
+	if p := domain.OverlapPolicy(strings.TrimSpace(job.OverlapPolicy)); p != "" {
+		return string(p)
+	}
+	return string(globalPolicy) + " (global default)"
+}
+
 // DisplayIndex returns the position of jobIndex in the given slice of indexes,
 // or 0 if not found.
 func DisplayIndex(indexes []int, jobIndex int) int {

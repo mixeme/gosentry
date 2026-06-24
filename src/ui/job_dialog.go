@@ -13,6 +13,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+// overlapPolicyInherit is the display label used when a job should inherit the
+// global overlap policy. It maps to an empty Job.OverlapPolicy on save.
+const overlapPolicyInherit = "(Use global default)"
+
 // showJobDialog opens a create/edit form for a single job. onSave is called
 // with the populated job only when the user clicks Save and all fields pass
 // validation.
@@ -40,6 +44,15 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	startOnly.SetChecked(current.StartOnly)
 	enabled := widget.NewCheck("Enabled", nil)
 	enabled.SetChecked(current.Enabled)
+	overlapSelect := widget.NewSelect(
+		[]string{overlapPolicyInherit, string(domain.OverlapPolicySkip), string(domain.OverlapPolicyQueue)},
+		nil,
+	)
+	overlapSelected := overlapPolicyInherit
+	if current.OverlapPolicy != "" {
+		overlapSelected = current.OverlapPolicy
+	}
+	overlapSelect.SetSelected(overlapSelected)
 
 	form := dialog.NewForm(
 		title,
@@ -52,6 +65,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			widget.NewFormItem("Command", commandRow),
 			widget.NewFormItem("Arguments", argumentsEntry),
 			widget.NewFormItem("", startOnly),
+			widget.NewFormItem("Overlap policy", overlapSelect),
 			widget.NewFormItem("", enabled),
 		},
 		func(saved bool) {
@@ -75,6 +89,10 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			current.Arguments = strings.TrimSpace(argumentsEntry.Text)
 			current.StartOnly = startOnly.Checked
 			current.Enabled = enabled.Checked
+			current.OverlapPolicy = overlapSelect.Selected
+			if current.OverlapPolicy == overlapPolicyInherit {
+				current.OverlapPolicy = ""
+			}
 			// The dialog only edits durable configuration. Runtime status is
 			// initialized (new jobs) or updated (edits) by the caller against the
 			// runtime map, keyed by job ID.

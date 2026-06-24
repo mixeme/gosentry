@@ -76,6 +76,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	nextRunLabel := newJobDetailLabel(selectedRuntime.NextRun)
 	stateLabel := newJobDetailLabel(selectedRuntime.LastState)
 	statsLabel := newJobDetailLabel(app.DisplayStats(selectedRuntime))
+	overlapPolicyLabel := newJobDetailLabel(app.DisplayOverlapPolicy(jobs[selected], svc.Store().Config.OverlapPolicy))
 	schedulerState := widget.NewLabel("Scheduler running")
 	commandOutput := widget.NewTextGrid()
 	commandOutput.SetText(selectedRuntime.Output)
@@ -112,6 +113,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			nextRunLabel.SetText("")
 			stateLabel.SetText("")
 			statsLabel.SetText("")
+			overlapPolicyLabel.SetText("")
 			commandOutput.SetText("")
 			selectedLogs = nil
 			return
@@ -125,6 +127,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		commandLabel.SetText(current.Command)
 		argumentsLabel.SetText(app.DisplayArguments(current.Arguments))
 		runModeLabel.SetText(app.DisplayRunMode(current))
+		overlapPolicyLabel.SetText(app.DisplayOverlapPolicy(current, svc.Store().Config.OverlapPolicy))
 		lastRunLabel.SetText(rt.LastRun)
 		nextRunLabel.SetText(rt.NextRun)
 		stateLabel.SetText(rt.LastState)
@@ -356,6 +359,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		detailRow("Command", commandLabel),
 		detailRow("Arguments", argumentsLabel),
 		detailRow("Run mode", runModeLabel),
+		detailRow("Overlap policy", overlapPolicyLabel),
 		detailRow("Last run", lastRunLabel),
 		detailRow("Next run", nextRunLabel),
 		detailRow("State", stateLabel),

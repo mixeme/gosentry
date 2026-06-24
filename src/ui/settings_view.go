@@ -126,7 +126,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
-		settingsRow("Overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
+		settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
