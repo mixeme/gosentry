@@ -8,6 +8,11 @@ All notable GoSentry changes are recorded in this file.
 - Unified icon asset naming from mixed scheme (big/16x16) to consistent
   size-based names (large/small) for clarity and maintainability.
 
+**Build:**
+- Windows build script now displays informative messages at each build step
+  (version, output path, environment setup, icon embedding, compilation)
+  to improve build transparency and aid troubleshooting.
+
 ## 0.10.0 - 2026-06-24
 
 **Compact activity rows; per-job execution-time statistics seeded from log files.**
