@@ -14,4 +14,5 @@ type Job struct {
 	Arguments        string `json:"arguments,omitempty"`
 	StartOnly        bool   `json:"start_only,omitempty"`
 	Enabled          bool   `json:"enabled"`
+	OverlapPolicy    string `json:"overlap_policy,omitempty"`
 }

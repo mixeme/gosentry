@@ -36,14 +36,15 @@ type yamlConfig struct {
 }
 
 type yamlJob struct {
-	ID               int    `yaml:"id"`
-	Name             string `yaml:"name"`
-	Folder           string `yaml:"folder,omitempty"`
-	Schedule         string `yaml:"schedule"`
-	Command          string `yaml:"command"`
-	Arguments        string `yaml:"arguments,omitempty"`
-	StartOnly bool `yaml:"start_only,omitempty"`
-	Enabled          bool   `yaml:"enabled"`
+	ID            int    `yaml:"id"`
+	Name          string `yaml:"name"`
+	Folder        string `yaml:"folder,omitempty"`
+	Schedule      string `yaml:"schedule"`
+	Command       string `yaml:"command"`
+	Arguments     string `yaml:"arguments,omitempty"`
+	StartOnly     bool   `yaml:"start_only,omitempty"`
+	Enabled       bool   `yaml:"enabled"`
+	OverlapPolicy string `yaml:"overlap_policy,omitempty"`
 }
 
 type yamlJobsFile struct {
