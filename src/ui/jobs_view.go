@@ -77,9 +77,13 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	selectedLogs := append([]event(nil), selectedRuntime.Logs...)
 	jobLogs := widget.NewList(
 		func() int { return len(selectedLogs) },
-		func() fyne.CanvasObject { return widget.NewLabel("log") },
+		func() fyne.CanvasObject {
+			l := widget.NewLabel("log")
+			l.Wrapping = fyne.TextTruncate
+			return l
+		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(app.EventText(selectedLogs[id]))
+			item.(*widget.Label).SetText(app.EventLine(selectedLogs[id]))
 		},
 	)
 
