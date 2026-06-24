@@ -92,7 +92,7 @@ Done first because both share a compact, single-line record formatter.
 - [x] T2.2 — measure duration in runner
 - [x] T2.3 — `duration` log header
 - [x] T2.4 — runtime aggregate + `executeRun` update
-- [ ] T2.5 — seed stats from log files
+- [x] T2.5 — seed stats from log files
 - [x] T2.6 — `DisplayStats` + Statistics row
 - [x] T2.7 — stats tests
 
@@ -122,7 +122,7 @@ Done first because both share a compact, single-line record formatter.
 - [ ] T7.2 — Linux `.tar.gz` (amd64 + arm64)
 
 ### Phase 8 — Release docs + version
-- [ ] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
+- [x] T8.1 — version bump + CHANGELOG + ROADMAP + PERFORMANCE
 
 ## Definition of done
 
