@@ -82,6 +82,7 @@ func NewService(store *storage.Store, jobs []domain.Job) *Service {
 		schedules: make(map[int]domain.Schedule, len(jobs)),
 		runJob:    runner.RunJob,
 		ctx:       context.Background(),
+		paused:    store.Config.Paused,
 	}
 	// Parse every schedule once, then compute each job's first next-run so the
 	// Service is ready to schedule the moment it exists — mirroring the old

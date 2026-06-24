@@ -152,13 +152,17 @@ func (s *Service) SetEnabled(id int, enabled bool) error {
 func (s *Service) SetGlobalPause(paused bool) error {
 	s.mu.Lock()
 	s.paused = paused
+	s.store.Config.Paused = paused
 	now := time.Now()
 	for index := range s.jobs {
 		job := &s.jobs[index]
 		runtime := s.runtimeForLocked(job)
 		s.refreshNextRunFromLocked(job, runtime, now)
 	}
-	err := s.store.SaveJobs(s.jobs)
+	err := s.store.SaveConfig()
+	if err == nil {
+		err = s.store.SaveJobs(s.jobs)
+	}
 	s.mu.Unlock()
 
 	state, detail := "Resumed", "All job execution resumed"

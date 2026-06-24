@@ -40,6 +40,7 @@ type Config struct {
 	NotifyOnFailure   bool          `json:"notify_on_failure,omitempty"`
 	ExecutionMode     ExecutionMode `json:"execution_mode,omitempty"`
 	OverlapPolicy     OverlapPolicy `json:"overlap_policy,omitempty"`
+	Paused            bool          `json:"paused,omitempty"`
 }
 
 // JobsFile is the on-disk shape of jobs.json. Wrapping the slice in a top-level
