@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
@@ -532,5 +534,75 @@ func TestPrependLogCapsActivityList(t *testing.T) {
 	}
 	if len(runtime.Logs) != maxJobLogs {
 		t.Errorf("activity list len = %d, want capped at %d", len(runtime.Logs), maxJobLogs)
+	}
+}
+
+func TestSetGlobalPausePersistsToConfigFile(t *testing.T) {
+	svc := newTempService(t, nil)
+
+	if err := svc.SetGlobalPause(true); err != nil {
+		t.Fatalf("SetGlobalPause: %v", err)
+	}
+
+	data, err := os.ReadFile(svc.store.Paths.ConfigPath)
+	if err != nil {
+		t.Fatalf("reading config file: %v", err)
+	}
+	var cfg domain.Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshalling config: %v", err)
+	}
+	if !cfg.Paused {
+		t.Error("persisted config does not have Paused=true after SetGlobalPause(true)")
+	}
+
+	// Resuming clears the flag on disk.
+	if err := svc.SetGlobalPause(false); err != nil {
+		t.Fatalf("SetGlobalPause(false): %v", err)
+	}
+	data, err = os.ReadFile(svc.store.Paths.ConfigPath)
+	if err != nil {
+		t.Fatalf("reading config file after resume: %v", err)
+	}
+	var cfg2 domain.Config
+	if err := json.Unmarshal(data, &cfg2); err != nil {
+		t.Fatalf("unmarshalling config after resume: %v", err)
+	}
+	if cfg2.Paused {
+		t.Error("persisted config still has Paused=true after SetGlobalPause(false)")
+	}
+}
+
+func TestServiceRebuiltFromPausedStoreStartsPaused(t *testing.T) {
+	jobs := []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}}
+	svc := newTempService(t, jobs)
+
+	if err := svc.SetGlobalPause(true); err != nil {
+		t.Fatalf("SetGlobalPause: %v", err)
+	}
+
+	// Simulate a restart: NewService reads Config.Paused from the store that
+	// SetGlobalPause already updated (both in memory and on disk).
+	svc2 := NewService(svc.store, svc.Jobs())
+
+	var ran int32
+	svc2.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+		atomic.AddInt32(&ran, 1)
+		return domain.RunRecord{}
+	}
+
+	// RunDue must not start any job while paused.
+	svc2.RunDue(time.Now().Add(2 * time.Minute))
+	time.Sleep(50 * time.Millisecond)
+	if atomic.LoadInt32(&ran) != 0 {
+		t.Error("RunDue ran a job on a service rebuilt from a paused store")
+	}
+
+	// RunNow must be refused.
+	if err := svc2.RunNow(1); err == nil {
+		t.Error("RunNow should be refused on a service rebuilt from a paused store")
+	}
+	if atomic.LoadInt32(&ran) != 0 {
+		t.Error("runner was invoked despite global pause")
 	}
 }
