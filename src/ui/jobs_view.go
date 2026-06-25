@@ -202,9 +202,9 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		refreshView()
 	})
 
-	stopAllText, stopAllIcon := "Pause all", theme.MediaStopIcon()
+	stopAllText, stopAllIcon := "Disable auto", theme.MediaPauseIcon()
 	if schedulerPaused {
-		stopAllText, stopAllIcon = "Resume all", theme.MediaPlayIcon()
+		stopAllText, stopAllIcon = "Enable auto", theme.MediaPlayIcon()
 	}
 	schedulerStateText := "Scheduler running"
 	if schedulerPaused {
@@ -223,12 +223,12 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		}
 		if schedulerPaused {
 			schedulerState.SetText("Scheduler paused")
-			stopAllButton.SetText("Resume all")
+			stopAllButton.SetText("Enable auto")
 			stopAllButton.SetIcon(theme.MediaPlayIcon())
 		} else {
 			schedulerState.SetText("Scheduler running")
-			stopAllButton.SetText("Pause all")
-			stopAllButton.SetIcon(theme.MediaStopIcon())
+			stopAllButton.SetText("Disable auto")
+			stopAllButton.SetIcon(theme.MediaPauseIcon())
 		}
 		list.Refresh()
 		refreshView()
