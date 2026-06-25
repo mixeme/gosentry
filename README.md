@@ -5,13 +5,12 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
 ## Screenshots
 
-<img src="images/screenshot_jobs.PNG" width="600" alt="Jobs tab">
-
-*Jobs tab — job list with details panel and run statistics.*
-
-<img src="images/screenshot_settings.PNG" width="600" alt="Settings tab">
-
-*Settings tab — application, queue, storage, and version info.*
+<table>
+<tr>
+<td><img src="images/screenshot_jobs.PNG" alt="Jobs tab"><br><em>Jobs tab — job list with details panel and run statistics.</em></td>
+<td><img src="images/screenshot_settings.PNG" alt="Settings tab"><br><em>Settings tab — application, queue, storage, and version info.</em></td>
+</tr>
+</table>
 
 ## Features
 
