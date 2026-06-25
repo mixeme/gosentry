@@ -73,15 +73,46 @@ func logColumnWidth(events []event) float32 {
 	return width
 }
 
+// historyHeader is a bold tappable label used in the History table header row.
+// In Fyne 2.7+ OnSelected is not fired for header cells (Row < 0), so the sort
+// toggle is wired through the Tappable interface instead.
+type historyHeader struct {
+	widget.BaseWidget
+	label    *widget.Label
+	OnTapped func()
+}
+
+func newHistoryHeader() *historyHeader {
+	h := &historyHeader{label: widget.NewLabel("")}
+	h.label.TextStyle = fyne.TextStyle{Bold: true}
+	h.label.Wrapping = fyne.TextTruncate
+	h.ExtendBaseWidget(h)
+	return h
+}
+
+func (h *historyHeader) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(h.label)
+}
+
+func (h *historyHeader) Tapped(*fyne.PointEvent) {
+	if h.OnTapped != nil {
+		h.OnTapped()
+	}
+}
+
+func (h *historyHeader) SetText(text string) {
+	h.label.SetText(text)
+}
+
 func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	descending := false
 	headerText := func(id widget.TableCellID) string {
 		headers := []string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
 		if id.Row < 0 && id.Col == 0 {
 			if descending {
-				return "Time desc"
+				return "Time ▼"
 			}
-			return "Time asc"
+			return "Time ▲"
 		}
 		if id.Row < 0 && id.Col >= 0 && id.Col < len(headers) {
 			return headers[id.Col]
@@ -117,21 +148,22 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	)
 	table.ShowHeaderRow = true
 	table.CreateHeader = func() fyne.CanvasObject {
-		label := widget.NewLabel("")
-		label.Wrapping = fyne.TextTruncate
-		return label
+		return newHistoryHeader()
 	}
 	table.UpdateHeader = func(id widget.TableCellID, item fyne.CanvasObject) {
-		label := item.(*widget.Label)
-		label.SetText(headerText(id))
-		label.TextStyle = fyne.TextStyle{Bold: true}
-		label.Refresh()
+		h := item.(*historyHeader)
+		h.SetText(headerText(id))
+		if id.Row < 0 && id.Col == 0 {
+			h.OnTapped = func() {
+				descending = !descending
+				table.Refresh()
+			}
+		} else {
+			h.OnTapped = nil
+		}
+		h.Refresh()
 	}
 	table.OnSelected = func(id widget.TableCellID) {
-		if id.Row < 0 && id.Col == 0 {
-			descending = !descending
-			table.Refresh()
-		}
 		table.Unselect(id)
 	}
 	table.SetColumnWidth(0, 150)
