@@ -3,6 +3,14 @@
 GoSentry is a cross-platform desktop scheduler. It provides a native GUI for
 creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
+## Screenshots
+
+![Jobs tab](images/screenshot_jobs.PNG)
+*Jobs tab — job list with details panel and run statistics.*
+
+![Settings tab](images/screenshot_settings.PNG)
+*Settings tab — application, queue, storage, and version info.*
+
 ## Features
 
 - Native desktop GUI built with [Fyne](https://fyne.io/).
