@@ -2,6 +2,19 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.11.1 - 2026-06-25
+
+**Settings tab refinements: even spacing, full labels, and a smarter Save button.**
+
+**Settings tab:**
+- The Queue selects (Execution mode, Default overlap policy) now use the same
+  default spacing as the Storage fields, so they no longer sit squeezed together.
+- Widened the caption column so the longest label, "Default overlap policy", is
+  shown in full instead of being truncated.
+- The Save button now starts disabled and only enables once a field differs from
+  the saved config, re-disabling after a successful save (or if a changed field
+  is reverted to its original value).
+
 ## 0.11.0 - 2026-06-25
 
 **Manual runs while paused, two-column Settings/details, and a more compact job list.**
