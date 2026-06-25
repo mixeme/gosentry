@@ -17,7 +17,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const settingsLabelWidth float32 = 140
+// settingsLabelWidth is wide enough to show the longest caption ("Default
+// overlap policy") in full; the captions truncate, so a narrower width would
+// clip it. All rows share this width so their value controls stay aligned.
+const settingsLabelWidth float32 = 180
 const settingsControlWidth float32 = 330
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
 
@@ -28,6 +31,10 @@ const settingsRowSpacing float32 = -6
 
 func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	store := svc.Store()
+	// updateSaveState compares the form to the saved config and enables Save only
+	// when something differs. It is defined below (once Save and every field
+	// exist) but declared here so the field change handlers can reference it.
+	var updateSaveState func()
 	startOnLogin := widget.NewCheck("Start on login", nil)
 	startOnLogin.SetChecked(store.Config.StartOnLogin)
 	autostartStatus := widget.NewLabel("")
@@ -42,39 +49,48 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	startOnLogin.OnChanged = func(bool) {
 		if startOnLogin.Checked != store.Config.StartOnLogin {
 			autostartStatus.SetText("Pending: save settings to apply")
-			return
+		} else {
+			refreshAutostartStatus()
 		}
-		refreshAutostartStatus()
+		updateSaveState()
 	}
 	refreshAutostartStatus()
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
 	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
+	minimizeToTray.OnChanged = func(bool) { updateSaveState() }
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
+	notifications.OnChanged = func(bool) { updateSaveState() }
 	executionModeSelect := widget.NewSelect(
 		[]string{string(domain.ExecutionModeParallel), string(domain.ExecutionModeSequential)},
 		nil,
 	)
 	executionModeSelect.SetSelected(string(store.Config.ExecutionMode))
+	executionModeSelect.OnChanged = func(string) { updateSaveState() }
 	overlapPolicySelect := widget.NewSelect(
 		[]string{string(domain.OverlapPolicySkip), string(domain.OverlapPolicyQueue)},
 		nil,
 	)
 	overlapPolicySelect.SetSelected(string(store.Config.OverlapPolicy))
+	overlapPolicySelect.OnChanged = func(string) { updateSaveState() }
 	jobsDir := widget.NewEntry()
 	jobsDir.SetText(store.Config.JobsDir)
+	jobsDir.OnChanged = func(string) { updateSaveState() }
 	jobsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		chooseFolder(w, jobsDir)
 	})
 	logsDir := widget.NewEntry()
 	logsDir.SetText(store.Config.LogsDir)
+	logsDir.OnChanged = func(string) { updateSaveState() }
 	logsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		chooseFolder(w, logsDir)
 	})
 	maxLogFiles := widget.NewEntry()
 	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
+	maxLogFiles.OnChanged = func(string) { updateSaveState() }
 	maxLogAgeDays := widget.NewEntry()
 	maxLogAgeDays.SetText(strconv.Itoa(store.Config.MaxLogAgeDays))
+	maxLogAgeDays.OnChanged = func(string) { updateSaveState() }
 	// Autostart status sits on its own row beneath the checkbox (rather than
 	// beside it) so the Application section fits within a half-width column.
 	// Truncating keeps a long status message from forcing the column wider.
@@ -124,7 +140,32 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		}
 		refreshAutostartStatus()
 		settingsStatus.SetText("Saved")
+		// The form now matches the persisted config, so disable Save again.
+		updateSaveState()
 	})
+
+	// Save stays disabled until a field differs from the saved config, so the
+	// button only invites a click when there is something to persist. The numeric
+	// fields compare against their canonical string form; any unparsable text
+	// counts as a change so the user can click Save and see the validation error.
+	updateSaveState = func() {
+		c := store.Config
+		changed := startOnLogin.Checked != c.StartOnLogin ||
+			minimizeToTray.Checked != c.KeepRunningInTray ||
+			notifications.Checked != c.NotifyOnFailure ||
+			executionModeSelect.Selected != string(c.ExecutionMode) ||
+			overlapPolicySelect.Selected != string(c.OverlapPolicy) ||
+			strings.TrimSpace(jobsDir.Text) != c.JobsDir ||
+			strings.TrimSpace(logsDir.Text) != c.LogsDir ||
+			strings.TrimSpace(maxLogFiles.Text) != strconv.Itoa(c.MaxLogFiles) ||
+			strings.TrimSpace(maxLogAgeDays.Text) != strconv.Itoa(c.MaxLogAgeDays)
+		if changed {
+			saveSettings.Enable()
+		} else {
+			saveSettings.Disable()
+		}
+	}
+	updateSaveState()
 
 	// The form is split into two columns so a wide window uses its horizontal
 	// space instead of stretching into one tall strip. The left column holds the
@@ -140,7 +181,11 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
 		),
 		widget.NewSeparator(),
-		settingsSection("Queue",
+		// Queue holds the execution mode and overlap policy comboboxes. Like
+		// Storage, it uses the default VBox spacing (not the condensed section
+		// layout) so the comboboxes keep a visible gap between them.
+		container.NewVBox(
+			widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
 			settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
 		),
