@@ -87,6 +87,10 @@ func (d *detailsPanel) update(j job, rt *domain.JobRuntime, globalOverlapPolicy 
 	d.stats.SetText(app.DisplayStats(rt))
 	d.commandOutput.SetText(rt.Output)
 	d.selectedLogs = lastJobLogs(rt.Logs)
+	// The activity list renders d.selectedLogs but, unlike the labels above whose
+	// SetText refreshes them, only its backing slice changed. Refresh it here so
+	// switching jobs immediately redraws the panel instead of keeping stale rows.
+	d.logs.Refresh()
 }
 
 func (d *detailsPanel) clear() {
@@ -103,6 +107,7 @@ func (d *detailsPanel) clear() {
 	d.stats.SetText("")
 	d.commandOutput.SetText("")
 	d.selectedLogs = nil
+	d.logs.Refresh()
 }
 
 // container assembles the details pane layout: metadata rows pin to the top,
