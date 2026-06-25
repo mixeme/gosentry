@@ -33,14 +33,22 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 	// Russian system) because it only recognizes an existing quit by matching the
 	// localized label — which our literal "Quit" does not. Setting IsQuit makes
 	// Fyne reuse this item instead of adding a duplicate, regardless of locale.
-	saveWindowSize := func() {
-		size := w.Canvas().Size()
-		prefs := a.Preferences()
-		prefs.SetFloat("window.width", float64(size.Width))
-		prefs.SetFloat("window.height", float64(size.Height))
-	}
+
+	// Window size persistence is frozen: w.Canvas().Size() returns the maximized
+	// dimensions when the window is maximized, so saving here would corrupt the
+	// stored size. Needs cross-platform maximized-state detection (IsZoomed /
+	// _NET_WM_STATE / NSWindow.isZoomed) before it can be re-enabled safely.
+	// See ROADMAP.md — "Window size — skip saving when maximized".
+	//
+	// saveWindowSize := func() {
+	// 	size := w.Canvas().Size()
+	// 	prefs := a.Preferences()
+	// 	prefs.SetFloat("window.width", float64(size.Width))
+	// 	prefs.SetFloat("window.height", float64(size.Height))
+	// }
+
 	quit := fyne.NewMenuItem("Quit", func() {
-		saveWindowSize()
+		// saveWindowSize()
 		a.Quit()
 	})
 	quit.IsQuit = true
@@ -58,7 +66,7 @@ func configureSystemTray(a fyne.App, w fyne.Window) {
 		// Closing hides the window instead of quitting because scheduler tools are
 		// expected to keep working in the background. The explicit Quit tray item
 		// remains the way to stop the process.
-		saveWindowSize()
+		// saveWindowSize()
 		w.Hide()
 	})
 }

@@ -5,14 +5,16 @@ Completed work is recorded in [CHANGELOG.md](CHANGELOG.md), not here.
 
 ## Open Items
 
-### Window size — skip saving when maximized
+### Window size persistence *(frozen)*
 
-When the window is closed or the app quits while maximized, the maximized
-dimensions are persisted and the window opens at that size on the next launch.
-The fix requires detecting the window's maximized state via the native OS API
-(`IsZoomed` on Windows, `_NET_WM_STATE` on X11/Linux, `NSWindow.isZoomed` on
-macOS). A platform-specific implementation per OS is needed; a cross-platform
-Fyne API for this does not exist in v2.x.
+Window size is currently **not** saved on quit or close. Saving was disabled
+because `w.Canvas().Size()` returns the maximized dimensions when the window is
+maximized, which would corrupt the stored size on the next launch.
+
+Re-enabling requires a cross-platform way to detect the maximized state before
+saving. Fyne v2.x has no API for this; it needs per-OS native calls:
+`IsZoomed` (Windows), `_NET_WM_STATE` (X11/Linux), `NSWindow.isZoomed`
+(macOS). Unfreeze once that detection is in place.
 
 ### History tab — column filters (Trigger / Job / State)
 
