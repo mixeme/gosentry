@@ -11,8 +11,9 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/runner"
 )
 
-// RunNow starts a manual run of a job. It refuses to run while globally paused —
-// the pause is an emergency stop for all execution — and will not start a job
+// RunNow starts a manual run of a job. Global pause stops only the scheduler's
+// automatic runs (see RunDue), so a manual "Run now" is allowed even while
+// paused — it is the user's explicit, one-off action. It will not start a job
 // that is already running. In sequential execution mode it also refuses while
 // any other job is running, so a manual run never breaks the one-at-a-time
 // guarantee. The run itself happens on a background goroutine that records the
@@ -21,10 +22,6 @@ import (
 // "Running" status), not the run's own outcome.
 func (s *Service) RunNow(id int) error {
 	s.mu.Lock()
-	if s.paused {
-		s.mu.Unlock()
-		return errors.New("scheduler is paused")
-	}
 	job := s.findByIDLocked(id)
 	if job == nil {
 		s.mu.Unlock()

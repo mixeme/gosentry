@@ -116,12 +116,13 @@ func (d *detailsPanel) container() fyne.CanvasObject {
 	// Metadata is laid out in two columns so the block stays half as tall,
 	// keeping the details pane usable on 720p screens where a single column of
 	// ten rows pushes the minimum window height past the available space.
+	capW := detailCaptionWidth()
 	rows := container.New(compactVBoxLayout{spacing: detailRowSpacing},
-		detailRowPair("Folder", d.folder, "Schedule", d.schedule),
-		detailRowPair("Command", d.command, "Arguments", d.arguments),
-		detailRowPair("Run mode", d.runMode, "Overlap policy", d.overlapPolicy),
-		detailRowPair("Last run", d.lastRun, "Next run", d.nextRun),
-		detailRowPair("State", d.state, "Statistics", d.stats),
+		detailRowPair(capW, "Folder", d.folder, "Schedule", d.schedule),
+		detailRowPair(capW, "Command", d.command, "Arguments", d.arguments),
+		detailRowPair(capW, "Run mode", d.runMode, "Overlap policy", d.overlapPolicy),
+		detailRowPair(capW, "Last run", d.lastRun, "Next run", d.nextRun),
+		detailRowPair(capW, "State", d.state, "Statistics", d.stats),
 	)
 	top := container.NewVBox(
 		d.title,
@@ -152,16 +153,36 @@ func activityRowsHeight(rows int) float32 {
 	return (itemHeight+padding)*float32(rows) - padding + 1
 }
 
-// detailRowPair places two label/value pairs side by side, producing the
-// four-column caption|value|caption|value rows the compact metadata grid uses.
-func detailRowPair(l1 string, v1 fyne.CanvasObject, l2 string, v2 fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewGridWithColumns(2, detailRow(l1, v1), detailRow(l2, v2))
+// detailCaptionWidth returns the width reserved for every metadata caption,
+// derived from the widest caption label so the value columns all start at the
+// same x and no caption truncates. Measuring a real label keeps it DPI- and
+// theme-aware instead of relying on a hand-tuned constant.
+func detailCaptionWidth() float32 {
+	captions := []string{
+		"Folder", "Schedule", "Command", "Arguments", "Run mode",
+		"Overlap policy", "Last run", "Next run", "State", "Statistics",
+	}
+	var width float32
+	for _, c := range captions {
+		if w := widget.NewLabelWithStyle(c, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}).MinSize().Width; w > width {
+			width = w
+		}
+	}
+	return width
 }
 
-func detailRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
+// detailRowPair places two label/value pairs side by side, producing the
+// four-column caption|value|caption|value rows the compact metadata grid uses.
+func detailRowPair(captionWidth float32, l1 string, v1 fyne.CanvasObject, l2 string, v2 fyne.CanvasObject) fyne.CanvasObject {
+	return container.NewGridWithColumns(2, detailRow(captionWidth, l1, v1), detailRow(captionWidth, l2, v2))
+}
+
+func detailRow(captionWidth float32, label string, value fyne.CanvasObject) fyne.CanvasObject {
 	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	caption.Wrapping = fyne.TextTruncate
-	return container.NewGridWithColumns(2, caption, value)
+	// A fixed caption width (rather than an even split) means widening the window
+	// feeds the extra space to the value, not the short caption.
+	return container.New(captionValueLayout{captionWidth: captionWidth}, caption, value)
 }
 
 func newJobDetailLabel(text string) *widget.Label {

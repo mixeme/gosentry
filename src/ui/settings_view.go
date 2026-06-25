@@ -19,7 +19,6 @@ import (
 
 const settingsLabelWidth float32 = 140
 const settingsControlWidth float32 = 330
-const settingsStatusWidth float32 = 280
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
 
 // settingsRowSpacing is the (negative) gap between rows of the settings form,
@@ -76,6 +75,10 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
 	maxLogAgeDays := widget.NewEntry()
 	maxLogAgeDays.SetText(strconv.Itoa(store.Config.MaxLogAgeDays))
+	// Autostart status sits on its own row beneath the checkbox (rather than
+	// beside it) so the Application section fits within a half-width column.
+	// Truncating keeps a long status message from forcing the column wider.
+	autostartStatus.Wrapping = fyne.TextTruncate
 	settingsStatus := widget.NewLabel("")
 
 	saveSettings := widget.NewButtonWithIcon("Save settings", theme.DocumentSaveIcon(), func() {
@@ -123,16 +126,16 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		settingsStatus.SetText("Saved")
 	})
 
-	// The form is grouped into sections in an outer VBox. The outer box keeps the
-	// theme's normal padding, so the separators and the editable Storage fields
-	// get proper breathing room; only the label-only sections are condensed with
-	// the tight settingsSection spacing. Wrapping the whole thing in a vertical
-	// scroll keeps its minimum height small so it does not dictate the window's
-	// minimum height (AppTabs sizes to the tallest tab) and it scrolls on short
-	// 720p screens.
-	return container.NewVScroll(container.NewPadded(container.NewVBox(
+	// The form is split into two columns so a wide window uses its horizontal
+	// space instead of stretching into one tall strip. The left column holds the
+	// toggles (Application, Queue); the right holds the editable Storage fields and
+	// the read-only About block. Save spans the full width below both columns.
+	leftColumn := container.NewVBox(
 		settingsSection("Application",
-			settingsRowWithStatus("Autostart", startOnLogin, autostartStatus),
+			settingsRow("Autostart", container.New(minWidthLayout{width: settingsControlWidth}, startOnLogin)),
+			// Autostart status sits on its own row, aligned under the checkbox via an
+			// empty caption, so the Application section fits in a half-width column.
+			settingsRow("", autostartStatus),
 			settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
 			settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
 		),
@@ -141,7 +144,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
 			settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
 		),
-		widget.NewSeparator(),
+	)
+	rightColumn := container.NewVBox(
 		// Storage holds editable entry fields. It uses the default VBox spacing
 		// (not the condensed section layout) so the entry boxes keep a visible
 		// gap between them instead of merging into one block.
@@ -153,8 +157,6 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsRow("Max log files", maxLogFiles),
 			settingsRow("Max log age days", maxLogAgeDays),
 		),
-		saveSettings,
-		settingsStatus,
 		widget.NewSeparator(),
 		settingsSection("About",
 			settingsRow("GoSentry", widget.NewLabel(app.Version)),
@@ -162,6 +164,19 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsRow("Fyne", widget.NewLabel(fyneVersion())),
 			settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
 		),
+	)
+
+	// The two columns sit in a top-aligned grid; Save spans the full width below.
+	// Wrapping the whole thing in a vertical scroll keeps its minimum height small
+	// so it does not dictate the window's minimum height (AppTabs sizes to the
+	// tallest tab) and it scrolls on short 720p screens.
+	return container.NewVScroll(container.NewPadded(container.NewVBox(
+		container.NewGridWithColumns(2, leftColumn, rightColumn),
+		widget.NewSeparator(),
+		// Save button and its status share one row so an empty status (the common
+		// case) does not leave a blank line above the separator. The status appears
+		// beside the button once a save reports a result.
+		container.NewHBox(saveSettings, settingsStatus),
 	)))
 }
 
@@ -234,8 +249,3 @@ func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewBorder(nil, nil, captionBox, nil, value)
 }
 
-func settingsRowWithStatus(label string, value fyne.CanvasObject, status fyne.CanvasObject) fyne.CanvasObject {
-	valueBox := container.New(minWidthLayout{width: settingsControlWidth}, value)
-	statusBox := container.New(minWidthLayout{width: settingsStatusWidth}, status)
-	return settingsRow(label, container.NewBorder(nil, nil, valueBox, nil, statusBox))
-}

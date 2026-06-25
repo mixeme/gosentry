@@ -335,21 +335,27 @@ func TestRunNowRefusedWhileAlreadyRunning(t *testing.T) {
 	}
 }
 
-func TestRunNowRefusedWhilePaused(t *testing.T) {
+func TestRunNowAllowedWhilePaused(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
-	var ran bool
+	done := make(chan struct{}, 1)
 	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
-		ran = true
-		return domain.RunRecord{}
+		select {
+		case done <- struct{}{}:
+		default:
+		}
+		return domain.RunRecord{State: "Success"}
 	}
 	if err := svc.SetGlobalPause(true); err != nil {
 		t.Fatalf("SetGlobalPause: %v", err)
 	}
-	if err := svc.RunNow(1); err == nil {
-		t.Error("expected RunNow to be refused while paused")
+	// Pause stops only scheduled runs; an explicit manual run is still allowed.
+	if err := svc.RunNow(1); err != nil {
+		t.Fatalf("RunNow should be allowed while paused: %v", err)
 	}
-	if ran {
-		t.Error("runner must not be invoked while paused")
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Error("runner was not invoked for a manual run while paused")
 	}
 }
 
@@ -586,23 +592,32 @@ func TestServiceRebuiltFromPausedStoreStartsPaused(t *testing.T) {
 	svc2 := NewService(svc.store, svc.Jobs())
 
 	var ran int32
+	runStarted := make(chan struct{}, 1)
 	svc2.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
 		atomic.AddInt32(&ran, 1)
+		select {
+		case runStarted <- struct{}{}:
+		default:
+		}
 		return domain.RunRecord{}
 	}
 
-	// RunDue must not start any job while paused.
+	// RunDue must not start any job while paused: the scheduler stays paused after
+	// a restart that rebuilt the service from a paused store.
 	svc2.RunDue(time.Now().Add(2 * time.Minute))
 	time.Sleep(50 * time.Millisecond)
 	if atomic.LoadInt32(&ran) != 0 {
 		t.Error("RunDue ran a job on a service rebuilt from a paused store")
 	}
 
-	// RunNow must be refused.
-	if err := svc2.RunNow(1); err == nil {
-		t.Error("RunNow should be refused on a service rebuilt from a paused store")
+	// A manual RunNow is still allowed while paused — pause only stops the
+	// scheduler, not the user's explicit action.
+	if err := svc2.RunNow(1); err != nil {
+		t.Errorf("RunNow should be allowed while paused: %v", err)
 	}
-	if atomic.LoadInt32(&ran) != 0 {
-		t.Error("runner was invoked despite global pause")
+	select {
+	case <-runStarted:
+	case <-time.After(2 * time.Second):
+		t.Error("manual run was not started on a service rebuilt from a paused store")
 	}
 }

@@ -28,6 +28,12 @@ const maxJobActivityRows = 3
 // padding, tightening the block so it fits comfortably on 720p screens.
 const detailRowSpacing float32 = -8
 
+// jobRowSpacing is the (negative) gap between the name, metadata, and status
+// lines within each job list row. Like the details panel, it overlaps the
+// labels' built-in vertical padding so each row reads as one compact block and
+// more jobs are visible without scrolling.
+const jobRowSpacing float32 = -8
+
 // newJobsView builds the Jobs tab: list sidebar, details panel, and toolbar.
 // It returns the assembled panel and a refresh function the caller invokes
 // whenever the service state may have changed (e.g., from the event subscriber
@@ -97,7 +103,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			name := widget.NewLabelWithStyle("Job name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 			meta := widget.NewLabel("schedule")
 			status := widget.NewLabel("status")
-			return container.NewVBox(name, meta, status)
+			return container.New(compactVBoxLayout{spacing: jobRowSpacing}, name, meta, status)
 		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
 			row := item.(*fyne.Container)
@@ -185,14 +191,10 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		if selected < 0 || selected >= len(jobs) {
 			return
 		}
-		if schedulerPaused {
-			// The global pause is treated as an emergency stop for all execution,
-			// including manual "Run now", so the user has one reliable switch.
-			dialog.ShowInformation("Scheduler paused", "Global pause is active. Resume the scheduler before running jobs.", w)
-			return
-		}
-		// RunNow refuses an already-running job (it returns an error); the UI has
-		// always ignored that case silently, so the run simply does not start.
+		// A manual run is allowed even while the scheduler is paused: pause only
+		// stops automatic scheduled runs, not the user's explicit "Run now".
+		// RunNow still refuses an already-running job (it returns an error); the UI
+		// has always ignored that case silently, so the run simply does not start.
 		if err := svc.RunNow(jobs[selected].ID); err != nil {
 			return
 		}
