@@ -2,6 +2,36 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.11.0 - 2026-06-25
+
+**Manual runs while paused, two-column Settings/details, and a more compact job list.**
+
+**Scheduler:**
+- "Run now" is now allowed while the scheduler is globally paused. The global
+  pause stops only automatic scheduled runs; an explicit manual run is the user's
+  own one-off action and is no longer blocked (the already-running and
+  sequential-mode guards still apply).
+
+**Jobs details panel:**
+- Metadata captions (Folder, Command, Run mode, …) are pinned to a fixed width
+  instead of an even split, so widening the window now grows the value column
+  rather than the short caption.
+- Fixed a bug where the "Selected job activity" panel kept showing the previous
+  job's entries when a different job was selected; the list now refreshes on
+  every selection change.
+
+**Jobs list:**
+- List rows (name, schedule/command, status) are condensed with a tight,
+  negative-gap layout so more jobs are visible without scrolling.
+
+**Settings tab:**
+- The form is reorganized into two columns — Application and Queue on the left,
+  Storage and About on the right — with the Save button spanning the full width
+  below. The Autostart status moved onto its own line so the section fits a
+  half-width column.
+- Removed the blank row that sat between the Save button and the following
+  separator.
+
 ## 0.10.2 - 2026-06-25
 
 **Condensed details/settings panels and a window that shrinks to 720p.**
