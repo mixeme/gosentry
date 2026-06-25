@@ -2,6 +2,31 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.11.2 - 2026-06-25
+
+**Window state persistence, History sort fix, clearer scheduler toggle, and an
+appID update.**
+
+**Application:**
+- The window size (width and height) is now persisted in preferences and
+  restored on next launch. When the user closes the window (via Quit menu or
+  window close button), the current dimensions are saved and will be applied
+  when the application starts again. Defaults to 1024×660 if no saved size exists.
+- Updated appID from `ru.mixdep.gosentry.desktop` to `ru.mixeme.gosentry.desktop`
+  for consistency with the new domain name.
+
+**History tab:**
+- Fixed the Time column sort toggle, which stopped working after Fyne 2.7.4 began
+  rejecting header-cell selections. The plain header label is replaced with a
+  custom tappable header widget that handles the click directly.
+- The sort direction is now shown with ▲/▼ glyphs instead of the "asc"/"desc"
+  text.
+
+**Jobs list:**
+- Renamed the global scheduler toggle from "Pause all"/"Resume all" to
+  "Disable auto"/"Enable auto", and swapped the stop icon for a pause icon, to
+  make clear that it only stops automatic scheduled runs.
+
 ## 0.11.1 - 2026-06-25
 
 **Settings tab refinements: even spacing, full labels, and a smarter Save button.**

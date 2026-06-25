@@ -48,7 +48,7 @@ sudo apt install golang gcc libgl1-mesa-dev xorg-dev
 
 ## Build
 
-Windows:
+### Windows
 
 ```powershell
 # Builds dist\windows\gosentry-<version>-windows-amd64.exe. The script changes
@@ -67,7 +67,7 @@ The binary is written to:
 dist\windows\gosentry-0.9.0-windows-amd64.exe
 ```
 
-Linux:
+### Linux
 
 ```bash
 # Make the helper executable once, then build a linux/amd64 Fyne binary.
@@ -81,7 +81,7 @@ The binary is written to:
 dist/linux/gosentry-0.9.0-linux-amd64
 ```
 
-Linux using Docker:
+### Linux using Docker
 
 ```bash
 # Builds the Linux binary inside Docker using the versioned image tag
@@ -97,7 +97,7 @@ The binary is copied to:
 dist/linux/gosentry-0.9.0-linux-amd64
 ```
 
-Release build from Linux:
+### Release build from Linux
 
 ```bash
 # Interactively choose Linux amd64, Linux arm64, Windows amd64, or all artifacts
@@ -170,7 +170,6 @@ GoSentry keeps the direct dependency list intentionally small:
 
 - [`fyne.io/fyne/v2`](https://fyne.io/) for the native GUI.
 - `github.com/robfig/cron/v3` for cron schedule parsing.
-- [`go.yaml.in/yaml/v4`](https://github.com/yaml/go-yaml) for one-time import of legacy YAML config files.
 
 The remaining entries in `go.mod` are indirect dependencies pulled by Fyne and the Go module resolver.
 
@@ -179,7 +178,6 @@ Source repositories for mirroring:
 - Go toolchain: https://go.googlesource.com/go
 - Fyne: https://github.com/fyne-io/fyne
 - robfig/cron: https://github.com/robfig/cron
-- yaml/go-yaml: https://github.com/yaml/go-yaml
 
 To list every direct and indirect Go module used by the current checkout:
 

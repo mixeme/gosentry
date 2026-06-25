@@ -11,7 +11,7 @@ import (
 	fyneapp "fyne.io/fyne/v2/app"
 )
 
-const appID = "ru.mixdep.gosentry.desktop"
+const appID = "ru.mixeme.gosentry.desktop"
 
 // Run is the application entry point. It owns the process lifecycle — single
 // instance arbitration, Fyne app + window construction, tray wiring, and the
@@ -48,7 +48,10 @@ func Run(startInTray bool) {
 
 	w := a.NewWindow("GoSentry " + app.Version)
 	configureSystemTray(a, w)
-	w.Resize(fyne.NewSize(1024, 660))
+	prefs := a.Preferences()
+	winW := float32(prefs.FloatWithFallback("window.width", 1024))
+	winH := float32(prefs.FloatWithFallback("window.height", 660))
+	w.Resize(fyne.NewSize(winW, winH))
 	content, recordStartup := newMainView(w)
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)
