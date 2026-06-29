@@ -119,6 +119,11 @@ effective policy per job: it uses `job.OverlapPolicy` when set, otherwise falls
 back to `store.Config.OverlapPolicy`. `normalizeJob` in `app/operations.go` leaves
 the field empty on new jobs so the inherit semantics are preserved.
 
+Under the `"queue"` policy, each occurrence that fires while a run is still
+in flight increments `JobRuntime.PendingRuns`. When the current run finishes,
+`executeRun` drains the counter by starting one deferred run per completion until
+`PendingRuns` reaches zero.
+
 ### Run-time statistics
 
 `domain.JobRuntime` holds a rolling aggregate updated after each run:
@@ -135,11 +140,12 @@ the field empty on new jobs so the inherit semantics are preserved.
 the returned `RunRecord`. `runner/logfile.go` writes a `duration` line into the
 log file header alongside the existing `state` line.
 
-On startup, `runner.SeedStats` scans each job's log files (matched by the
-`_<sanitized name>.log` suffix, bounded by `Config.MaxLogFiles`) and folds the
-parsed `state`/`duration` headers into a `runner.StatSeed` map. `NewService`
-applies those seeds to the runtime map before the first scheduler tick, so the
-details panel shows accumulated run history immediately after a restart.
+On startup, `runner.SeedStats` scans log files (matched primarily by the
+`job_id` header, with a sanitized-name filename fallback for legacy logs,
+bounded by `Config.MaxLogFiles`) and folds the parsed `state`/`duration`
+headers into a `runner.SeededStats` map. `NewService` applies those seeds to
+the runtime map before the first scheduler tick, so the details panel shows
+accumulated run history immediately after a restart.
 Older log files that pre-date the `duration` header are tolerated: the run is
 counted but the timing is skipped.
 

@@ -19,18 +19,21 @@ type JobRuntime struct {
 	// the only form shown in the GUI.
 	NextDue time.Time
 
-	// Pending is set when a run was skipped due to the overlap policy being
-	// "queue". At most one deferred run is remembered; executeRun starts it when
-	// the current run ends.
-	Pending bool
+	// PendingRuns counts scheduled occurrences that fired while a run was still
+	// in flight under the "queue" overlap policy. executeRun drains the counter
+	// by starting one deferred run after each completion.
+	PendingRuns int
 
 	// Execution-time statistics accumulated since the last process start.
-	// Seeded from log files on startup by T2.5; zero until then.
-	RunCount     int
-	FailCount    int
+	// Seeded from log files on startup; zero until then.
+	RunCount       int
+	FailCount      int
 	LastDurationMS int64
 	AvgDurationMS  int64
 	MaxDurationMS  int64
+	// TimedRunCount is the number of runs that contributed to AvgDurationMS.
+	// StartOnly and legacy duration-less runs increment RunCount but not this.
+	TimedRunCount int
 }
 
 // NewRuntime builds the initial runtime state for a freshly loaded or created

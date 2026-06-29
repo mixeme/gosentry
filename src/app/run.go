@@ -57,8 +57,8 @@ func (s *Service) RunNow(id int) error {
 // sequential mode a due job is left for a later tick while any other job is
 // running. The overlap policy decides what happens when a job comes due again
 // while its own previous run is still in flight: "skip" drops the new run,
-// "queue" marks it Pending so executeRun re-runs it the moment the current run
-// finishes. Either way NextDue is advanced past the fired occurrence so the same
+// "queue" increments PendingRuns so executeRun drains missed occurrences after
+// the current run finishes. Either way NextDue is advanced past the fired occurrence so the same
 // moment is not re-evaluated on every tick.
 func (s *Service) RunDue(now time.Time) {
 	s.mu.Lock()
@@ -78,7 +78,7 @@ func (s *Service) RunDue(now time.Time) {
 				// Apply the effective overlap policy and step past this
 				// occurrence.
 				if s.effectiveOverlapPolicy(job) == domain.OverlapPolicyQueue {
-					runtime.Pending = true
+					runtime.PendingRuns++
 				}
 				s.advanceNextDueLocked(job, runtime, now)
 				continue
@@ -152,8 +152,8 @@ func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, tr
 // executeRun runs the job off the lock, then records the result back through the
 // Service under the lock and announces it. If the job was marked Pending while
 // running (the "queue" overlap policy), and it is still enabled and the scheduler
-// is not paused, the deferred run is started immediately. It runs on its own
-// goroutine.
+// is not paused, deferred runs are started one at a time until PendingRuns reaches
+// zero. Each deferred run runs on its own goroutine.
 func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger string, env runEnv) {
 	record, logErr := s.runJob(ctx, &jobCopy, trigger, env.logsDir)
 
@@ -167,11 +167,11 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 		runtime.Output = record.Output
 		prependLog(runtime, record)
 		updateStats(runtime, record)
-		rerun := runtime.Pending && current.Enabled && !s.paused
-		runtime.Pending = false
+		rerun := runtime.PendingRuns > 0 && current.Enabled && !s.paused
 		if rerun {
+			runtime.PendingRuns--
 			// A scheduled occurrence fired while this run was active under the
-			// "queue" policy; start that deferred run now.
+			// "queue" policy; start one deferred run now.
 			saveErr = s.startRunLocked(current, runtime, "Schedule", time.Now())
 			rerunStarted = saveErr == nil
 		} else {
@@ -241,11 +241,15 @@ func updateStats(rt *domain.JobRuntime, r domain.RunRecord) {
 	if r.State == "Failed" {
 		rt.FailCount++
 	}
+	if r.DurationMS <= 0 {
+		return
+	}
 	rt.LastDurationMS = r.DurationMS
 	if r.DurationMS > rt.MaxDurationMS {
 		rt.MaxDurationMS = r.DurationMS
 	}
-	rt.AvgDurationMS = (rt.AvgDurationMS*int64(rt.RunCount-1) + r.DurationMS) / int64(rt.RunCount)
+	rt.TimedRunCount++
+	rt.AvgDurationMS = (rt.AvgDurationMS*int64(rt.TimedRunCount-1) + r.DurationMS) / int64(rt.TimedRunCount)
 }
 
 // runningOutput is the placeholder output shown while a job is running, before

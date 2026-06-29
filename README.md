@@ -21,7 +21,7 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 - Parallel or sequential execution mode; configurable overlap policy (skip or queue).
 - Per-run `.log` files with stdout/stderr capture.
 - Log cleanup by maximum file count and maximum age.
-- Global pause/resume for all job execution.
+- Global pause/resume for scheduled job execution (manual runs remain available).
 - Desktop notifications on job failure.
 - Windows tray icon: left-click to show the window, right-click for the menu.
 - Autostart on login (Windows shortcut; Linux XDG desktop entry).

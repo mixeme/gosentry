@@ -18,16 +18,9 @@ import (
 // to that state goes through a mutex so the GUI and the scheduler can no longer
 // race on a shared *[]Job.
 //
-// State ownership and the locking contract were established in T3.1; the
-// event/observer machinery in T3.2. T3.3 added the state-mutating intents
-// (CreateJob, UpdateJob, DeleteJob, SetEnabled, RunNow, SetGlobalPause,
-// UpdateSettings) in operations.go: the Service is the sole writer of job and
-// runtime state, persisting through the store and announcing changes via events.
-//
-// T3.4 makes the Service drive scheduling too. It owns the timing loop through a
-// scheduler.Scheduler that calls RunDue on every tick; the scheduler holds no
-// job state and never touches the slice directly. The old shared *[]domain.Job
-// between GUI and scheduler is gone — both go through the Service.
+// Mutations live in operations.go; scheduling and run dispatch live in run.go;
+// typed events live in events.go. The scheduler is a thin timing loop that calls
+// RunDue on every tick and holds no job state of its own.
 //
 // Locking contract: mu is a plain, non-reentrant mutex. Exported methods take
 // it; unexported helpers ending in "Locked" assume the caller already holds it.
@@ -107,6 +100,7 @@ func NewService(store *storage.Store, jobs []domain.Job) *Service {
 		runtime.LastDurationMS = seed.LastDurationMS
 		runtime.AvgDurationMS = seed.AvgDurationMS
 		runtime.MaxDurationMS = seed.MaxDurationMS
+		runtime.TimedRunCount = seed.TimedRunCount
 	}
 	return s
 }
@@ -182,9 +176,8 @@ func (s *Service) Jobs() []domain.Job {
 
 // Runtime returns the transient runtime state for a job ID, or nil if no job
 // with that ID is loaded. The returned pointer is the live runtime; reads of it
-// are only safe while no concurrent mutation is in flight. The scheduler now
-// drives the Service rather than sharing state, so the remaining concurrent
-// reader is the UI listener, which T4.1 marshals onto the main thread.
+// are only safe while no concurrent mutation is in flight. The UI listener
+// marshals reads onto the main thread via fyne.Do.
 func (s *Service) Runtime(id int) *domain.JobRuntime {
 	s.mu.Lock()
 	defer s.mu.Unlock()

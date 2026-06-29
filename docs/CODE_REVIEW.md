@@ -10,7 +10,7 @@
 | Сложность vs масштаб | 8/10 |
 | Качество кода | 8/10 |
 | Поддерживаемость | 8/10 |
-| Логические ошибки | 8/10 (после исправлений) |
+| Логические ошибки | 9/10 (после исправлений) |
 
 Проект зрелый и поддерживаемый для десктопного планировщика (~59 `.go`-файлов). Архитектура слоистая, core-логика хорошо протестирована.
 
@@ -30,11 +30,15 @@
 | 1 | Data race: `store.Paths` в `executeRun` без lock | Высокая | Исправлено |
 | 2 | Run стартует при ошибке `SaveJobs` | Средняя | Исправлено |
 | 3 | CRUD эмитит events при failed save | Средняя | Исправлено |
-| 4 | Overlap queue — только один `Pending` | Средняя | Документировано (by design) |
+| 4 | Overlap queue — только один `Pending` | Средняя | Исправлено (`PendingRuns`) |
 | 5 | `time.Now()` vs scheduler clock в `startRunLocked` | Низкая | Исправлено |
 | 6 | Silent log write failures | Низкая | Исправлено |
 | 7 | Невалидный per-job `overlap_policy` | Низкая | Исправлено |
 | 8 | Docs drift (YAML, RunNow/pause) | Низкая | Исправлено |
+| 9 | `StartOnly` игнорировал cancel context | Низкая | Исправлено |
+| 10 | `SeedStats` коллизия sanitized имён | Низкая | Исправлено (match по `job_id`) |
+| 11 | `AvgDurationMS` seed vs live расходились | Низкая | Исправлено (`TimedRunCount`) |
+| 12 | Legacy ticket-ссылки в комментариях | Низкая | Исправлено |
 
 ## Намеренное поведение (не баги)
 
@@ -47,5 +51,3 @@
 
 - UI widget tests или smoke E2E
 - Per-job command timeout в конфиге
-- Счётчик вместо `Pending bool` для overlap queue (если нужна полная очередь)
-- Убрать legacy ticket-ссылки (T3.1) из комментариев

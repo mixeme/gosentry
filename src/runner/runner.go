@@ -29,7 +29,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	var detail string
 	var durationMS int64
 	if job.StartOnly {
-		invocation := jobInvocation(context.Background(), *job)
+		invocation := jobInvocation(ctx, *job)
 		state, detail, output = startJobOnly(invocation, *job, started)
 		// StartOnly jobs don't wait for process exit, so no meaningful duration.
 		durationMS = 0

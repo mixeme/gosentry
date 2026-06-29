@@ -65,6 +65,6 @@ if errorlevel 1 (
 )
 
 REM Icons are embedded into the executable, so no assets directory is copied next
-REM to the binary. Runtime YAML and log files are created by the app itself.
+REM to the binary. Runtime JSON and log files are created by the app itself.
 echo.
 echo Successfully built: %OUTPUT%

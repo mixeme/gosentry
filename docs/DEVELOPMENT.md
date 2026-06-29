@@ -153,7 +153,7 @@ CGO_ENABLED=1 go run ./cmd/gosentry
 - `src/app` — `Service`: sole owner of job and runtime state; emits typed events to the UI.
 - `src/scheduler` — pure timing loop; calls `Service.RunDue` on every tick.
 - `src/runner` — shell command execution, log file writing, and log cleanup.
-- `src/storage` — JSON persistence (`gosentry.json`, `jobs.json`); one-time import from legacy YAML on first run.
+- `src/storage` — JSON persistence (`gosentry.json`, `jobs.json`).
 - `src/platform/autostart` — `Manager` interface with Windows (shortcut) and Linux (XDG) implementations.
 - `src/platform/desktop` — display-scale helper (Linux only).
 - `src/platform/winproc` — hidden-window startup flags (Windows only).

@@ -20,19 +20,20 @@ type SeededStats struct {
 	LastDurationMS int64
 	AvgDurationMS  int64
 	MaxDurationMS  int64
+	TimedRunCount  int
 }
 
 // SeedStats scans logsDir once and reconstructs per-job execution-time
 // statistics from the log files written by previous runs, keyed by Job.ID.
 //
-// Log files are matched to a job by the sanitized job-name suffix of the file
-// name (the same name writeRunLog uses), so no per-file header read is needed to
-// associate a log with its job. For each job only the newest maxFiles matching
-// logs are parsed, mirroring the retention policy that CleanupLogs enforces; a
-// maxFiles of zero or less means "no bound". The duration and state are read
-// from each log's header. Logs written before duration tracking existed carry no
-// duration line: those are tolerated — they still count toward RunCount and
-// FailCount but are left out of the duration aggregates (last/avg/max) so a
+// Log files are matched primarily by the job_id header line writeRunLog writes.
+// When that header is absent (legacy logs), files fall back to the sanitized
+// job-name suffix in the filename. For each job only the newest maxFiles
+// matching logs are parsed, mirroring the retention policy that CleanupLogs
+// enforces; a maxFiles of zero or less means "no bound". The duration and state
+// are read from each log's header. Logs written before duration tracking existed
+// carry no duration line: those are tolerated — they still count toward RunCount
+// and FailCount but are left out of the duration aggregates (last/avg/max) so a
 // missing duration cannot masquerade as a zero-millisecond run.
 //
 // A missing or unreadable logs directory yields an empty map rather than an
@@ -44,9 +45,7 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		return result
 	}
 
-	// Group log file names by the sanitized job-name portion of the file name.
-	// File names are "<timestamp>_<sanitizedName>.log"; the timestamp has no
-	// underscore, so everything after the first underscore is the name part.
+	byID := make(map[int][]string)
 	byName := make(map[string][]string)
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -56,17 +55,24 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		if !strings.HasSuffix(strings.ToLower(name), ".log") {
 			continue
 		}
+		path := filepath.Join(logsDir, name)
+		if jobID, ok := readLogJobID(path); ok {
+			byID[jobID] = append(byID[jobID], name)
+			continue
+		}
 		base := name[:len(name)-len(".log")]
 		idx := strings.Index(base, "_")
 		if idx < 0 {
 			continue
 		}
-		jobPart := base[idx+1:]
-		byName[jobPart] = append(byName[jobPart], name)
+		byName[base[idx+1:]] = append(byName[base[idx+1:]], name)
 	}
 
 	for _, job := range jobs {
-		files := byName[sanitizeFileName(job.Name)]
+		files := byID[job.ID]
+		if len(files) == 0 {
+			files = byName[sanitizeFileName(job.Name)]
+		}
 		if len(files) == 0 {
 			continue
 		}
@@ -105,9 +111,35 @@ func aggregateLogStats(logsDir string, files []string) SeededStats {
 		}
 	}
 	if durationCount > 0 {
+		stats.TimedRunCount = durationCount
 		stats.AvgDurationMS = durationSum / int64(durationCount)
 	}
 	return stats
+}
+
+// readLogJobID reads the job_id field from a log file header.
+func readLogJobID(path string) (int, bool) {
+	file, err := os.Open(path)
+	if err != nil {
+		return 0, false
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			break
+		}
+		if rest, ok := strings.CutPrefix(line, "job_id: "); ok {
+			id, err := strconv.Atoi(strings.TrimSpace(rest))
+			if err != nil {
+				return 0, false
+			}
+			return id, true
+		}
+	}
+	return 0, false
 }
 
 // readLogHeader reads the "state" and "duration" fields from a log file's

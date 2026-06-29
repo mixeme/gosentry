@@ -3,6 +3,8 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"testing"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
@@ -10,15 +12,21 @@ import (
 
 // writeTestLog writes a minimal log file in the format writeRunLog produces.
 // Pass durationMS < 0 to omit the duration line (legacy log simulation).
-func writeTestLog(t *testing.T, dir, filename, state string, durationMS int64) {
+// When jobID > 0 a job_id header line is included.
+func writeTestLog(t *testing.T, dir, filename, state string, durationMS int64, jobID int) {
 	t.Helper()
-	var content string
-	if durationMS >= 0 {
-		content = "state: " + state + "\nduration: " + itoa(durationMS) + "\n\n"
-	} else {
-		content = "state: " + state + "\n\n"
+	var content strings.Builder
+	if jobID > 0 {
+		content.WriteString("job_id: ")
+		content.WriteString(strconv.Itoa(jobID))
+		content.WriteString("\n")
 	}
-	if err := os.WriteFile(filepath.Join(dir, filename), []byte(content), 0o644); err != nil {
+	if durationMS >= 0 {
+		content.WriteString("state: " + state + "\nduration: " + itoa(durationMS) + "\n\n")
+	} else {
+		content.WriteString("state: " + state + "\n\n")
+	}
+	if err := os.WriteFile(filepath.Join(dir, filename), []byte(content.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -47,9 +55,9 @@ func TestSeedStatsBasic(t *testing.T) {
 	job := domain.Job{ID: 1, Name: "Build"}
 	name := sanitizeFileName(job.Name)
 
-	writeTestLog(t, dir, "20260601-100000_"+name+".log", "OK", 200)
-	writeTestLog(t, dir, "20260601-110000_"+name+".log", "Failed", 400)
-	writeTestLog(t, dir, "20260601-120000_"+name+".log", "OK", 600)
+	writeTestLog(t, dir, "20260601-100000_"+name+".log", "OK", 200, job.ID)
+	writeTestLog(t, dir, "20260601-110000_"+name+".log", "Failed", 400, job.ID)
+	writeTestLog(t, dir, "20260601-120000_"+name+".log", "OK", 600, job.ID)
 
 	result := SeedStats(dir, []domain.Job{job}, 0)
 	s, ok := result[job.ID]
@@ -83,9 +91,9 @@ func TestSeedStatsDurationLessLegacyLog(t *testing.T) {
 	name := sanitizeFileName(job.Name)
 
 	// Legacy log (no duration line).
-	writeTestLog(t, dir, "20260601-080000_"+name+".log", "OK", -1)
+	writeTestLog(t, dir, "20260601-080000_"+name+".log", "OK", -1, job.ID)
 	// Modern log with duration.
-	writeTestLog(t, dir, "20260601-090000_"+name+".log", "OK", 300)
+	writeTestLog(t, dir, "20260601-090000_"+name+".log", "OK", 300, job.ID)
 
 	result := SeedStats(dir, []domain.Job{job}, 0)
 	s := result[job.ID]
@@ -113,9 +121,9 @@ func TestSeedStatsMaxFilesHonoured(t *testing.T) {
 	name := sanitizeFileName(job.Name)
 
 	// Write 3 logs; only the 2 newest should be counted (maxFiles=2).
-	writeTestLog(t, dir, "20260601-060000_"+name+".log", "OK", 100)
-	writeTestLog(t, dir, "20260601-070000_"+name+".log", "OK", 200)
-	writeTestLog(t, dir, "20260601-080000_"+name+".log", "Failed", 300)
+	writeTestLog(t, dir, "20260601-060000_"+name+".log", "OK", 100, job.ID)
+	writeTestLog(t, dir, "20260601-070000_"+name+".log", "OK", 200, job.ID)
+	writeTestLog(t, dir, "20260601-080000_"+name+".log", "Failed", 300, job.ID)
 
 	result := SeedStats(dir, []domain.Job{job}, 2)
 	s := result[job.ID]
@@ -140,10 +148,33 @@ func TestSeedStatsMissingDir(t *testing.T) {
 // any known job are silently ignored.
 func TestSeedStatsUnknownJobProducesNoEntry(t *testing.T) {
 	dir := t.TempDir()
-	writeTestLog(t, dir, "20260601-100000_UnknownJob.log", "OK", 100)
+	writeTestLog(t, dir, "20260601-100000_UnknownJob.log", "OK", 100, 0)
 
 	result := SeedStats(dir, []domain.Job{{ID: 1, Name: "KnownJob"}}, 0)
 	if _, ok := result[1]; ok {
 		t.Error("expected no entry for a job with no matching log files")
+	}
+}
+
+// TestSeedStatsMatchesByJobID verifies that logs are associated by job_id even
+// when sanitized job names would collide.
+func TestSeedStatsMatchesByJobID(t *testing.T) {
+	dir := t.TempDir()
+	jobA := domain.Job{ID: 1, Name: "foo@bar"}
+	jobB := domain.Job{ID: 2, Name: "foo bar"}
+	colliding := sanitizeFileName(jobA.Name)
+	if colliding != sanitizeFileName(jobB.Name) {
+		t.Fatalf("test setup: expected colliding sanitized names, got %q and %q", sanitizeFileName(jobA.Name), sanitizeFileName(jobB.Name))
+	}
+
+	writeTestLog(t, dir, "20260601-100000_"+colliding+".log", "OK", 100, jobA.ID)
+	writeTestLog(t, dir, "20260601-110000_"+colliding+".log", "Failed", 200, jobB.ID)
+
+	result := SeedStats(dir, []domain.Job{jobA, jobB}, 0)
+	if result[jobA.ID].RunCount != 1 || result[jobA.ID].LastDurationMS != 100 {
+		t.Errorf("job A stats = %+v, want one OK run at 100 ms", result[jobA.ID])
+	}
+	if result[jobB.ID].RunCount != 1 || result[jobB.ID].FailCount != 1 || result[jobB.ID].LastDurationMS != 200 {
+		t.Errorf("job B stats = %+v, want one Failed run at 200 ms", result[jobB.ID])
 	}
 }

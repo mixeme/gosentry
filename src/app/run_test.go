@@ -105,6 +105,24 @@ func TestUpdateStats(t *testing.T) {
 	}
 }
 
+func TestUpdateStatsSkipsZeroDuration(t *testing.T) {
+	rt := &domain.JobRuntime{}
+	updateStats(rt, domain.RunRecord{State: "OK", DurationMS: 200})
+	updateStats(rt, domain.RunRecord{State: "OK", DurationMS: 0})
+	if rt.RunCount != 2 {
+		t.Fatalf("RunCount = %d, want 2", rt.RunCount)
+	}
+	if rt.TimedRunCount != 1 {
+		t.Fatalf("TimedRunCount = %d, want 1", rt.TimedRunCount)
+	}
+	if rt.AvgDurationMS != 200 {
+		t.Errorf("AvgDurationMS = %d, want 200 (zero-duration run excluded)", rt.AvgDurationMS)
+	}
+	if rt.LastDurationMS != 200 {
+		t.Errorf("LastDurationMS = %d, want 200", rt.LastDurationMS)
+	}
+}
+
 // TestRunDueParallelStartsAllDueJobs verifies that in parallel mode every due job
 // starts at once: both runs are in flight (blocked in the runner) before either
 // is released.
@@ -214,10 +232,10 @@ func TestRunDueSkipDropsOverlap(t *testing.T) {
 	expectNoEntry(t, entered)
 
 	svc.mu.Lock()
-	pending := svc.runtimes[1].Pending
+	pending := svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if pending {
-		t.Error("skip policy must not mark the job Pending")
+	if pending != 0 {
+		t.Error("skip policy must not queue deferred runs")
 	}
 
 	close(release)
@@ -230,7 +248,7 @@ func TestRunDueSkipDropsOverlap(t *testing.T) {
 }
 
 // TestRunDueQueueRerunsAfterFinish verifies that under the "queue" overlap policy a
-// job coming due again while running is marked Pending and re-run as soon as the
+// job coming due again while running increments PendingRuns and re-runs after the
 // in-flight run finishes.
 func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
@@ -254,17 +272,17 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 		t.Fatalf("started job = %d, want 1", id)
 	}
 
-	// Re-due the running job and tick: queue must mark it Pending without starting
-	// a second concurrent run.
+	// Re-due the running job and tick: queue must increment PendingRuns without
+	// starting a second concurrent run.
 	primeDue(t, svc, 1)
 	svc.RunDue(time.Now())
 	expectNoEntry(t, entered)
 
 	svc.mu.Lock()
-	pending := svc.runtimes[1].Pending
+	pending := svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if !pending {
-		t.Fatal("queue policy must mark the job Pending")
+	if pending != 1 {
+		t.Fatalf("queue policy must queue one deferred run, PendingRuns = %d", pending)
 	}
 
 	// Releasing the first run lets executeRun start the deferred run automatically.
@@ -279,10 +297,60 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 		t.Errorf("runner called %d time(s), want 2 (original + queued re-run)", got)
 	}
 	svc.mu.Lock()
-	pending = svc.runtimes[1].Pending
+	pending = svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if pending {
-		t.Error("Pending must be cleared after the re-run starts")
+	if pending != 0 {
+		t.Errorf("PendingRuns must be cleared after the re-run starts, got %d", pending)
+	}
+}
+
+// TestRunDueQueueDrainsMultipleOverlaps verifies that each missed occurrence
+// under the queue policy eventually runs after the in-flight run finishes.
+func TestRunDueQueueDrainsMultipleOverlaps(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
+	})
+
+	release := make(chan struct{})
+	var calls int32
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+		if atomic.LoadInt32(&calls) == 0 {
+			<-release
+		}
+		atomic.AddInt32(&calls, 1)
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
+	}
+	done := completions(svc)
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+
+	// Three extra due ticks while the first run is still in flight.
+	for range 3 {
+		primeDue(t, svc, 1)
+		svc.RunDue(time.Now())
+	}
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != 3 {
+		t.Fatalf("PendingRuns = %d, want 3 queued occurrences", pending)
+	}
+
+	close(release)
+	for range 4 {
+		waitRecord(t, done)
+	}
+
+	if got := atomic.LoadInt32(&calls); got != 4 {
+		t.Errorf("runner called %d time(s), want 4 (original + 3 queued)", got)
+	}
+	svc.mu.Lock()
+	pending = svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != 0 {
+		t.Errorf("PendingRuns = %d after drain, want 0", pending)
 	}
 }
 
@@ -318,10 +386,10 @@ func TestRunDuePerJobQueueOverridesGlobalSkip(t *testing.T) {
 	expectNoEntry(t, entered)
 
 	svc.mu.Lock()
-	pending := svc.runtimes[1].Pending
+	pending := svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if !pending {
-		t.Fatal("per-job queue policy must mark the job Pending despite global skip")
+	if pending != 1 {
+		t.Fatalf("per-job queue policy must queue a deferred run, PendingRuns = %d", pending)
 	}
 
 	// Releasing the first run lets executeRun start the deferred re-run.
@@ -368,10 +436,10 @@ func TestRunDuePerJobSkipOverridesGlobalQueue(t *testing.T) {
 	expectNoEntry(t, entered)
 
 	svc.mu.Lock()
-	pending := svc.runtimes[1].Pending
+	pending := svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if pending {
-		t.Error("per-job skip policy must not mark the job Pending despite global queue")
+	if pending != 0 {
+		t.Errorf("per-job skip policy must not queue deferred runs, PendingRuns = %d", pending)
 	}
 
 	close(release)
@@ -413,10 +481,10 @@ func TestRunDueEmptyOverlapInheritsGlobal(t *testing.T) {
 	expectNoEntry(t, entered)
 
 	svc.mu.Lock()
-	pending := svc.runtimes[1].Pending
+	pending := svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if !pending {
-		t.Fatal("empty per-job policy must inherit the global queue and mark Pending")
+	if pending != 1 {
+		t.Fatalf("empty per-job policy must inherit global queue, PendingRuns = %d", pending)
 	}
 
 	close(release)

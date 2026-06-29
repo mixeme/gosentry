@@ -17,7 +17,7 @@ const appID = "ru.mixeme.gosentry.desktop"
 // instance arbitration, Fyne app + window construction, tray wiring, and the
 // startup-timing record — and delegates all view construction to newMainView in
 // mainwindow.go. Keeping lifecycle here and the view there is the run.go /
-// mainwindow.go split introduced in T4.1.
+// mainwindow.go split keeps lifecycle separate from view construction.
 func Run(startInTray bool) {
 	started := time.Now()
 	instanceListener, primary := acquireSingleInstance(!startInTray)
