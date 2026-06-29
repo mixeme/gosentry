@@ -2,7 +2,7 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## Unreleased
+## 0.11.4 - 2026-06-30
 
 **Statistics:**
 - `StartOnly` jobs now record launch latency (time to spawn the process) as the
