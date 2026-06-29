@@ -43,8 +43,8 @@ func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
 	history, refreshHistory := newHistoryView(&events)
 	recordStartup := func(duration time.Duration, windowShown bool) {
 		// Startup is recorded as an in-memory History event instead of being
-		// persisted into jobs.yaml. It is session diagnostics, not durable job
-		// state, and keeping it ephemeral avoids polluting the human-editable YAML
+		// persisted into jobs.json. It is session diagnostics, not durable job
+		// state, and keeping it ephemeral avoids polluting the human-editable JSON
 		// file with process-lifetime bookkeeping.
 		detail := "Window shown in " + duration.Round(time.Millisecond).String()
 		if !windowShown {

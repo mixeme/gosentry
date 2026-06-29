@@ -9,7 +9,9 @@ import (
 // store.Paths.DesktopIcon so ApplyAutostart can reference it.
 func (s *Service) InstallDesktopIcon(appID string, iconBytes []byte) {
 	if iconPath, err := desktop.InstallDesktopIntegration(appID, s.store.Paths.ExecutablePath, iconBytes); err == nil {
+		s.mu.Lock()
 		s.store.Paths.DesktopIcon = iconPath
+		s.mu.Unlock()
 	}
 }
 

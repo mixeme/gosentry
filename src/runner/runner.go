@@ -15,7 +15,7 @@ import (
 const commandTimeout = 30 * time.Second
 const commandWaitDelay = 2 * time.Second
 
-func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string) domain.RunRecord {
+func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string) (domain.RunRecord, error) {
 	started := time.Now()
 	// Commands can hang forever if a script waits for input or a child process
 	// stalls. A fixed timeout is a conservative first guardrail for a desktop
@@ -54,7 +54,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 
 	now := time.Now()
 	timestamp := now.Format("2006-01-02 15:04:05")
-	logFile := writeRunLog(logsDir, *job, trigger, state, detail, output, durationMS, now)
+	logFile, logErr := writeRunLog(logsDir, *job, trigger, state, detail, output, durationMS, now)
 
 	// The runner is now pure with respect to the job: it returns a RunRecord and
 	// lets the caller fold that record into the job's JobRuntime. Run state no
@@ -69,7 +69,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 		LogFile:    logFile,
 		Output:     output,
 		DurationMS: durationMS,
-	}
+	}, logErr
 }
 
 func startJobOnly(invocation commandInvocation, job domain.Job, started time.Time) (string, string, string) {

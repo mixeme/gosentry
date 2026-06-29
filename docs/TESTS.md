@@ -170,15 +170,13 @@ Tests display-formatting helpers used by the UI.
 
 **Package:** `storage`
 
-Tests JSON round-tripping, YAML migration import, and default generation.
+Tests JSON round-tripping and default generation.
 
 | Test | Purpose |
 |------|---------|
 | `TestJobsRoundTrip` | Verifies that jobs saved to JSON are reloaded with identical field values. |
 | `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
 | `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
-| `TestLoadOrCreateConfigMigratesFromLegacy` | Verifies that when `gosentry.json` is absent but `gosentry.yaml` exists the config is imported from the legacy YAML file on first load. |
-| `TestLoadOrCreateJobsMigratesFromLegacy` | Verifies that when `jobs.json` is absent but `jobs.yaml` exists the jobs are imported from the legacy YAML file on first load. |
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
 | `TestJobsJSONDoesNotPersistRuntimeNoise` | Verifies that `jobs.json` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
 

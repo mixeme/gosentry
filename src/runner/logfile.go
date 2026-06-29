@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,12 +12,12 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 )
 
-func writeRunLog(logsDir string, job domain.Job, trigger string, state string, detail string, output string, durationMS int64, started time.Time) string {
+func writeRunLog(logsDir string, job domain.Job, trigger string, state string, detail string, output string, durationMS int64, started time.Time) (string, error) {
 	if strings.TrimSpace(logsDir) == "" {
-		return ""
+		return "", errors.New("logs directory is empty")
 	}
 	if err := os.MkdirAll(logsDir, 0o755); err != nil {
-		return ""
+		return "", fmt.Errorf("create logs directory: %w", err)
 	}
 	// The timestamp comes first so a plain directory listing is naturally sorted
 	// by run time. The job name is included for human scanning, but sanitized to
@@ -26,9 +27,9 @@ func writeRunLog(logsDir string, job domain.Job, trigger string, state string, d
 	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\nduration: %d\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
 		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, durationMS, job.Command, logArguments(job.Arguments), job.StartOnly, output)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return ""
+		return "", fmt.Errorf("write log file: %w", err)
 	}
-	return path
+	return path, nil
 }
 
 func sanitizeFileName(name string) string {

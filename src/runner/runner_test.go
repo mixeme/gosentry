@@ -27,7 +27,10 @@ func TestRunJobLogFileAllHeaders(t *testing.T) {
 		Command: echoCommand("header test output"),
 	}
 
-	record := RunJob(context.Background(), &job, "Schedule", logsDir)
+	record, err := RunJob(context.Background(), &job, "Schedule", logsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.LogFile == "" {
 		t.Fatal("expected log file to be written")
 	}
@@ -74,7 +77,10 @@ func TestRunJobRecordFields(t *testing.T) {
 		Command: echoCommand("record field check"),
 	}
 
-	record := RunJob(context.Background(), &job, "Schedule", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Schedule", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if record.JobID != job.ID {
 		t.Errorf("JobID: got %d, want %d", record.JobID, job.ID)
@@ -158,7 +164,10 @@ func TestRunJobWritesLogFile(t *testing.T) {
 		Command: echoCommand("hello from test"),
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.LogFile == "" {
 		t.Fatal("expected log file path")
 	}
@@ -193,7 +202,10 @@ func TestRunJobRunsQuotedWindowsExecutable(t *testing.T) {
 		Command: `"C:\Windows\System32\cmd.exe" /C echo quoted command ok`,
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "OK" {
 		t.Fatalf("expected quoted command to run, got state %q detail %q output:\n%s", record.State, record.Detail, record.Output)
 	}
@@ -222,7 +234,10 @@ func TestRunJobRunsUnquotedWindowsProgramPathWithSpaces(t *testing.T) {
 		Command: scriptPath,
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "OK" {
 		t.Fatalf("expected unquoted command path to run, got state %q detail %q output:\n%s", record.State, record.Detail, record.Output)
 	}
@@ -244,7 +259,10 @@ func TestRunJobRunsWindowsCommandWithSeparateArguments(t *testing.T) {
 		Arguments: "/C\necho separate arguments ok",
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "OK" {
 		t.Fatalf("expected separate arguments to run, got state %q detail %q output:\n%s", record.State, record.Detail, record.Output)
 	}
@@ -267,7 +285,10 @@ func TestRunJobFailsOnNonZeroExitCode(t *testing.T) {
 		job.Arguments = "/C\nexit /b 1"
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "Failed" {
 		t.Fatalf("expected non-zero exit code to fail, got state %q detail %q", record.State, record.Detail)
 	}
@@ -291,7 +312,10 @@ func TestRunJobStartOnlyDoesNotWaitForExitCode(t *testing.T) {
 		StartOnly: true,
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "OK" {
 		t.Fatalf("expected start-only job to be OK after launch, got state %q detail %q", record.State, record.Detail)
 	}
@@ -312,7 +336,10 @@ func TestRunJobStartOnlyReportsStartFailure(t *testing.T) {
 		StartOnly: true,
 	}
 
-	record := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if record.State != "Failed" {
 		t.Fatalf("expected missing start-only command to fail, got state %q detail %q", record.State, record.Detail)
 	}

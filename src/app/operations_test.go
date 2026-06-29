@@ -100,6 +100,9 @@ func TestCreateJobValidates(t *testing.T) {
 	if got := svc.Jobs(); len(got) != 0 {
 		t.Errorf("invalid job should not be stored, jobs = %+v", got)
 	}
+	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", OverlapPolicy: "invalid"}); err == nil {
+		t.Error("expected error for invalid overlap policy")
+	}
 }
 
 func TestUpdateJobKeepsRuntimeAndReflectsDisable(t *testing.T) {
@@ -247,11 +250,11 @@ func TestRunNowUsesRunnerAndRecords(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan domain.RunRecord, 1)
-	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) (domain.RunRecord, error) {
 		if trigger != "Manual" {
 			t.Errorf("trigger = %q, want Manual", trigger)
 		}
-		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success", Output: "ok"}
+		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success", Output: "ok"}, nil
 	}
 	svc.Subscribe(ObserverFunc(func(e Event) {
 		if rr, ok := e.(RunRecorded); ok && rr.Record.JobID == 1 {
@@ -295,11 +298,11 @@ func TestRunNowRefusedWhileAlreadyRunning(t *testing.T) {
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- struct{}{}
 		<-release
-		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := make(chan struct{}, 1)
 	svc.Subscribe(ObserverFunc(func(e Event) {
@@ -338,12 +341,12 @@ func TestRunNowRefusedWhileAlreadyRunning(t *testing.T) {
 func TestRunNowAllowedWhilePaused(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	done := make(chan struct{}, 1)
-	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		select {
 		case done <- struct{}{}:
 		default:
 		}
-		return domain.RunRecord{State: "Success"}
+		return domain.RunRecord{State: "Success"}, nil
 	}
 	if err := svc.SetGlobalPause(true); err != nil {
 		t.Fatalf("SetGlobalPause: %v", err)
@@ -363,11 +366,11 @@ func TestRunDueStartsDueJob(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan domain.RunRecord, 1)
-	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) (domain.RunRecord, error) {
 		if trigger != "Schedule" {
 			t.Errorf("trigger = %q, want Schedule", trigger)
 		}
-		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success", Output: "ok"}
+		return domain.RunRecord{Time: "2026-06-19 12:00:00", JobID: job.ID, JobName: job.Name, State: "Success", Output: "ok"}, nil
 	}
 	svc.Subscribe(ObserverFunc(func(e Event) {
 		if rr, ok := e.(RunRecorded); ok && rr.Record.JobID == 1 && rr.Record.State == "Success" {
@@ -394,9 +397,9 @@ func TestRunDueStartsDueJob(t *testing.T) {
 func TestRunDueSkipsJobNotYetDue(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	var ran int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
-		return domain.RunRecord{}
+		return domain.RunRecord{}, nil
 	}
 
 	// Next-due is ~1m out, so nothing is due "now".
@@ -415,9 +418,9 @@ func TestRunDueSkipsJobInRunningState(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	var calls int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
-		return domain.RunRecord{State: "Success"}
+		return domain.RunRecord{State: "Success"}, nil
 	}
 
 	// Force the job into "Running" with a past NextDue, simulating an in-flight
@@ -439,9 +442,9 @@ func TestRunDueSkipsJobInRunningState(t *testing.T) {
 func TestRunDueDoesNothingWhilePaused(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	var ran int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
-		return domain.RunRecord{}
+		return domain.RunRecord{}, nil
 	}
 	if err := svc.SetGlobalPause(true); err != nil {
 		t.Fatalf("SetGlobalPause: %v", err)
@@ -469,12 +472,12 @@ func TestStartDrivesRunDueOnTick(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan struct{}, 1)
-	svc.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		select {
 		case done <- struct{}{}:
 		default:
 		}
-		return domain.RunRecord{State: "Success"}
+		return domain.RunRecord{State: "Success"}, nil
 	}
 
 	clock := &appFakeClock{ticks: make(chan time.Time, 1), now: time.Now().Add(2 * time.Minute)}
@@ -593,13 +596,13 @@ func TestServiceRebuiltFromPausedStoreStartsPaused(t *testing.T) {
 
 	var ran int32
 	runStarted := make(chan struct{}, 1)
-	svc2.runJob = func(context.Context, *domain.Job, string, string) domain.RunRecord {
+	svc2.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
 		select {
 		case runStarted <- struct{}{}:
 		default:
 		}
-		return domain.RunRecord{}
+		return domain.RunRecord{}, nil
 	}
 
 	// RunDue must not start any job while paused: the scheduler stays paused after

@@ -29,7 +29,7 @@ func newEvent(jobID int, jobName string, state string, detail string) event {
 func collectActivity(jobs []job, runtimes map[int]*domain.JobRuntime) []event {
 	var events []event
 	for _, current := range jobs {
-		// At startup this is usually empty because jobs.yaml does not persist
+		// At startup this is usually empty because jobs.json does not persist
 		// runtime logs. The function still centralizes the merge for future
 		// history loading from log metadata.
 		if rt := runtimes[current.ID]; rt != nil {

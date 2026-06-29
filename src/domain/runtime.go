@@ -3,7 +3,7 @@ package domain
 import "time"
 
 // JobRuntime is the transient execution state for a Job. It is never written to
-// jobs.yaml: it is rebuilt from scratch each time GoSentry starts and is held in
+// jobs.json: it is rebuilt from scratch each time GoSentry starts and is held in
 // memory keyed by Job.ID for the lifetime of the process. Keeping it separate
 // from Job is what lets the durable configuration file stay free of run records,
 // status strings, and scheduling bookkeeping.
@@ -20,7 +20,8 @@ type JobRuntime struct {
 	NextDue time.Time
 
 	// Pending is set when a run was skipped due to the overlap policy being
-	// "queue". The scheduler will start this job as soon as the current run ends.
+	// "queue". At most one deferred run is remembered; executeRun starts it when
+	// the current run ends.
 	Pending bool
 
 	// Execution-time statistics accumulated since the last process start.

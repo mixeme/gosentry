@@ -51,7 +51,7 @@ type Service struct {
 	// processes. ctx is the lifecycle context passed to runs; Start replaces it
 	// with a cancelable context so Stop can abort in-flight runs, and until Start
 	// it is context.Background().
-	runJob func(ctx context.Context, job *domain.Job, trigger string, logsDir string) domain.RunRecord
+	runJob func(ctx context.Context, job *domain.Job, trigger string, logsDir string) (domain.RunRecord, error)
 	ctx    context.Context
 
 	// sched is the timing loop installed by Start; cancel tears down ctx on Stop.

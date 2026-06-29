@@ -42,11 +42,17 @@ func (s *Service) CreateJob(job domain.Job) (domain.Job, error) {
 	record := uiRecord(job.ID, job.Name, "Created", "Job was added")
 	prependLog(runtime, record)
 	err := s.store.SaveJobs(s.jobs)
+	if err != nil {
+		s.jobs = s.jobs[:len(s.jobs)-1]
+		delete(s.runtimes, job.ID)
+		delete(s.schedules, job.ID)
+		s.mu.Unlock()
+		return domain.Job{}, err
+	}
 	s.mu.Unlock()
-
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: job.ID})
-	return job, err
+	return job, nil
 }
 
 // UpdateJob replaces the durable configuration of the job with the same ID,
@@ -82,9 +88,12 @@ func (s *Service) UpdateJob(job domain.Job) error {
 	err := s.store.SaveJobs(s.jobs)
 	s.mu.Unlock()
 
+	if err != nil {
+		return err
+	}
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: job.ID})
-	return err
+	return nil
 }
 
 // DeleteJob removes the job with the given ID along with its runtime and cached
@@ -105,9 +114,12 @@ func (s *Service) DeleteJob(id int) error {
 	err := s.store.SaveJobs(s.jobs)
 	s.mu.Unlock()
 
+	if err != nil {
+		return err
+	}
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: 0})
-	return err
+	return nil
 }
 
 // SetEnabled enables or disables a single job. Enabling moves it back to "Ready"
@@ -140,15 +152,19 @@ func (s *Service) SetEnabled(id int, enabled bool) error {
 	err := s.store.SaveJobs(s.jobs)
 	s.mu.Unlock()
 
+	if err != nil {
+		return err
+	}
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: id})
-	return err
+	return nil
 }
 
-// SetGlobalPause flips the global pause that gates all execution, scheduled and
-// manual. Each enabled job's next-run text reflects the new state immediately so
-// the list view is understandable before the next tick. A "Paused"/"Resumed"
-// scheduler activity record and a SchedulerStateChanged event are emitted.
+// SetGlobalPause flips the global pause that gates scheduled execution.
+// Manual "Run now" remains available while paused. Each enabled job's next-run
+// text reflects the new state immediately so the list view is understandable
+// before the next tick. A "Paused"/"Resumed" scheduler activity record and a
+// SchedulerStateChanged event are emitted.
 func (s *Service) SetGlobalPause(paused bool) error {
 	s.mu.Lock()
 	s.paused = paused
@@ -165,13 +181,16 @@ func (s *Service) SetGlobalPause(paused bool) error {
 	}
 	s.mu.Unlock()
 
+	if err != nil {
+		return err
+	}
 	state, detail := "Resumed", "All job execution resumed"
 	if paused {
 		state, detail = "Paused", "All job execution paused"
 	}
 	s.emit(RunRecorded{Record: uiRecord(0, "Scheduler", state, detail)})
 	s.emit(SchedulerStateChanged{Paused: paused})
-	return err
+	return nil
 }
 
 // ShouldNotifyOnFailure reports whether the user has enabled desktop
@@ -343,6 +362,10 @@ func normalizeJob(job *domain.Job) {
 func validateJob(job domain.Job) error {
 	if job.Name == "" || job.Schedule == "" || job.Command == "" {
 		return errors.New("name, schedule, and command are required")
+	}
+	policy := strings.TrimSpace(job.OverlapPolicy)
+	if policy != "" && policy != string(domain.OverlapPolicySkip) && policy != string(domain.OverlapPolicyQueue) {
+		return errors.New("overlap policy must be 'skip', 'queue', or empty")
 	}
 	return nil
 }

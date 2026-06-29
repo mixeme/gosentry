@@ -116,10 +116,10 @@ func TestRunDueParallelStartsAllDueJobs(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -157,10 +157,10 @@ func TestRunDueSequentialSerializes(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -194,11 +194,11 @@ func TestRunDueSkipDropsOverlap(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -240,11 +240,11 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -297,11 +297,11 @@ func TestRunDuePerJobQueueOverridesGlobalSkip(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -347,11 +347,11 @@ func TestRunDuePerJobSkipOverridesGlobalQueue(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -395,10 +395,10 @@ func TestRunDueEmptyOverlapInheritsGlobal(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 
@@ -437,10 +437,10 @@ func TestRunNowSequentialGuard(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) domain.RunRecord {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
 	}
 	done := completions(svc)
 

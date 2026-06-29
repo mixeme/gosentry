@@ -196,7 +196,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		// gap between them instead of merging into one block.
 		container.NewVBox(
 			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			settingsRow("Config YAML", widget.NewLabel(store.Paths.ConfigPath)),
+			settingsRow("Config JSON", widget.NewLabel(store.Paths.ConfigPath)),
 			settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
 			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
 			settingsRow("Max log files", maxLogFiles),

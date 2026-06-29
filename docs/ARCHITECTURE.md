@@ -81,8 +81,9 @@ flowchart LR
 
 4. Manual run:
    `Run now` in the UI calls `Service.RunNow`. The Service checks that the job
-   exists, is not already running, and that the scheduler is not globally paused,
-   then executes `runner.RunJob` with the `Manual` trigger.
+   exists, is not already running, and (in sequential mode) that no other job is
+   running, then executes `runner.RunJob` with the `Manual` trigger. Manual runs
+   are allowed even while the scheduler is globally paused.
 
 5. Command execution:
    `runner.RunJob` builds the platform-specific invocation, executes the
