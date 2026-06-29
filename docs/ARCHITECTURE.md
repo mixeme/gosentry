@@ -89,8 +89,9 @@ flowchart LR
    `runner.RunJob` builds the platform-specific invocation, executes the
    command through the platform shell, captures stdout and stderr, writes one
    timestamped `.log` file, and returns a `domain.RunRecord` containing
-   `DurationMS` (wall-clock milliseconds from start to finish; 0 for
-   `StartOnly` fire-and-forget jobs).
+   `DurationMS` (wall-clock milliseconds from start to finish; for `StartOnly`
+   fire-and-forget jobs it measures launch latency — the time to spawn the
+   process — since there is no exit to wait for).
 
 6. History update:
    When a run goroutine completes, `Service` updates the job's runtime
@@ -132,7 +133,7 @@ in flight increments `JobRuntime.PendingRuns`. When the current run finishes,
 |-------|---------|
 | `RunCount` | total runs recorded |
 | `FailCount` | runs that exited non-zero |
-| `LastDurationMS` | wall-clock time of the most recent run |
+| `LastDurationMS` | wall-clock time of the most recent run (launch latency for `StartOnly`) |
 | `AvgDurationMS` | mean over all runs with a recorded duration |
 | `MaxDurationMS` | longest recorded run |
 

@@ -30,9 +30,9 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	var durationMS int64
 	if job.StartOnly {
 		invocation := jobInvocation(ctx, *job)
-		state, detail, output = startJobOnly(invocation, *job, started)
-		// StartOnly jobs don't wait for process exit, so no meaningful duration.
-		durationMS = 0
+		// StartOnly jobs don't wait for process exit, so the duration measures
+		// launch latency (time to spawn the process) rather than run time.
+		state, detail, output, durationMS = startJobOnly(invocation, *job, started)
 	} else {
 		var stdoutBuf strings.Builder
 		var stderrBuf strings.Builder
@@ -72,21 +72,22 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	}, logErr
 }
 
-func startJobOnly(invocation commandInvocation, job domain.Job, started time.Time) (string, string, string) {
+func startJobOnly(invocation commandInvocation, job domain.Job, started time.Time) (string, string, string, int64) {
 	command := invocation.command
 	if invocation.hideWindow {
 		winproc.ConfigureHiddenWindow(command)
 	}
 	err := command.Start()
 	duration := time.Since(started).Round(time.Millisecond)
+	durationMS := duration.Milliseconds()
 	if err != nil {
-		return "Failed", fmt.Sprintf("%T: %v", err, err), startOnlyOutput(job, 0)
+		return "Failed", fmt.Sprintf("%T: %v", err, err), startOnlyOutput(job, 0), durationMS
 	}
 	pid := command.Process.Pid
 	if releaseErr := command.Process.Release(); releaseErr != nil {
-		return "Failed", fmt.Sprintf("process started with pid %d, but release failed: %T: %v", pid, releaseErr, releaseErr), startOnlyOutput(job, pid)
+		return "Failed", fmt.Sprintf("process started with pid %d, but release failed: %T: %v", pid, releaseErr, releaseErr), startOnlyOutput(job, pid), durationMS
 	}
-	return "OK", fmt.Sprintf("Started in %s (pid %d); not waiting for process exit", duration, pid), startOnlyOutput(job, pid)
+	return "OK", fmt.Sprintf("Started in %s (pid %d); not waiting for process exit", duration, pid), startOnlyOutput(job, pid), durationMS
 }
 
 func startOnlyOutput(job domain.Job, pid int) string {

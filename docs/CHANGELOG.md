@@ -2,6 +2,14 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## Unreleased
+
+**Statistics:**
+- `StartOnly` jobs now record launch latency (time to spawn the process) as the
+  run duration instead of a hard-coded `0`, so the Statistics line shows a real
+  last/avg/max for fire-and-forget jobs. Sub-millisecond launches still round to
+  0 and are excluded from the average, as before.
+
 ## 0.11.3 - 2026-06-29
 
 **Reliability fixes from an internal code review: safer runs, a real overlap

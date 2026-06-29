@@ -32,7 +32,9 @@ type JobRuntime struct {
 	AvgDurationMS  int64
 	MaxDurationMS  int64
 	// TimedRunCount is the number of runs that contributed to AvgDurationMS.
-	// StartOnly and legacy duration-less runs increment RunCount but not this.
+	// Runs with no recorded duration (legacy logs, or sub-millisecond StartOnly
+	// launches that round to 0) increment RunCount but not this. StartOnly runs
+	// otherwise contribute their launch latency.
 	TimedRunCount int
 }
 
