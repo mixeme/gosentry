@@ -2,6 +2,38 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.11.3 - 2026-06-29
+
+**Reliability fixes from an internal code review: safer runs, a real overlap
+queue, and more accurate statistics.**
+
+**Scheduler / runs:**
+- Fixed a data race where background runs could read log paths while settings
+  were being saved.
+- A run no longer starts if persisting the "Running" state fails; the job rolls
+  back to its previous status instead.
+- Under the `"queue"` overlap policy, every missed occurrence while a run is
+  still in flight is now remembered and executed afterward (not just the last one).
+- Manual and scheduled runs now advance next-due timing from the scheduler clock
+  consistently.
+
+**Application service:**
+- Create, update, delete, enable/disable, and global pause no longer announce
+  UI changes when the underlying JSON save fails.
+- Invalid per-job `overlap_policy` values are rejected at save time.
+- Log file write failures are reported in History instead of failing silently.
+
+**Statistics:**
+- Startup stat seeding matches log files by `job_id`, avoiding collisions when
+  different job names sanitize to the same filename.
+- Average run duration excludes zero-duration runs (such as StartOnly launches),
+  matching how stats are rebuilt from log files.
+
+**Documentation:**
+- Added `docs/CODE_REVIEW.md` with the full review summary.
+- Corrected stale YAML references and clarified that global pause stops only
+  scheduled runs while manual "Run now" remains available.
+
 ## 0.11.2 - 2026-06-25
 
 **Window state persistence, History sort fix, clearer scheduler toggle, and an
