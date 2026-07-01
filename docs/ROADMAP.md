@@ -5,6 +5,18 @@ Completed work is recorded in [CHANGELOG.md](CHANGELOG.md), not here.
 
 ## Open Items
 
+### Per-job command timeout
+
+`runner.RunJob` applies a fixed **30s** timeout to every command (`commandTimeout`
+in `src/runner/runner.go`). Long-running or interactive scripts need a longer
+limit; quick health checks may need a shorter one.
+
+Add an optional per-job timeout (seconds) on `domain.Job`, with a global default
+in `gosentry.json` for jobs that leave the field empty — the same inherit pattern
+as `overlap_policy`. Wire the value through `RunJob`; expose it in the job dialog
+and Settings; validate on save. `StartOnly` jobs should keep measuring launch
+latency only and remain unaffected by the run timeout.
+
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled
