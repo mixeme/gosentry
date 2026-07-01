@@ -31,7 +31,7 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 - [Changelog](docs/CHANGELOG.md)
 - [Roadmap](docs/ROADMAP.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [Future Work](docs/FUTURE_WORK.md) — quality standard, maturity checklist, open polish
+- [Standards](docs/STANDARDS.md) — quality rules and intentional behavior
 - [Development](docs/DEVELOPMENT.md) — build instructions, project layout, dependencies
 
 ## Storage

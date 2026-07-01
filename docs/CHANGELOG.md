@@ -2,6 +2,18 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.11.5 - 2026-07-01
+
+**Quality and documentation polish:**
+
+- Replaced the interim `docs/FUTURE_WORK.md` with `docs/STANDARDS.md` — a slim,
+  permanent reference for code-quality rules and intentional behavior.
+- `newMainView` now accepts an injected `*app.Service` for testability;
+  `RunNow` errors are shown in a dialog instead of failing silently.
+- Empty job lists no longer panic when building the Jobs tab.
+- Added regression and helper tests for overlap/pause scheduling, UI history
+  helpers, main-view smoke build, and Linux desktop integration.
+
 ## 0.11.4 - 2026-06-30
 
 **Statistics:**

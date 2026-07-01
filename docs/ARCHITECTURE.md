@@ -156,8 +156,7 @@ counted but the timing is skipped.
 `JobRuntime.Logs` (per-run `RunRecord` entries shown in the History tab) is
 **session-only**: it is not written to `jobs.json` and is not rebuilt from
 `.log` files on startup. Log files on disk feed aggregate counters via
-`SeedStats` only. See [FUTURE_WORK.md](FUTURE_WORK.md) for the intentional
-trade-off.
+`SeedStats` only. See [STANDARDS.md](STANDARDS.md).
 
 ### Persisted global pause
 

@@ -412,5 +412,5 @@ Smoke test for main view construction with an injected `*app.Service`.
 ## Remaining Test Coverage Gaps
 
 - Full GUI E2E — tab navigation, dialog flows, and native file pickers are not exercised end-to-end
-- History is session-only by design — `.log` files seed aggregate stats only, not the History table (see [FUTURE_WORK.md](FUTURE_WORK.md))
+- History is session-only by design — `.log` files seed aggregate stats only, not the History table (see [STANDARDS.md](STANDARDS.md))
 - `layout.go` custom layouts — optional Fyne `test.NewApp()` coverage when CGO is available in CI
