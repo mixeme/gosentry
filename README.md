@@ -209,3 +209,8 @@ dist\windows\
 
 Mesa's software OpenGL implementation lets the Fyne window start even when the
 VirtualBox/RDP driver does not provide usable OpenGL.
+
+## Development assistance
+
+Parts of this project were developed with assistance from [Cursor](https://cursor.com/) AI (Composer agent)
+and [Claude Code](https://claude.com/claude-code).
