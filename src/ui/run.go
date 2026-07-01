@@ -9,6 +9,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	fyneapp "fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 const appID = "ru.mixeme.gosentry.desktop"
@@ -52,7 +54,13 @@ func Run(startInTray bool) {
 	winW := float32(prefs.FloatWithFallback("window.width", 1024))
 	winH := float32(prefs.FloatWithFallback("window.height", 660))
 	w.Resize(fyne.NewSize(winW, winH))
-	content, recordStartup := newMainView(w)
+	svc, err := app.Open()
+	if err != nil {
+		w.SetContent(container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error())))
+		a.Run()
+		return
+	}
+	content, recordStartup := newMainView(w, svc)
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)
 	if startInTray {

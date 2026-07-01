@@ -10,7 +10,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // The UI package aliases domain types to keep widget callbacks short. The actual
@@ -19,11 +18,7 @@ import (
 type job = domain.Job
 type event = domain.RunRecord
 
-func newMainView(w fyne.Window) (fyne.CanvasObject, func(time.Duration, bool)) {
-	svc, err := app.Open()
-	if err != nil {
-		return container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error())), func(time.Duration, bool) {}
-	}
+func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.Duration, bool)) {
 	svc.InstallDesktopIcon(appID, assets.IconBytes())
 
 	// Build the initial event history from the current runtime state. Jobs and

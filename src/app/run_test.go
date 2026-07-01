@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -531,4 +532,87 @@ func TestRunNowSequentialGuard(t *testing.T) {
 		t.Fatalf("second manual run job = %d, want 2", id)
 	}
 	waitRecord(t, done)
+}
+
+// TestStartRunLockedRollbackOnSaveFailure is a regression test for CODE_REVIEW
+// finding #2: a run must not start when persisting the Running state fails.
+func TestStartRunLockedRollbackOnSaveFailure(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true}})
+	if err := svc.store.SaveJobs(svc.jobs); err != nil {
+		t.Fatalf("seed jobs.json: %v", err)
+	}
+	if err := os.Chmod(svc.store.Paths.JobsPath, 0o444); err != nil {
+		t.Fatalf("chmod jobs.json: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(svc.store.Paths.JobsPath, 0o644) })
+
+	var started int32
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+		atomic.AddInt32(&started, 1)
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "OK"}, nil
+	}
+
+	if err := svc.RunNow(1); err == nil {
+		t.Fatal("expected RunNow to fail when jobs.json is not writable")
+	}
+	if atomic.LoadInt32(&started) != 0 {
+		t.Error("run goroutine must not start when SaveJobs fails")
+	}
+	if rt := svc.Runtime(1); rt == nil || rt.LastState == "Running" {
+		t.Errorf("runtime should roll back from Running, got %+v", rt)
+	}
+}
+
+// TestRunDueQueueDrainSkippedWhenPaused verifies that queued overlap runs are not
+// drained while the scheduler is globally paused.
+func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
+	})
+
+	entered := make(chan int, 2)
+	release := make(chan struct{})
+	var calls int32
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+		atomic.AddInt32(&calls, 1)
+		entered <- job.ID
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "OK"}, nil
+	}
+	done := completions(svc)
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	if id := <-entered; id != 1 {
+		t.Fatalf("started job = %d, want 1", id)
+	}
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+	expectNoEntry(t, entered)
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != 1 {
+		t.Fatalf("expected one queued overlap, PendingRuns = %d", pending)
+	}
+
+	if err := svc.SetGlobalPause(true); err != nil {
+		t.Fatalf("SetGlobalPause: %v", err)
+	}
+
+	close(release)
+	waitRecord(t, done)
+	expectNoEntry(t, entered)
+
+	svc.mu.Lock()
+	pending = svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != 1 {
+		t.Errorf("paused scheduler must not drain queue, PendingRuns = %d, want 1", pending)
+	}
+	if got := atomic.LoadInt32(&calls); got != 1 {
+		t.Errorf("runner called %d time(s), want 1", got)
+	}
 }

@@ -117,7 +117,7 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | `TestRunNowUsesRunnerAndRecords` | Verifies that `RunNow` invokes the runner, records a `RunRecord`, and emits `RunRecorded`. |
 | `TestRunNowNotFound` | Verifies that `RunNow` returns an error for an unknown job ID. |
 | `TestRunNowRefusedWhileAlreadyRunning` | Verifies that a second concurrent `RunNow` on the same job is rejected while the first is in progress. |
-| `TestRunNowRefusedWhilePaused` | Verifies that `RunNow` is rejected when the global pause flag is set. |
+| `TestRunNowAllowedWhilePaused` | Verifies that `RunNow` is allowed when the global pause flag is set (pause stops scheduled runs only). |
 | `TestRunDueStartsDueJob` | Verifies that `RunDue` launches a job whose next-run time has passed. |
 | `TestRunDueSkipsJobNotYetDue` | Verifies that `RunDue` does not launch a job that is not yet due. |
 | `TestRunDueSkipsJobInRunningState` | Verifies that `RunDue` does not start a second concurrent run for an already-running job. |
@@ -131,6 +131,30 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | `TestUpdateSettingsPersistsAndValidates` | Verifies that `UpdateSettings` persists a valid config and rewrites autostart if needed. |
 | `TestUpdateSettingsRejectsInvalidConfigs` | Verifies that `UpdateSettings` returns validation errors without persisting. |
 | `TestPrependLogCapsActivityList` | Verifies that the activity log never grows beyond its maximum cap. |
+
+---
+
+### src/app/run_test.go
+
+**Package:** `app`
+
+Tests overlap policy, sequential execution, run statistics, and scheduler edge cases using injected `runJob` and `primeDue`.
+
+| Test | Purpose |
+|------|---------|
+| `TestUpdateStats` | Verifies aggregate duration math on `JobRuntime`. |
+| `TestUpdateStatsSkipsZeroDuration` | Verifies zero-duration runs are excluded from averages. |
+| `TestRunDueParallelStartsAllDueJobs` | Parallel mode: both due jobs enter the runner before either completes. |
+| `TestRunDueSequentialSerializes` | Sequential mode: job 2 waits until job 1 finishes. |
+| `TestRunDueSkipDropsOverlap` | Global skip: no second concurrent run, `PendingRuns` stays 0. |
+| `TestRunDueQueueRerunsAfterFinish` | Queue: one deferred run after an in-flight finish. |
+| `TestRunDueQueueDrainsMultipleOverlaps` | Queue: multiple missed ticks drain as separate runs. |
+| `TestRunDuePerJobQueueOverridesGlobalSkip` | Per-job `queue` beats global `skip`. |
+| `TestRunDuePerJobSkipOverridesGlobalQueue` | Per-job `skip` beats global `queue`. |
+| `TestRunDueEmptyOverlapInheritsGlobal` | Empty per-job policy inherits the global default. |
+| `TestRunNowSequentialGuard` | Manual run refused while another job runs in sequential mode. |
+| `TestStartRunLockedRollbackOnSaveFailure` | Regression: run does not start when `SaveJobs` fails. |
+| `TestRunDueQueueDrainSkippedWhenPaused` | Queued overlaps are not drained while the scheduler is paused. |
 
 ---
 
@@ -162,7 +186,9 @@ Tests display-formatting helpers used by the UI.
 | `TestDisplayArguments` | Verifies that an empty arguments string shows "None". |
 | `TestDisplayRunMode` | Verifies run-mode labels for normal and start-only modes. |
 | `TestDisplayInvocation` | Verifies that the full invocation display string combines command and arguments with spacing. |
-| `TestDisplayIndex` | Verifies that the display index is one-based (job slice index + 1). |
+| `TestDisplayIndex` | Verifies the list position of a job index in a filtered index slice. |
+| `TestDisplayStats` | Verifies statistics line formatting for the details panel. |
+| `TestDisplayOverlapPolicy` | Verifies per-job vs inherited global overlap policy labels. |
 
 ---
 
@@ -302,6 +328,20 @@ Tests Linux autostart via XDG Desktop Entry files.
 
 ---
 
+### src/platform/desktop/desktop_linux_test.go
+
+**Location:** `src/platform/desktop/desktop_linux_test.go`
+**Build Tags:** `//go:build linux`
+
+Tests Linux desktop integration (`.desktop` file and icon under XDG data home).
+
+| Test | Purpose |
+|------|---------|
+| `TestInstallDesktopIntegrationWritesDesktopAndIcon` | Verifies `.desktop` and PNG icon files are written under `$XDG_DATA_HOME`. |
+| `TestQuoteDesktopExecQuotesPath` | Verifies `Exec=` paths with spaces are shell-quoted. |
+
+---
+
 ### src/ui/jobs_view_test.go
 
 **Package:** `ui`
@@ -317,6 +357,37 @@ Tests pure helper functions in the jobs view (no Fyne widget construction).
 | `TestFilteredJobIndexesByNamedFolder` | Verifies that filtering by a named folder returns only jobs in that folder. |
 | `TestFilteredJobIndexesNoFolder` | Verifies that the "No folder" filter returns only jobs with an empty folder field. |
 | `TestFilteredJobIndexesEmptySlice` | Verifies that filtering an empty job slice returns an empty index list. |
+| `TestLastJobLogsCapsAndCopies` | Verifies activity panel cap and defensive copy semantics. |
+| `TestLastJobLogsEmpty` | Verifies nil/empty log input returns an empty slice. |
+| `TestIndexOfID` | Verifies job lookup by ID returns `-1` when not found. |
+
+---
+
+### src/ui/history_view_test.go
+
+**Package:** `ui`
+
+Tests pure History tab helpers (no Fyne widget construction).
+
+| Test | Purpose |
+|------|---------|
+| `TestCollectActivityMergesAndSorts` | Verifies per-job logs are merged and sorted by time. |
+| `TestCollectActivitySkipsMissingRuntimes` | Verifies missing runtime entries are skipped safely. |
+| `TestHistoryCellText` | Verifies table cell text for all columns; empty trigger → `Unknown`. |
+| `TestLogFileName` | Verifies log path basename extraction on Windows and Unix paths. |
+| `TestNewEventUsesConsistentTimestampShape` | Verifies UI events use the same timestamp layout as run records. |
+
+---
+
+### src/ui/mainwindow_test.go
+
+**Package:** `ui`
+
+Smoke test for main view construction with an injected `*app.Service`.
+
+| Test | Purpose |
+|------|---------|
+| `TestMainViewBuilds` | Verifies `newMainView` assembles tabs without panic using `fyne.io/fyne/v2/test`. |
 
 ---
 
@@ -334,9 +405,12 @@ Tests pure helper functions in the jobs view (no Fyne widget construction).
 
 6. **Start-Only Mode** — Special handling for long-running processes that should be launched but not waited on, tested separately from normal execution flow.
 
+7. **Regression on serious fixes** — Any fix from an internal review with severity ≥ medium gets a targeted regression test (see `run_test.go` for examples).
+
 ---
 
 ## Remaining Test Coverage Gaps
 
-- GUI integration tests — Fyne widget interaction is not yet tested end-to-end
-- Job history on-disk retrieval — RunRecord file reading is not covered
+- Full GUI E2E — tab navigation, dialog flows, and native file pickers are not exercised end-to-end
+- History is session-only by design — `.log` files seed aggregate stats only, not the History table (see [FUTURE_WORK.md](FUTURE_WORK.md))
+- `layout.go` custom layouts — optional Fyne `test.NewApp()` coverage when CGO is available in CI

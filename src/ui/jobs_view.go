@@ -65,11 +65,19 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	}
 
 	selected := 0
+	if len(jobs) == 0 {
+		selected = -1
+	}
 	selectedFolder := allFolders
 	schedulerPaused := svc.Store().Config.Paused
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
-	dp := newDetailsPanel(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
+	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, svc.Store().Config.OverlapPolicy)
+	if selected >= 0 {
+		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
+	} else {
+		dp.clear()
+	}
 
 	updateDetails := func(index int) {
 		if index < 0 || index >= len(jobs) {
@@ -126,7 +134,9 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		}
 		updateDetails(filteredJobs[id])
 	}
-	list.Select(selected)
+	if len(filteredJobs) > 0 && selected >= 0 {
+		list.Select(app.DisplayIndex(filteredJobs, selected))
+	}
 
 	folderSelect = widget.NewSelect(folderOptions(jobs), func(value string) {
 		if value == "" {
@@ -193,9 +203,8 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		}
 		// A manual run is allowed even while the scheduler is paused: pause only
 		// stops automatic scheduled runs, not the user's explicit "Run now".
-		// RunNow still refuses an already-running job (it returns an error); the UI
-		// has always ignored that case silently, so the run simply does not start.
 		if err := svc.RunNow(jobs[selected].ID); err != nil {
+			dialog.ShowError(err, w)
 			return
 		}
 		list.Refresh()

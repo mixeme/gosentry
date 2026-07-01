@@ -151,3 +151,15 @@ func TestEventLine(t *testing.T) {
 		t.Errorf("EventLine blank trigger = %q, want %q", got, want)
 	}
 }
+
+func TestDisplayOverlapPolicy(t *testing.T) {
+	global := domain.OverlapPolicyQueue
+	jobOwn := domain.Job{OverlapPolicy: string(domain.OverlapPolicySkip)}
+	if got, want := DisplayOverlapPolicy(jobOwn, global), "skip"; got != want {
+		t.Errorf("per-job policy = %q, want %q", got, want)
+	}
+	inherit := domain.Job{OverlapPolicy: ""}
+	if got, want := DisplayOverlapPolicy(inherit, global), "queue (global default)"; got != want {
+		t.Errorf("inherited policy = %q, want %q", got, want)
+	}
+}

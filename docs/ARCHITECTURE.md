@@ -97,6 +97,9 @@ flowchart LR
    When a run goroutine completes, `Service` updates the job's runtime
    (including the statistics aggregate), saves JSON, triggers log cleanup, and
    emits `RunRecorded`. The UI observer appends the record to the History tab.
+   History rows exist only for the current process session; restarting the app
+   clears the table (aggregate stats in the details panel are still seeded from
+   log files).
 
 7. Autostart:
    `UpdateSettings` in the Service calls `autostart.Manager.Set`. The Manager
@@ -149,6 +152,12 @@ the runtime map before the first scheduler tick, so the details panel shows
 accumulated run history immediately after a restart.
 Older log files that pre-date the `duration` header are tolerated: the run is
 counted but the timing is skipped.
+
+`JobRuntime.Logs` (per-run `RunRecord` entries shown in the History tab) is
+**session-only**: it is not written to `jobs.json` and is not rebuilt from
+`.log` files on startup. Log files on disk feed aggregate counters via
+`SeedStats` only. See [FUTURE_WORK.md](FUTURE_WORK.md) for the intentional
+trade-off.
 
 ### Persisted global pause
 
