@@ -1,0 +1,93 @@
+name: Release
+
+# Build the Linux (amd64/arm64) and Windows (amd64) binaries whenever a version
+# tag is pushed, then attach the packaged archives to a GitHub Release.
+#
+# Everything runs inside golang:1.22-bookworm — the same base image as the
+# repo Dockerfile — so the CGO/Fyne toolchain matches the local release builds.
+# The Windows binary is cross-compiled with MinGW-w64 from the same Linux job,
+# which is why no windows-latest runner is needed.
+on:
+  push:
+    tags:
+      - "v*"
+  # Allow a manual run (from the Actions tab) to smoke-test the build without a
+  # tag. Manual runs build the artifacts but do not publish a release.
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create the release and upload assets
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container:
+      image: golang:1.22-bookworm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cross toolchain
+        # Mirrors the package list in the repo Dockerfile: native gcc + X11/GL
+        # headers for amd64, the aarch64 cross compiler with arm64 runtime libs,
+        # and the MinGW-w64 toolchain for the Windows GUI binary. zip packages
+        # the Windows archive.
+        run: |
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            gcc \
+            libc6-dev \
+            gcc-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            linux-libc-dev-arm64-cross \
+            gcc-mingw-w64-x86-64 \
+            binutils-mingw-w64-x86-64 \
+            pkg-config \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libgl1-mesa-dev:arm64 \
+            libx11-dev:arm64 \
+            libxcursor-dev:arm64 \
+            libxrandr-dev:arm64 \
+            libxinerama-dev:arm64 \
+            libxi-dev:arm64 \
+            libxxf86vm-dev:arm64 \
+            zip
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Derive version
+        # For a tag push, use the tag without its leading "v" so the artifact
+        # names and the injected app version match the release. Otherwise fall
+        # back to the version in source (handled by the build script).
+        id: version
+        run: |
+          ref="${GITHUB_REF_NAME:-}"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            echo "value=${ref#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          chmod +x scripts/ci-build-release.sh
+          scripts/ci-build-release.sh
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gosentry-release
+          path: |
+            dist/linux/*.tar.gz
+            dist/windows/*.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/linux/*.tar.gz
+            dist/windows/*.zip
+          generate_release_notes: true

@@ -123,6 +123,43 @@ dist/linux/gosentry-0.9.0-linux-arm64
 dist/windows/gosentry-0.9.0-windows-amd64.exe
 ```
 
+### Automated release builds (CI)
+
+Tagged releases are built automatically on both GitHub and Codeberg:
+
+- `.github/workflows/release.yml` — GitHub Actions.
+- `.forgejo/workflows/release.yml` — Forgejo Actions (Codeberg).
+
+Both run inside `golang:1.22-bookworm` (the same base image as the
+[Dockerfile](../Dockerfile)), install the cross toolchain, and call
+`scripts/ci-build-release.sh`, which builds and packages all three artifacts:
+
+```text
+dist/linux/gosentry-<version>-linux-amd64.tar.gz
+dist/linux/gosentry-<version>-linux-arm64.tar.gz
+dist/windows/gosentry-<version>-windows-amd64.zip
+```
+
+The Windows binary is cross-compiled with MinGW-w64 from the Linux job, so no
+Windows runner is required. Each archive contains the executable plus `README.md`
+and `CHANGELOG.md`, matching the local `package-*` scripts.
+
+To cut a release, bump `src/app/version.go` and push a matching `v` tag:
+
+```bash
+git tag v0.11.5
+git push origin v0.11.5   # and to the Codeberg remote
+```
+
+The workflow strips the leading `v` from the tag and injects it as the version,
+so the tag must match `version.go`. Pushing the tag triggers the build and
+attaches the archives to a release on that forge. `workflow_dispatch` also allows
+a manual, publish-free build to smoke-test the pipeline.
+
+Codeberg publishing needs a repository secret named `RELEASE_TOKEN` (a Codeberg
+access token with the `write:repository` scope) under
+**Settings → Actions → Secrets**. GitHub uses the built-in `GITHUB_TOKEN`.
+
 ## Run From Source
 
 Windows:

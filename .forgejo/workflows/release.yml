@@ -1,0 +1,90 @@
+name: Release
+
+# Forgejo Actions workflow for Codeberg. It mirrors .github/workflows/release.yml
+# and reuses the same scripts/ci-build-release.sh, so the actual build/package
+# commands live in exactly one place. Codeberg has no Windows runners, but the
+# Windows binary is cross-compiled with MinGW-w64 from the Linux job, so a single
+# golang:1.22-bookworm container produces all three artifacts.
+#
+# Publishing needs a token that can write releases. Add a repository secret named
+# RELEASE_TOKEN (a Codeberg access token with the "write:repository" scope) under
+# Settings -> Actions -> Secrets. Without it the build still runs; only the
+# upload step is skipped.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: docker
+    container:
+      image: golang:1.22-bookworm
+    steps:
+      - name: Checkout
+        uses: https://code.forgejo.org/actions/checkout@v4
+
+      - name: Install cross toolchain
+        # Same package list as the repo Dockerfile / GitHub workflow: native gcc
+        # plus X11/GL headers, the aarch64 cross compiler with arm64 runtime
+        # libs, MinGW-w64 for the Windows GUI binary, and zip for packaging.
+        run: |
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            ca-certificates \
+            gcc \
+            libc6-dev \
+            gcc-aarch64-linux-gnu \
+            libc6-dev-arm64-cross \
+            linux-libc-dev-arm64-cross \
+            gcc-mingw-w64-x86-64 \
+            binutils-mingw-w64-x86-64 \
+            pkg-config \
+            libgl1-mesa-dev \
+            xorg-dev \
+            libgl1-mesa-dev:arm64 \
+            libx11-dev:arm64 \
+            libxcursor-dev:arm64 \
+            libxrandr-dev:arm64 \
+            libxinerama-dev:arm64 \
+            libxi-dev:arm64 \
+            libxxf86vm-dev:arm64 \
+            zip
+          rm -rf /var/lib/apt/lists/*
+
+      - name: Derive version
+        # On a tag push, strip the leading "v" so artifact names and the injected
+        # app version match the release tag.
+        id: version
+        run: |
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          chmod +x scripts/ci-build-release.sh
+          scripts/ci-build-release.sh
+
+      - name: Collect release files
+        # forgejo-release uploads every file in a single directory, so gather the
+        # archives into one flat folder.
+        run: |
+          mkdir -p dist/release
+          cp dist/linux/*.tar.gz dist/windows/*.zip dist/release/
+
+      - name: Publish release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: https://code.forgejo.org/actions/forgejo-release@v2
+        with:
+          direction: upload
+          url: https://codeberg.org
+          repo: ${{ github.repository }}
+          tag: ${{ github.ref_name }}
+          release-dir: dist/release
+          token: ${{ secrets.RELEASE_TOKEN }}
+          override: true
