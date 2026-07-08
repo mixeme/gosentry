@@ -27,16 +27,16 @@ src/
 ```mermaid
 flowchart LR
     user["Desktop user"]
-    ui["src/ui<br/>Fyne windows, tabs, dialogs"]
-    svc["src/app Service<br/>sole owner of job + runtime state"]
-    store["src/storage Store<br/>JSON config and jobs"]
-    sched["src/scheduler Scheduler<br/>pure timing loop"]
-    runner["src/runner<br/>shell command execution"]
-    autostart["src/platform/autostart Manager<br/>Windows shortcut / Linux XDG"]
-    config["gosentry.json<br/>application settings"]
-    jobs["jobs.json<br/>job definitions"]
-    logs["logs_dir<br/>per-run command output logs"]
-    shell["Platform shell<br/>cmd.exe /C or sh -c"]
+    ui["src/ui - Fyne windows, tabs, dialogs"]
+    svc["src/app Service - sole owner of job + runtime state"]
+    store["src/storage Store - JSON config and jobs"]
+    sched["src/scheduler Scheduler - pure timing loop"]
+    runner["src/runner - shell command execution"]
+    autostart["src/platform/autostart Manager - Windows shortcut / Linux XDG"]
+    config["gosentry.json - application settings"]
+    jobs["jobs.json - job definitions"]
+    logs["logs_dir - per-run command output logs"]
+    shell["Platform shell - cmd.exe /C or sh -c"]
 
     user -->|"edits jobs, settings, runs commands"| ui
     ui -->|"CreateJob, UpdateJob, DeleteJob, RunNow, UpdateSettings, …"| svc
