@@ -28,11 +28,13 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
 ## Documentation
 
-- [Changelog](docs/CHANGELOG.md)
-- [Roadmap](docs/ROADMAP.md)
-- [Architecture](docs/ARCHITECTURE.md)
+- [Changelog](docs/CHANGELOG.md) — record of notable changes by version
+- [Roadmap](docs/ROADMAP.md) — planned work larger than a single bug fix
+- [Architecture](docs/ARCHITECTURE.md) — component interaction model
 - [Standards](docs/STANDARDS.md) — quality rules and intentional behavior
 - [Development](docs/DEVELOPMENT.md) — build instructions, project layout, dependencies
+- [Tests](docs/TESTS.md) — test suite layout and how to run it
+- [Performance](docs/PERFORMANCE.md) — measured performance findings
 
 ## Storage
 
