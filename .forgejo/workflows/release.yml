@@ -26,6 +26,18 @@ jobs:
     container:
       image: golang:1.22-bookworm
     steps:
+      - name: Provide Node.js for JS actions
+        # golang:1.22-bookworm ships no Node, and Codeberg's runner does not
+        # inject one, so JS actions (checkout, forgejo-release) fail with
+        # "node: not found". A run step executes through the container shell and
+        # needs no Node itself, so it can install Node before those actions run.
+        # (If a "node version" error ever appears, swap Debian's nodejs 18 for a
+        # NodeSource node 20 install.)
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends nodejs
+          command -v node || ln -s "$(command -v nodejs)" /usr/local/bin/node
+
       - name: Checkout
         uses: https://code.forgejo.org/actions/checkout@v4
 
