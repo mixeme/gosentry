@@ -18,7 +18,11 @@ on:
 
 jobs:
   release:
-    runs-on: docker
+    # Codeberg's hosted runners are tagged codeberg-tiny/small/medium (+ -lazy);
+    # there is no "docker" tag. The non-lazy runners cap at 2/5/10 min, which the
+    # three CGO cross-compiles blow past, so use the medium *-lazy* runner, which
+    # relaxes the wall-clock limit (it aims to finish within 24h).
+    runs-on: codeberg-medium-lazy
     container:
       image: golang:1.22-bookworm
     steps:
