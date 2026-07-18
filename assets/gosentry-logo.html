@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoSentry — логотип v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --petrol:#0A4A58; --petrol-900:#04262E; --amber:#F7A80C;
+    --ink:#04252C; --paper:#F1F5F5; --line-l:rgba(4,37,44,.12);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Inter",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 26px}
+  header{background:radial-gradient(120% 140% at 80% 0%,var(--petrol),var(--petrol-900));color:#fff;padding:50px 0 40px}
+  header .eyebrow{font-family:"Space Grotesk";font-weight:600;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--amber);margin:0 0 12px}
+  header h1{font-family:"Space Grotesk";font-weight:700;font-size:clamp(24px,4vw,34px);margin:0 0 8px;letter-spacing:-.02em}
+  header p{margin:0;color:rgba(255,255,255,.72);max-width:62ch;font-size:15px}
+
+  section{border-bottom:1px solid var(--line-l);padding:40px 0}
+  .chead{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+  .num{font-family:"Space Grotesk";font-weight:700;color:var(--amber);font-size:14px}
+  .ctitle{font-family:"Space Grotesk";font-weight:700;font-size:19px;margin:0;letter-spacing:-.01em}
+  .cnote{font-size:14px;color:#4b666e;margin:0 0 22px;max-width:66ch}
+
+  /* wordmark engine */
+  .wm{font-weight:600;letter-spacing:-.03em;line-height:1;white-space:nowrap;display:inline-flex;align-items:baseline}
+  .wm .am{color:var(--amber)} .wm .pe{color:var(--petrol)}
+  .deep .wm .pe{color:#fff}
+  .dial{width:.68em;height:.68em;display:inline-block;transform:translateY(.02em);margin:0 .015em}
+  .f-space{font-family:"Space Grotesk"} .f-sora{font-family:"Sora"} .f-bric{font-family:"Bricolage Grotesque"}
+
+  .hero-stage{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .panel{border-radius:16px;min-height:170px;display:flex;align-items:center;justify-content:center;padding:30px;border:1px solid var(--line-l);position:relative}
+  .panel.light{background:#fff}
+  .panel.deep{background:var(--petrol-900);border-color:transparent}
+  .tag{position:absolute;top:12px;left:14px;font-family:"Space Grotesk";font-weight:600;font-size:10px;letter-spacing:.14em;color:rgba(4,37,44,.22);text-transform:uppercase}
+  .deep .tag{color:rgba(255,255,255,.3)}
+  .hero .wm{font-size:clamp(46px,11vw,82px)}
+
+  .row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .cell{background:#fff;border:1px solid var(--line-l);border-radius:14px;padding:26px 18px;text-align:center}
+  .cell .lbl{font-family:"Space Grotesk";font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#5E7580;margin:0 0 16px}
+  .cell .wm{font-size:38px}
+  .rec{display:inline-block;font-family:"Space Grotesk";font-weight:700;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);border-radius:5px;padding:2px 6px;margin-left:8px;vertical-align:1px}
+
+  .faces{display:grid;grid-template-columns:1fr;gap:12px}
+  .frow{background:#fff;border:1px solid var(--line-l);border-radius:14px;padding:20px 26px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+  .frow .fn{font-family:"Space Grotesk";font-weight:600;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#5E7580;min-width:150px}
+  .frow .wm{font-size:clamp(34px,7vw,50px)}
+
+  .foot{padding:30px 0 60px;color:#5E7580;font-family:"Space Grotesk";font-weight:500;font-size:12.5px}
+  :focus-visible{outline:3px solid var(--amber);outline-offset:3px}
+  @media (max-width:760px){.hero-stage{grid-template-columns:1fr}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="eyebrow">GoSentry / logotype · v3</p>
+    <h1>Two-tone + деталь: «o» как циферблат</h1>
+    <p>В слове уже есть готовый кружок — буква «o» в «Go». Делаем из неё маленький циферблат: тема расписания и «дозора» встроена прямо в надпись, а не приклеена сбоку иконкой.</p>
+  </div>
+</header>
+
+<!-- HERO: recommended -->
+<section class="hero"><div class="wrap">
+  <div class="chead"><span class="num">★</span><h3 class="ctitle">Рекомендую: Space Grotesk + стрелки</h3></div>
+  <p class="cnote">Янтарные «G» и циферблат-«o», петрол «Sentry». Циферблат со стрелками сразу читается как часы и держит характер даже мелко.</p>
+  <div class="hero-stage">
+    <div class="panel light"><span class="tag">light</span>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+    <div class="panel deep"><span class="tag">dark</span>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+  </div>
+</div></section>
+
+<!-- dial intensity -->
+<section><div class="wrap">
+  <div class="chead"><span class="num">01</span><h3 class="ctitle">Насколько «часы» показывать</h3></div>
+  <p class="cnote">Три уровня детали в «o». Слева — обычная буква (деталь почти незаметна), в центре — одна засечка на 12 (тонкий намёк на дозор/время), справа — полноценные стрелки.</p>
+  <div class="row">
+    <div class="cell"><p class="lbl">plain — просто «o»</p>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/></svg><span class="pe">Sentry</span></span>
+    </div>
+    <div class="cell"><p class="lbl">tick — засечка на 12</p>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 19 L50 32" stroke="#F7A80C" stroke-width="11" stroke-linecap="round"/><circle cx="50" cy="50" r="5" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+    <div class="cell"><p class="lbl">hands — стрелки <span class="rec">рек.</span></p>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+  </div>
+</div></section>
+
+<!-- face choice in context -->
+<section><div class="wrap">
+  <div class="chead"><span class="num">02</span><h3 class="ctitle">Шрифт — теперь разница видна</h3></div>
+  <p class="cnote">Одна и та же деталь, три гарнитуры крупно. Смотри на «G», «S», «t», «y» — там весь характер. Space Grotesk — техничный и приметный; Sora — гладкий, нейтральный; Bricolage — самый выразительный, «человечный».</p>
+  <div class="faces">
+    <div class="frow"><span class="fn">Space Grotesk ★</span>
+      <span class="wm f-space"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+    <div class="frow"><span class="fn">Sora</span>
+      <span class="wm f-sora"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+    <div class="frow"><span class="fn">Bricolage</span>
+      <span class="wm f-bric"><span class="am">G</span><svg class="dial" viewBox="0 0 100 100"><circle cx="50" cy="50" r="36" fill="none" stroke="#F7A80C" stroke-width="13"/><path d="M50 50 L50 28" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><path d="M50 50 L67 58" stroke="#F7A80C" stroke-width="9" stroke-linecap="round"/><circle cx="50" cy="50" r="6" fill="#F7A80C"/></svg><span class="pe">Sentry</span></span>
+    </div>
+  </div>
+</div></section>
+
+<div class="foot"><div class="wrap">Выбери уровень детали (plain / tick / hands) + шрифт — переведу «o»-циферблат и весь логотип в кривые и отдам чистый SVG (light/dark) + PNG.</div></div>
+</body>
+</html>
