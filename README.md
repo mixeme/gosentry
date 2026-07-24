@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo/gosentry-logo-dark.svg">
+    <img src="assets/logo/gosentry-logo.svg" alt="GoSentry" width="420">
+  </picture>
+</p>
+
 # GoSentry
 
 GoSentry is a cross-platform desktop scheduler. It provides a native GUI for
