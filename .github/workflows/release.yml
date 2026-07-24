@@ -1,18 +1,17 @@
 name: Release
 
-# Build the Linux (amd64/arm64) and Windows (amd64) binaries whenever a version
-# tag is pushed, then attach the packaged archives to a GitHub Release.
+# Build the Linux (amd64/arm64) and Windows (amd64) binaries whenever a GitHub
+# Release is published, then attach the packaged archives to that release.
 #
 # Everything runs inside golang:1.22-bookworm — the same base image as the
 # repo Dockerfile — so the CGO/Fyne toolchain matches the local release builds.
 # The Windows binary is cross-compiled with MinGW-w64 from the same Linux job,
 # which is why no windows-latest runner is needed.
 on:
-  push:
-    tags:
-      - "v*"
-  # Allow a manual run (from the Actions tab) to smoke-test the build without a
-  # tag. Manual runs build the artifacts but do not publish a release.
+  release:
+    types: [published]
+  # Allow a manual run (from the Actions tab) to smoke-test the build without
+  # publishing a release. Manual runs build the artifacts but upload nothing.
   workflow_dispatch:
 
 permissions:
@@ -58,9 +57,11 @@ jobs:
           rm -rf /var/lib/apt/lists/*
 
       - name: Derive version
-        # For a tag push, use the tag without its leading "v" so the artifact
-        # names and the injected app version match the release. Otherwise fall
-        # back to the version in source (handled by the build script).
+        # For a release, use the tag without its leading "v" so the artifact
+        # names and the injected app version match the release (the release
+        # event still sets GITHUB_REF_TYPE=tag / GITHUB_REF_NAME=<tag>).
+        # Otherwise fall back to the version in source (handled by the build
+        # script).
         id: version
         run: |
           ref="${GITHUB_REF_NAME:-}"
@@ -83,11 +84,13 @@ jobs:
             dist/linux/*.tar.gz
             dist/windows/*.zip
 
-      - name: Publish release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Attach assets to release
+        # Only runs for the release event; the release already exists, so this
+        # just uploads the built archives to it. Skipped on workflow_dispatch.
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.release.tag_name }}
           files: |
             dist/linux/*.tar.gz
             dist/windows/*.zip
-          generate_release_notes: true

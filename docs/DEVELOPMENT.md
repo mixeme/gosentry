@@ -144,17 +144,20 @@ The Windows binary is cross-compiled with MinGW-w64 from the Linux job, so no
 Windows runner is required. Each archive contains the executable plus `README.md`
 and `CHANGELOG.md`, matching the local `package-*` scripts.
 
-To cut a release, bump `src/app/version.go` and push a matching `v` tag:
+To cut a release, bump `src/app/version.go`, then create and publish a release
+with a matching `v` tag on the forge (GitHub Releases / Codeberg releases). You
+can do that from the web UI or the CLI, e.g.:
 
 ```bash
 git tag v0.11.5
 git push origin v0.11.5   # and to the Codeberg remote
+gh release create v0.11.5 --generate-notes   # GitHub; publishes the release
 ```
 
-The workflow strips the leading `v` from the tag and injects it as the version,
-so the tag must match `version.go`. Pushing the tag triggers the build and
-attaches the archives to a release on that forge. `workflow_dispatch` also allows
-a manual, publish-free build to smoke-test the pipeline.
+Publishing the release triggers the workflow: it strips the leading `v` from
+the tag and injects it as the version (so the tag must match `version.go`),
+builds the archives, and attaches them to that release. `workflow_dispatch`
+also allows a manual, upload-free build to smoke-test the pipeline.
 
 Codeberg publishing needs a repository secret named `RELEASE_TOKEN` (a Codeberg
 access token with the `write:repository` scope) under
