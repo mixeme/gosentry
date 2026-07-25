@@ -135,7 +135,7 @@ func TestRunDueParallelStartsAllDueJobs(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
 		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
@@ -176,7 +176,7 @@ func TestRunDueSequentialSerializes(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
 		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
@@ -213,7 +213,7 @@ func TestRunDueSkipDropsOverlap(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
@@ -259,7 +259,7 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
@@ -314,7 +314,7 @@ func TestRunDueQueueDrainsMultipleOverlaps(t *testing.T) {
 
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		if atomic.LoadInt32(&calls) == 0 {
 			<-release
 		}
@@ -366,7 +366,7 @@ func TestRunDuePerJobQueueOverridesGlobalSkip(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
@@ -416,7 +416,7 @@ func TestRunDuePerJobSkipOverridesGlobalQueue(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
@@ -464,7 +464,7 @@ func TestRunDueEmptyOverlapInheritsGlobal(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
 		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
@@ -506,7 +506,7 @@ func TestRunNowSequentialGuard(t *testing.T) {
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		entered <- job.ID
 		<-release
 		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
@@ -547,7 +547,7 @@ func TestStartRunLockedRollbackOnSaveFailure(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(svc.store.Paths.JobsPath, 0o644) })
 
 	var started int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&started, 1)
 		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "OK"}, nil
 	}
@@ -573,7 +573,7 @@ func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 	entered := make(chan int, 2)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- job.ID
 		<-release
@@ -614,5 +614,23 @@ func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Errorf("runner called %d time(s), want 1", got)
+	}
+}
+
+// TestEffectiveTimeout verifies the inherit-or-override resolution: a zero
+// Job.TimeoutSeconds falls back to the global default, while a positive value
+// overrides it.
+func TestEffectiveTimeout(t *testing.T) {
+	svc := newTempService(t, nil)
+	svc.store.Config.DefaultTimeoutSeconds = 30
+
+	inherit := &domain.Job{TimeoutSeconds: 0}
+	if got, want := svc.effectiveTimeout(inherit), 30*time.Second; got != want {
+		t.Errorf("inherited timeout = %s, want %s", got, want)
+	}
+
+	own := &domain.Job{TimeoutSeconds: 5}
+	if got, want := svc.effectiveTimeout(own), 5*time.Second; got != want {
+		t.Errorf("per-job timeout = %s, want %s", got, want)
 	}
 }

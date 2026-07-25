@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
@@ -53,6 +54,11 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 		overlapSelected = current.OverlapPolicy
 	}
 	overlapSelect.SetSelected(overlapSelected)
+	timeoutEntry := widget.NewEntry()
+	timeoutEntry.SetPlaceHolder("Empty = use global default")
+	if current.TimeoutSeconds > 0 {
+		timeoutEntry.SetText(strconv.Itoa(current.TimeoutSeconds))
+	}
 
 	form := dialog.NewForm(
 		title,
@@ -66,6 +72,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			widget.NewFormItem("Arguments", argumentsEntry),
 			widget.NewFormItem("", startOnly),
 			widget.NewFormItem("Overlap policy", overlapSelect),
+			widget.NewFormItem("Timeout (s)", timeoutEntry),
 			widget.NewFormItem("", enabled),
 		},
 		func(saved bool) {
@@ -82,6 +89,17 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 				dialog.ShowError(fmt.Errorf("invalid schedule: %w", err), w)
 				return
 			}
+			// An empty timeout inherits the global default (0); any entry must be a
+			// positive whole number of seconds.
+			timeoutSeconds := 0
+			if trimmed := strings.TrimSpace(timeoutEntry.Text); trimmed != "" {
+				parsed, err := strconv.Atoi(trimmed)
+				if err != nil || parsed <= 0 {
+					dialog.ShowError(fmt.Errorf("timeout must be a positive number of seconds, or empty to use the global default"), w)
+					return
+				}
+				timeoutSeconds = parsed
+			}
 			current.Name = strings.TrimSpace(name.Text)
 			current.Folder = strings.TrimSpace(folderEntry.Text)
 			current.Schedule = strings.TrimSpace(scheduleEntry.Text)
@@ -93,6 +111,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 			if current.OverlapPolicy == overlapPolicyInherit {
 				current.OverlapPolicy = ""
 			}
+			current.TimeoutSeconds = timeoutSeconds
 			// The dialog only edits durable configuration. Runtime status is
 			// initialized (new jobs) or updated (edits) by the caller against the
 			// runtime map, keyed by job ID.
@@ -100,6 +119,6 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 		},
 		w,
 	)
-	form.Resize(fyne.NewSize(640, 460))
+	form.Resize(fyne.NewSize(640, 500))
 	form.Show()
 }

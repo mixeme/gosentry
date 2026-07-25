@@ -168,6 +168,9 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.MaxLogAgeDays != 30 {
 		t.Errorf("default MaxLogAgeDays = %d, want 30", got.MaxLogAgeDays)
 	}
+	if got.DefaultTimeoutSeconds != 30 {
+		t.Errorf("default DefaultTimeoutSeconds = %d, want 30", got.DefaultTimeoutSeconds)
+	}
 	// The function must have written the defaults to gosentry.json.
 	if _, err := os.Stat(paths.ConfigPath); err != nil {
 		t.Errorf("gosentry.json should have been created: %v", err)

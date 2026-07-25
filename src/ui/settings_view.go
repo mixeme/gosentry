@@ -73,6 +73,9 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	)
 	overlapPolicySelect.SetSelected(string(store.Config.OverlapPolicy))
 	overlapPolicySelect.OnChanged = func(string) { updateSaveState() }
+	defaultTimeout := widget.NewEntry()
+	defaultTimeout.SetText(strconv.Itoa(store.Config.DefaultTimeoutSeconds))
+	defaultTimeout.OnChanged = func(string) { updateSaveState() }
 	jobsDir := widget.NewEntry()
 	jobsDir.SetText(store.Config.JobsDir)
 	jobsDir.OnChanged = func(string) { updateSaveState() }
@@ -116,6 +119,11 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsStatus.SetText("Logs directory is required")
 			return
 		}
+		timeout, err := strconv.Atoi(strings.TrimSpace(defaultTimeout.Text))
+		if err != nil || timeout <= 0 {
+			settingsStatus.SetText("Default timeout must be a positive number")
+			return
+		}
 		// Build the new config from the form and hand it to the Service, which
 		// validates it, persists config and jobs to the (possibly new) directory,
 		// and runs log cleanup so tightened retention limits take effect at once.
@@ -129,6 +137,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		config.NotifyOnFailure = notifications.Checked
 		config.ExecutionMode = domain.ExecutionMode(executionModeSelect.Selected)
 		config.OverlapPolicy = domain.OverlapPolicy(overlapPolicySelect.Selected)
+		config.DefaultTimeoutSeconds = timeout
 		if err := svc.UpdateSettings(config); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
@@ -155,6 +164,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			notifications.Checked != c.NotifyOnFailure ||
 			executionModeSelect.Selected != string(c.ExecutionMode) ||
 			overlapPolicySelect.Selected != string(c.OverlapPolicy) ||
+			strings.TrimSpace(defaultTimeout.Text) != strconv.Itoa(c.DefaultTimeoutSeconds) ||
 			strings.TrimSpace(jobsDir.Text) != c.JobsDir ||
 			strings.TrimSpace(logsDir.Text) != c.LogsDir ||
 			strings.TrimSpace(maxLogFiles.Text) != strconv.Itoa(c.MaxLogFiles) ||
@@ -188,6 +198,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
 			settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
+			settingsRow("Default timeout (s)", container.New(minWidthLayout{width: settingsControlWidth}, defaultTimeout)),
 		),
 	)
 	rightColumn := container.NewVBox(
@@ -293,4 +304,3 @@ func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
 	captionBox := container.New(minWidthLayout{width: settingsLabelWidth}, caption)
 	return container.NewBorder(nil, nil, captionBox, nil, value)
 }
-

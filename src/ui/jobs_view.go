@@ -72,9 +72,9 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	schedulerPaused := svc.Store().Config.Paused
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
-	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, svc.Store().Config.OverlapPolicy)
+	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
 	if selected >= 0 {
-		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
+		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
 	} else {
 		dp.clear()
 	}
@@ -87,7 +87,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			return
 		}
 		selected = index
-		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy)
+		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
 	}
 
 	// list and folderSelect are declared early so closures below can reference

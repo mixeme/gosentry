@@ -78,6 +78,8 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 		NotifyOnFailure:   true,
 		ExecutionMode:     domain.ExecutionModeParallel,
 		OverlapPolicy:     domain.OverlapPolicySkip,
+
+		DefaultTimeoutSeconds: 30,
 	}
 
 	if _, err := os.Stat(paths.ConfigPath); errors.Is(err, os.ErrNotExist) {
@@ -111,6 +113,9 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	}
 	if config.OverlapPolicy == "" {
 		config.OverlapPolicy = domain.OverlapPolicySkip
+	}
+	if config.DefaultTimeoutSeconds <= 0 {
+		config.DefaultTimeoutSeconds = 30
 	}
 	return config, nil
 }

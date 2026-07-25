@@ -12,16 +12,14 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/platform/winproc"
 )
 
-const commandTimeout = 30 * time.Second
 const commandWaitDelay = 2 * time.Second
 
-func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string) (domain.RunRecord, error) {
+func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string, timeout time.Duration) (domain.RunRecord, error) {
 	started := time.Now()
 	// Commands can hang forever if a script waits for input or a child process
-	// stalls. A fixed timeout is a conservative first guardrail for a desktop
-	// scheduler; later it can become a per-job setting without changing the
-	// runner contract.
-	runCtx, cancel := context.WithTimeout(ctx, commandTimeout)
+	// stalls. The effective timeout is resolved by the caller (per-job value or
+	// the global default), keeping the runner ignorant of the global config.
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	var output string
@@ -49,7 +47,7 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 		duration := time.Since(started).Round(time.Millisecond)
 		durationMS = duration.Milliseconds()
 		output = formatOutput(stdoutBuf.String(), stderrBuf.String())
-		state, detail = runStateDetail(err, runCtx.Err(), duration)
+		state, detail = runStateDetail(err, runCtx.Err(), duration, timeout)
 	}
 
 	now := time.Now()
@@ -106,12 +104,12 @@ func startOnlyOutput(job domain.Job, pid int) string {
 	return builder.String()
 }
 
-func runStateDetail(err error, runErr error, duration time.Duration) (string, string) {
+func runStateDetail(err error, runErr error, duration time.Duration, timeout time.Duration) (string, string) {
 	if err == nil {
 		return "OK", fmt.Sprintf("Completed in %s (exit code 0)", duration)
 	}
 	if errors.Is(runErr, context.DeadlineExceeded) {
-		return "Failed", fmt.Sprintf("Timed out after %s", commandTimeout)
+		return "Failed", fmt.Sprintf("Timed out after %s", timeout)
 	}
 	if errors.Is(err, exec.ErrWaitDelay) {
 		return "OK", fmt.Sprintf("Completed; output capture stopped after %s because a child process kept the stream open", commandWaitDelay)

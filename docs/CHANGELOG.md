@@ -2,6 +2,17 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.12.0 - 2026-07-25
+
+**Per-job command timeout:**
+- Each job may now set its own run timeout (seconds) in the job dialog; leaving
+  it empty inherits a new **Default timeout** in Settings (default 30s), the same
+  inherit pattern as the overlap policy. The details panel shows the effective
+  value, marking inherited jobs as `(global default)`.
+- The formerly hard-coded 30s guard in `runner.RunJob` is now the configurable
+  default. `StartOnly` fire-and-forget jobs remain unaffected by the run timeout,
+  continuing to measure launch latency only.
+
 ## 0.11.5 - 2026-07-01
 
 **Quality and documentation polish:**

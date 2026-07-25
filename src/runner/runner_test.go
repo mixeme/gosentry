@@ -27,7 +27,7 @@ func TestRunJobLogFileAllHeaders(t *testing.T) {
 		Command: echoCommand("header test output"),
 	}
 
-	record, err := RunJob(context.Background(), &job, "Schedule", logsDir)
+	record, err := RunJob(context.Background(), &job, "Schedule", logsDir, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestRunJobRecordFields(t *testing.T) {
 		Command: echoCommand("record field check"),
 	}
 
-	record, err := RunJob(context.Background(), &job, "Schedule", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Schedule", t.TempDir(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestRunJobWritesLogFile(t *testing.T) {
 		Command: echoCommand("hello from test"),
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func TestRunJobRunsQuotedWindowsExecutable(t *testing.T) {
 		Command: `"C:\Windows\System32\cmd.exe" /C echo quoted command ok`,
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,7 +234,7 @@ func TestRunJobRunsUnquotedWindowsProgramPathWithSpaces(t *testing.T) {
 		Command: scriptPath,
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +259,7 @@ func TestRunJobRunsWindowsCommandWithSeparateArguments(t *testing.T) {
 		Arguments: "/C\necho separate arguments ok",
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", logsDir)
+	record, err := RunJob(context.Background(), &job, "Manual", logsDir, 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +285,7 @@ func TestRunJobFailsOnNonZeroExitCode(t *testing.T) {
 		job.Arguments = "/C\nexit /b 1"
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -312,7 +312,7 @@ func TestRunJobStartOnlyDoesNotWaitForExitCode(t *testing.T) {
 		StartOnly: true,
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestRunJobStartOnlyReportsStartFailure(t *testing.T) {
 		StartOnly: true,
 	}
 
-	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir())
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), 30*time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -348,3 +348,59 @@ func TestRunJobStartOnlyReportsStartFailure(t *testing.T) {
 	}
 }
 
+func TestRunJobTimesOut(t *testing.T) {
+	command := "sh"
+	arguments := "-c\nsleep 5"
+	if runtime.GOOS == "windows" {
+		command = `C:\Windows\System32\cmd.exe`
+		// timeout waits ~5s; ping to localhost is a portable stall on hosts where
+		// timeout refuses to run without an interactive console.
+		arguments = "/C\nping -n 6 127.0.0.1 >NUL"
+	}
+	job := domain.Job{
+		ID:        50,
+		Name:      "Timeout Test",
+		Command:   command,
+		Arguments: arguments,
+	}
+
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), 100*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.State != "Failed" {
+		t.Fatalf("expected timed-out job to fail, got state %q detail %q", record.State, record.Detail)
+	}
+	if !strings.Contains(record.Detail, "Timed out after 100ms") {
+		t.Fatalf("expected timeout detail with the effective timeout, got %q", record.Detail)
+	}
+}
+
+func TestRunJobStartOnlyIgnoresTimeout(t *testing.T) {
+	command := "sh"
+	arguments := "-c\nsleep 5"
+	if runtime.GOOS == "windows" {
+		command = `C:\Windows\System32\cmd.exe`
+		arguments = "/C\nping -n 6 127.0.0.1 >NUL"
+	}
+	job := domain.Job{
+		ID:        51,
+		Name:      "Start Only Timeout",
+		Command:   command,
+		Arguments: arguments,
+		StartOnly: true,
+	}
+
+	// A tiny run timeout must not affect StartOnly jobs: they never wait on the
+	// timed run context, so the launch succeeds regardless.
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.State != "OK" {
+		t.Fatalf("expected start-only job to be OK despite tiny timeout, got state %q detail %q", record.State, record.Detail)
+	}
+	if !strings.Contains(record.Detail, "not waiting for process exit") {
+		t.Fatalf("expected start-only detail, got %q", record.Detail)
+	}
+}

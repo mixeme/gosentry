@@ -40,7 +40,10 @@ type Config struct {
 	NotifyOnFailure   bool          `json:"notify_on_failure,omitempty"`
 	ExecutionMode     ExecutionMode `json:"execution_mode,omitempty"`
 	OverlapPolicy     OverlapPolicy `json:"overlap_policy,omitempty"`
-	Paused            bool          `json:"paused,omitempty"`
+	// DefaultTimeoutSeconds is the run timeout applied to jobs that do not set
+	// their own Job.TimeoutSeconds. It carries the formerly hard-coded 30s guard.
+	DefaultTimeoutSeconds int  `json:"default_timeout_seconds,omitempty"`
+	Paused                bool `json:"paused,omitempty"`
 }
 
 // JobsFile is the on-disk shape of jobs.json. Wrapping the slice in a top-level

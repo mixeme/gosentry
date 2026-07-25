@@ -112,6 +112,7 @@ type runEnv struct {
 	logsDir  string
 	maxFiles int
 	maxAge   int
+	timeout  time.Duration
 }
 
 // startRunLocked transitions a job to "Running", advances its NextDue to the next
@@ -142,6 +143,7 @@ func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, tr
 		logsDir:  s.store.Paths.LogsDir,
 		maxFiles: s.store.Config.MaxLogFiles,
 		maxAge:   s.store.Config.MaxLogAgeDays,
+		timeout:  s.effectiveTimeout(job),
 	}
 	// Capture ctx under the lock so a concurrent Start/Stop cannot swap it out
 	// from under the goroutine after we release mu.
@@ -155,7 +157,7 @@ func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, tr
 // is not paused, deferred runs are started one at a time until PendingRuns reaches
 // zero. Each deferred run runs on its own goroutine.
 func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger string, env runEnv) {
-	record, logErr := s.runJob(ctx, &jobCopy, trigger, env.logsDir)
+	record, logErr := s.runJob(ctx, &jobCopy, trigger, env.logsDir, env.timeout)
 
 	s.mu.Lock()
 	var cleanupErr, saveErr error
@@ -206,6 +208,19 @@ func (s *Service) effectiveOverlapPolicy(job *domain.Job) domain.OverlapPolicy {
 		return policy
 	}
 	return s.store.Config.OverlapPolicy
+}
+
+// effectiveTimeout resolves the run timeout that actually governs a job: the
+// job's own TimeoutSeconds when positive, otherwise the global
+// Config.DefaultTimeoutSeconds. A non-positive Job.TimeoutSeconds means "inherit
+// the global default", which is why normalizeJob leaves 0 rather than
+// backfilling the configured value. The caller must hold mu.
+func (s *Service) effectiveTimeout(job *domain.Job) time.Duration {
+	secs := job.TimeoutSeconds
+	if secs <= 0 {
+		secs = s.store.Config.DefaultTimeoutSeconds
+	}
+	return time.Duration(secs) * time.Second
 }
 
 // anyRunningLocked reports whether any loaded job is currently in the "Running"

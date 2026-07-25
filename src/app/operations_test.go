@@ -27,7 +27,7 @@ func newTempService(t *testing.T, jobs []domain.Job) *Service {
 			JobsPath:       filepath.Join(dir, "jobs.json"),
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
-		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30, ExecutionMode: domain.ExecutionModeParallel, OverlapPolicy: domain.OverlapPolicySkip},
+		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30, ExecutionMode: domain.ExecutionModeParallel, OverlapPolicy: domain.OverlapPolicySkip, DefaultTimeoutSeconds: 30},
 	}
 	return NewService(store, jobs)
 }
@@ -102,6 +102,9 @@ func TestCreateJobValidates(t *testing.T) {
 	}
 	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", OverlapPolicy: "invalid"}); err == nil {
 		t.Error("expected error for invalid overlap policy")
+	}
+	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", TimeoutSeconds: -1}); err == nil {
+		t.Error("expected error for negative per-job timeout")
 	}
 }
 
@@ -250,7 +253,7 @@ func TestRunNowUsesRunnerAndRecords(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan domain.RunRecord, 1)
-	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		if trigger != "Manual" {
 			t.Errorf("trigger = %q, want Manual", trigger)
 		}
@@ -298,7 +301,7 @@ func TestRunNowRefusedWhileAlreadyRunning(t *testing.T) {
 	entered := make(chan struct{}, 1)
 	release := make(chan struct{})
 	var calls int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		entered <- struct{}{}
 		<-release
@@ -341,7 +344,7 @@ func TestRunNowRefusedWhileAlreadyRunning(t *testing.T) {
 func TestRunNowAllowedWhilePaused(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	done := make(chan struct{}, 1)
-	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		select {
 		case done <- struct{}{}:
 		default:
@@ -366,7 +369,7 @@ func TestRunDueStartsDueJob(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan domain.RunRecord, 1)
-	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string) (domain.RunRecord, error) {
+	svc.runJob = func(_ context.Context, job *domain.Job, trigger string, _ string, _ time.Duration) (domain.RunRecord, error) {
 		if trigger != "Schedule" {
 			t.Errorf("trigger = %q, want Schedule", trigger)
 		}
@@ -397,7 +400,7 @@ func TestRunDueStartsDueJob(t *testing.T) {
 func TestRunDueSkipsJobNotYetDue(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	var ran int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
 		return domain.RunRecord{}, nil
 	}
@@ -418,7 +421,7 @@ func TestRunDueSkipsJobInRunningState(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	var calls int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&calls, 1)
 		return domain.RunRecord{State: "Success"}, nil
 	}
@@ -442,7 +445,7 @@ func TestRunDueSkipsJobInRunningState(t *testing.T) {
 func TestRunDueDoesNothingWhilePaused(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 	var ran int32
-	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
 		return domain.RunRecord{}, nil
 	}
@@ -472,7 +475,7 @@ func TestStartDrivesRunDueOnTick(t *testing.T) {
 	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
 
 	done := make(chan struct{}, 1)
-	svc.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		select {
 		case done <- struct{}{}:
 		default:
@@ -524,6 +527,7 @@ func TestUpdateSettingsRejectsInvalidConfigs(t *testing.T) {
 		{"missing logs dir", func(c *domain.Config) { c.LogsDir = "" }},
 		{"non-positive max files", func(c *domain.Config) { c.MaxLogFiles = 0 }},
 		{"non-positive max age", func(c *domain.Config) { c.MaxLogAgeDays = -1 }},
+		{"non-positive default timeout", func(c *domain.Config) { c.DefaultTimeoutSeconds = 0 }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -596,7 +600,7 @@ func TestServiceRebuiltFromPausedStoreStartsPaused(t *testing.T) {
 
 	var ran int32
 	runStarted := make(chan struct{}, 1)
-	svc2.runJob = func(context.Context, *domain.Job, string, string) (domain.RunRecord, error) {
+	svc2.runJob = func(context.Context, *domain.Job, string, string, time.Duration) (domain.RunRecord, error) {
 		atomic.AddInt32(&ran, 1)
 		select {
 		case runStarted <- struct{}{}:

@@ -367,6 +367,9 @@ func validateJob(job domain.Job) error {
 	if policy != "" && policy != string(domain.OverlapPolicySkip) && policy != string(domain.OverlapPolicyQueue) {
 		return errors.New("overlap policy must be 'skip', 'queue', or empty")
 	}
+	if job.TimeoutSeconds < 0 {
+		return errors.New("timeout must be zero (inherit) or a positive number of seconds")
+	}
 	return nil
 }
 
@@ -389,6 +392,9 @@ func validateConfig(config domain.Config) error {
 	}
 	if config.OverlapPolicy != domain.OverlapPolicySkip && config.OverlapPolicy != domain.OverlapPolicyQueue {
 		return errors.New("overlap policy must be 'skip' or 'queue'")
+	}
+	if config.DefaultTimeoutSeconds <= 0 {
+		return errors.New("default timeout must be a positive number of seconds")
 	}
 	return nil
 }

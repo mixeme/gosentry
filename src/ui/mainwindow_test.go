@@ -24,14 +24,15 @@ func newTestService(t *testing.T) *app.Service {
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
 		Config: domain.Config{
-			JobsDir:         ".",
-			LogsDir:         "logs",
-			MaxLogFiles:     100,
-			MaxLogAgeDays:   30,
-			ExecutionMode:   domain.ExecutionModeParallel,
-			OverlapPolicy:   domain.OverlapPolicySkip,
-			KeepRunningInTray: true,
-			NotifyOnFailure:   true,
+			JobsDir:               ".",
+			LogsDir:               "logs",
+			MaxLogFiles:           100,
+			MaxLogAgeDays:         30,
+			ExecutionMode:         domain.ExecutionModeParallel,
+			OverlapPolicy:         domain.OverlapPolicySkip,
+			DefaultTimeoutSeconds: 30,
+			KeepRunningInTray:     true,
+			NotifyOnFailure:       true,
 		},
 	}
 	return app.NewService(store, nil)

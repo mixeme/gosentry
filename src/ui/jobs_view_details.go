@@ -22,6 +22,7 @@ type detailsPanel struct {
 	arguments     *widget.Label
 	runMode       *widget.Label
 	overlapPolicy *widget.Label
+	timeout       *widget.Label
 	lastRun       *widget.Label
 	nextRun       *widget.Label
 	state         *widget.Label
@@ -34,7 +35,7 @@ type detailsPanel struct {
 	selectedLogs []event
 }
 
-func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy domain.OverlapPolicy) *detailsPanel {
+func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy domain.OverlapPolicy, globalTimeout int) *detailsPanel {
 	d := &detailsPanel{
 		title:         widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		folder:        newJobDetailLabel(""),
@@ -43,6 +44,7 @@ func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy do
 		arguments:     newJobDetailLabel(""),
 		runMode:       newJobDetailLabel(""),
 		overlapPolicy: newJobDetailLabel(""),
+		timeout:       newJobDetailLabel(""),
 		lastRun:       newJobDetailLabel(""),
 		nextRun:       newJobDetailLabel(""),
 		state:         newJobDetailLabel(""),
@@ -69,11 +71,11 @@ func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy do
 			item.(*widget.Label).SetText(app.EventLine(d.selectedLogs[id]))
 		},
 	)
-	d.update(firstJob, rt, globalOverlapPolicy)
+	d.update(firstJob, rt, globalOverlapPolicy, globalTimeout)
 	return d
 }
 
-func (d *detailsPanel) update(j job, rt *domain.JobRuntime, globalOverlapPolicy domain.OverlapPolicy) {
+func (d *detailsPanel) update(j job, rt *domain.JobRuntime, globalOverlapPolicy domain.OverlapPolicy, globalTimeout int) {
 	d.title.SetText(j.Name)
 	d.folder.SetText(app.DisplayFolder(j.Folder))
 	d.schedule.SetText(j.Schedule)
@@ -81,6 +83,7 @@ func (d *detailsPanel) update(j job, rt *domain.JobRuntime, globalOverlapPolicy 
 	d.arguments.SetText(app.DisplayArguments(j.Arguments))
 	d.runMode.SetText(app.DisplayRunMode(j))
 	d.overlapPolicy.SetText(app.DisplayOverlapPolicy(j, globalOverlapPolicy))
+	d.timeout.SetText(app.DisplayTimeout(j, globalTimeout))
 	d.lastRun.SetText(rt.LastRun)
 	d.nextRun.SetText(rt.NextRun)
 	d.state.SetText(rt.LastState)
@@ -101,6 +104,7 @@ func (d *detailsPanel) clear() {
 	d.arguments.SetText("")
 	d.runMode.SetText("")
 	d.overlapPolicy.SetText("")
+	d.timeout.SetText("")
 	d.lastRun.SetText("")
 	d.nextRun.SetText("")
 	d.state.SetText("")
@@ -121,8 +125,9 @@ func (d *detailsPanel) container() fyne.CanvasObject {
 		detailRowPair(capW, "Folder", d.folder, "Schedule", d.schedule),
 		detailRowPair(capW, "Command", d.command, "Arguments", d.arguments),
 		detailRowPair(capW, "Run mode", d.runMode, "Overlap policy", d.overlapPolicy),
+		detailRowPair(capW, "Timeout", d.timeout, "State", d.state),
 		detailRowPair(capW, "Last run", d.lastRun, "Next run", d.nextRun),
-		detailRowPair(capW, "State", d.state, "Statistics", d.stats),
+		detailRow(capW, "Statistics", d.stats),
 	)
 	top := container.NewVBox(
 		d.title,
@@ -160,7 +165,7 @@ func activityRowsHeight(rows int) float32 {
 func detailCaptionWidth() float32 {
 	captions := []string{
 		"Folder", "Schedule", "Command", "Arguments", "Run mode",
-		"Overlap policy", "Last run", "Next run", "State", "Statistics",
+		"Overlap policy", "Timeout", "Last run", "Next run", "State", "Statistics",
 	}
 	var width float32
 	for _, c := range captions {

@@ -87,8 +87,9 @@ flowchart LR
 
 5. Command execution:
    `runner.RunJob` builds the platform-specific invocation, executes the
-   command through the platform shell, captures stdout and stderr, writes one
-   timestamped `.log` file, and returns a `domain.RunRecord` containing
+   command through the platform shell under the caller-supplied timeout, captures
+   stdout and stderr, writes one timestamped `.log` file, and returns a
+   `domain.RunRecord` containing
    `DurationMS` (wall-clock milliseconds from start to finish; for `StartOnly`
    fire-and-forget jobs it measures launch latency — the time to spawn the
    process — since there is no exit to wait for).
@@ -127,6 +128,19 @@ Under the `"queue"` policy, each occurrence that fires while a run is still
 in flight increments `JobRuntime.PendingRuns`. When the current run finishes,
 `executeRun` drains the counter by starting one deferred run per completion until
 `PendingRuns` reaches zero.
+
+### Per-job command timeout
+
+`domain.Job` carries a `TimeoutSeconds` field (`json:"timeout_seconds,omitempty"`),
+following the same inherit pattern as the overlap policy. `0` means inherit the
+global `Config.DefaultTimeoutSeconds` (default **30**); a positive value overrides
+it for that job alone. `app.Service.effectiveTimeout` resolves the effective
+duration under `mu` and `startRunLocked` snapshots it into `runEnv.timeout`.
+`runner.RunJob(ctx, job, trigger, logsDir, timeout)` takes the resolved duration
+as an argument, so the runner stays ignorant of the global config: it applies the
+timeout via `context.WithTimeout` and reports `Timed out after <timeout>` on
+expiry. `StartOnly` jobs run on the untimed context and so measure launch latency
+only, unaffected by the run timeout.
 
 ### Run-time statistics
 
