@@ -33,6 +33,16 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 - Windows tray icon: left-click to show the window, right-click for the menu.
 - Autostart on login (Windows shortcut; Linux XDG desktop entry).
 
+## Platforms
+
+GoSentry is built and tested on **Windows** and **Linux**:
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Windows  | Supported | Tray icon, autostart shortcut (`.lnk`), desktop integration. |
+| Linux    | Supported | Autostart via XDG desktop entry; desktop integration on X11/Wayland. |
+| macOS    | Not supported | The Fyne GUI may build, but autostart and desktop integration are not implemented. |
+
 ## Documentation
 
 - [Changelog](docs/CHANGELOG.md) — record of notable changes by version
