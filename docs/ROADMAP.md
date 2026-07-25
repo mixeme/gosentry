@@ -12,7 +12,7 @@ Releases are published as GitHub Releases (tags like `v0.12.0`, built by
 version exists — they have to check the releases page by hand.
 
 Add an update check that queries the GitHub Releases API
-(`GET /repos/<owner>/<repo>/releases/latest`) for the latest published tag,
+(`GET /repos/mixeme/gosentry/releases/latest`) for the latest published tag,
 strips the leading `v`, and compares it against `app.Version`. When a newer
 version is available, surface it non-intrusively — an "Update available"
 line in Settings (next to the existing version/build info) with a hyperlink
@@ -30,9 +30,10 @@ Design notes / open questions:
 - *Where the check lives.* Keep it in the `app` layer behind the Service so the
   UI only renders the result, and cache the last check so opening Settings
   repeatedly does not spam the API (unauthenticated GitHub allows 60 req/h).
-- *Repo coordinates.* The primary remote is Gitea; the GitHub owner/repo used
-  for releases must be wired in explicitly (constant or build-time value) rather
-  than derived from `origin`.
+- *Repo coordinates.* The primary remote is Gitea; the GitHub repo used for
+  releases is [`mixeme/gosentry`](https://github.com/mixeme/gosentry) and must
+  be wired in explicitly (constant or build-time value) rather than derived from
+  `origin`.
 - *No auto-download.* Scope is detection and notification only; installing the
   update stays a manual click-through to the release page.
 
