@@ -193,6 +193,27 @@ func (s *Service) SetGlobalPause(paused bool) error {
 	return nil
 }
 
+// SetJobListView persists the Jobs list density preference. Unlike
+// SetGlobalPause this touches nothing but the config: no job changed, so there
+// is no SaveJobs, and no event is emitted — the choice is presentational and the
+// Jobs view refreshes its own list, whereas an event would trigger a pointless
+// whole-window refresh. Anything that is not "compact" is stored as detailed so
+// the file never gains an unrecognised value.
+func (s *Service) SetJobListView(view domain.JobListView) error {
+	if !view.IsCompact() {
+		view = domain.JobListViewDetailed
+	}
+	s.mu.Lock()
+	if s.store.Config.JobListView == view {
+		s.mu.Unlock()
+		return nil
+	}
+	s.store.Config.JobListView = view
+	err := s.store.SaveConfig()
+	s.mu.Unlock()
+	return err
+}
+
 // ShouldNotifyOnFailure reports whether the user has enabled desktop
 // notifications for failed job runs. It reads the config under mu so it is
 // safe to call from any goroutine.

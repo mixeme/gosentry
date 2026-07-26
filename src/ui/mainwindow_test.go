@@ -11,10 +11,13 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-func newTestService(t *testing.T) *app.Service {
+// newTestStore builds a Store rooted in a temp directory. It is separate from
+// newTestService so tests that need a non-default Config (or their own jobs)
+// can adjust it before handing it to app.NewService.
+func newTestStore(t *testing.T) *storage.Store {
 	t.Helper()
 	dir := t.TempDir()
-	store := &storage.Store{
+	return &storage.Store{
 		Paths: storage.Paths{
 			ExecutablePath: filepath.Join(dir, "gosentry"),
 			AppDir:         dir,
@@ -35,7 +38,11 @@ func newTestService(t *testing.T) *app.Service {
 			NotifyOnFailure:       true,
 		},
 	}
-	return app.NewService(store, nil)
+}
+
+func newTestService(t *testing.T) *app.Service {
+	t.Helper()
+	return app.NewService(newTestStore(t), nil)
 }
 
 func TestMainViewBuilds(t *testing.T) {

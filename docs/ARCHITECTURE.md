@@ -203,4 +203,4 @@ size guideline:
 |------|----------|
 | `jobs_view.go` | `newJobsView` — list, toolbar, button wiring, and layout |
 | `jobs_view_details.go` | `detailsPanel` struct — widget creation, `update`, `clear`, `container` |
-| `jobs_view_helpers.go` | Pure helpers — `filteredJobIndexes`, `folderOptions`, `filterValue`, `indexOfID`, `lastJobLogs` |
+| `jobs_view_helpers.go` | Pure helpers — `filteredJobIndexes`, `folderOptions`, `filterValue`, `indexOfID`, `lastJobLogs`, `nextJobListView`, `viewToggleText` |

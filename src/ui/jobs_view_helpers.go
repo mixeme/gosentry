@@ -1,6 +1,10 @@
 package ui
 
-import "strings"
+import (
+	"strings"
+
+	"gitea.mixdep.ru/mix/gosentry/src/domain"
+)
 
 // lastJobLogs returns a fresh slice of the most recent activity entries for the
 // "Selected job activity" panel. Logs are stored newest-first (see
@@ -45,6 +49,26 @@ func filterValue(folder string) string {
 		return noFolder
 	}
 	return strings.TrimSpace(folder)
+}
+
+// nextJobListView returns the mode the view toggle switches to. Anything that
+// is not compact reads as detailed, so unknown and legacy values flip to
+// compact just as an explicit "detailed" does.
+func nextJobListView(current domain.JobListView) domain.JobListView {
+	if current.IsCompact() {
+		return domain.JobListViewDetailed
+	}
+	return domain.JobListViewCompact
+}
+
+// viewToggleText labels the view toggle with the action it performs, not the
+// current state — the same convention as the "Disable auto"/"Enable auto"
+// button. It also keeps the on-disk strings away from the user.
+func viewToggleText(current domain.JobListView) string {
+	if current.IsCompact() {
+		return "Detailed"
+	}
+	return "Compact"
 }
 
 func indexOfID(jobs []job, id int) int {

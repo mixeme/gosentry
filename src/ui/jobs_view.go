@@ -70,6 +70,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	}
 	selectedFolder := allFolders
 	schedulerPaused := svc.Store().Config.Paused
+	listView := svc.Store().Config.JobListView
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
 	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
@@ -105,17 +106,44 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		}
 	}
 
+	// applyRowMode expresses the current view mode as visibility on the row's
+	// four labels. widget.List caches the row template's MinSize, and
+	// list.Refresh() re-creates the template and recomputes it, so hiding lines
+	// is what actually shrinks the rows: compactVBoxLayout and the border layout
+	// both skip hidden children when measuring.
+	applyRowMode := func(inlineStatus, meta, status fyne.CanvasObject) {
+		if listView.IsCompact() {
+			inlineStatus.Show()
+			meta.Hide()
+			status.Hide()
+			return
+		}
+		inlineStatus.Hide()
+		meta.Show()
+		status.Show()
+	}
+
 	list = widget.NewList(
 		func() int { return len(filteredJobs) },
 		func() fyne.CanvasObject {
 			name := widget.NewLabelWithStyle("Job name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+			// Truncating stops a long name from pushing the compact row's status
+			// off the right-hand edge.
+			name.Wrapping = fyne.TextTruncate
+			inlineStatus := widget.NewLabel("status")
 			meta := widget.NewLabel("schedule")
 			status := widget.NewLabel("status")
-			return container.New(compactVBoxLayout{spacing: jobRowSpacing}, name, meta, status)
+			applyRowMode(inlineStatus, meta, status)
+			nameLine := container.NewBorder(nil, nil, nil, inlineStatus, name)
+			return container.New(compactVBoxLayout{spacing: jobRowSpacing}, nameLine, meta, status)
 		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
 			row := item.(*fyne.Container)
-			name := row.Objects[0].(*widget.Label)
+			// NewBorder keeps the center object first and appends the border slots
+			// after it, so nameLine is [name, inlineStatus].
+			nameLine := row.Objects[0].(*fyne.Container)
+			name := nameLine.Objects[0].(*widget.Label)
+			inlineStatus := nameLine.Objects[1].(*widget.Label)
 			meta := row.Objects[1].(*widget.Label)
 			status := row.Objects[2].(*widget.Label)
 
@@ -124,7 +152,12 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			// Keep each row compact: folder, schedule, and command are shown in one
 			// metadata line so the left pane stays useful even with many jobs.
 			meta.SetText(app.DisplayFolder(current.Folder) + "    " + current.Schedule + "    " + app.DisplayInvocation(current))
-			status.SetText(app.StatusText(current, runtimes[current.ID]))
+			statusText := app.StatusText(current, runtimes[current.ID])
+			status.SetText(statusText)
+			inlineStatus.SetText(statusText)
+			// A full Refresh reuses rows built under the previous mode, so
+			// visibility cannot be left to the create callback alone.
+			applyRowMode(inlineStatus, meta, status)
 		},
 	)
 	list.OnSelected = func(id widget.ListItemID) {
@@ -157,6 +190,32 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		refreshView()
 	})
 	folderSelect.SetSelected(selectedFolder)
+
+	// viewToggleIcon pairs with viewToggleText: both name the action the button
+	// performs, not the state it is in, matching stopAllButton's convention.
+	viewToggleIcon := func(current domain.JobListView) fyne.Resource {
+		if current.IsCompact() {
+			return theme.ViewFullScreenIcon()
+		}
+		return theme.ListIcon()
+	}
+	viewButton := widget.NewButtonWithIcon(viewToggleText(listView), viewToggleIcon(listView), nil)
+	viewButton.OnTapped = func() {
+		next := nextJobListView(listView)
+		listView = next
+		if err := svc.SetJobListView(next); err != nil {
+			// Roll the mode back and leave the button as it was, so the button
+			// never claims a preference that did not reach disk.
+			listView = nextJobListView(next)
+			dialog.ShowError(err, w)
+			return
+		}
+		viewButton.SetText(viewToggleText(listView))
+		viewButton.SetIcon(viewToggleIcon(listView))
+		// Refresh re-creates the row template, which is what recomputes the
+		// cached row height for the new mode. Selection is untouched.
+		list.Refresh()
+	}
 
 	addButton := widget.NewButtonWithIcon("New job", theme.ContentAddIcon(), func() {
 		showJobDialog(w, "New job", job{Schedule: "@every 1m", Command: "echo GoSentry job ran", Enabled: true}, func(saved job) {
@@ -294,7 +353,11 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 
 	toolbar := container.NewHBox(addButton, editButton, runButton, pauseButton, deleteButton, layout.NewSpacer())
 	globalControls := container.NewHBox(stopAllButton, schedulerState, layout.NewSpacer())
-	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), folderSelect, toolbar)
+	// The view toggle sits beside the folder filter: the border layout gives it
+	// its MinSize on the right and lets the select fill the rest, so the header
+	// gains no height.
+	filterRow := container.NewBorder(nil, nil, nil, viewButton, folderSelect)
+	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), filterRow, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
 	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)

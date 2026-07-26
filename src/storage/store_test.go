@@ -174,6 +174,9 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.Theme != domain.ThemeDefault {
 		t.Errorf("default Theme = %q, want %q", got.Theme, domain.ThemeDefault)
 	}
+	if got.JobListView != domain.JobListViewDetailed {
+		t.Errorf("default JobListView = %q, want %q", got.JobListView, domain.JobListViewDetailed)
+	}
 	// The function must have written the defaults to gosentry.json.
 	if _, err := os.Stat(paths.ConfigPath); err != nil {
 		t.Errorf("gosentry.json should have been created: %v", err)

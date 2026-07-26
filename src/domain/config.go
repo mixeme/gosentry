@@ -28,6 +28,26 @@ const (
 	ThemeGoSentry Theme = "gosentry"
 )
 
+// JobListView selects how densely the Jobs tab renders its sidebar list. Like
+// Theme it is a UI-only choice with no effect on scheduling; it lives in Config
+// so the user's preference survives a restart.
+type JobListView string
+
+const (
+	// JobListViewDetailed is the three-line row: name, metadata, status.
+	JobListViewDetailed JobListView = "detailed"
+	// JobListViewCompact is the one-line row: name on the left, status on the
+	// right, so many more jobs fit without scrolling.
+	JobListViewCompact JobListView = "compact"
+)
+
+// IsCompact reports whether the compact rendering is selected. Only the exact
+// "compact" value counts, so empty, legacy, and unrecognised values all read as
+// detailed — every consumer normalizes them the same way.
+func (v JobListView) IsCompact() bool {
+	return v == JobListViewCompact
+}
+
 // OverlapPolicy decides what happens when a job's next run fires while the
 // previous run is still active.
 type OverlapPolicy string
@@ -62,6 +82,10 @@ type Config struct {
 	// Theme selects the visual appearance. Empty is treated as ThemeDefault so
 	// configs written before this field existed keep the original look.
 	Theme Theme `json:"theme,omitempty"`
+	// JobListView selects the Jobs list density. Empty is treated as
+	// JobListViewDetailed so configs written before this field existed keep the
+	// current three-line rows.
+	JobListView JobListView `json:"job_list_view,omitempty"`
 }
 
 // DefaultConfig returns the built-in default settings. It is the config used
@@ -79,6 +103,7 @@ func DefaultConfig() Config {
 		ExecutionMode:         ExecutionModeParallel,
 		OverlapPolicy:         OverlapPolicySkip,
 		Theme:                 ThemeDefault,
+		JobListView:           JobListViewDetailed,
 		DefaultTimeoutSeconds: 0,
 	}
 }

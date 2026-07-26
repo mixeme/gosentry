@@ -4,6 +4,19 @@ All notable GoSentry changes are recorded in this file.
 
 ## Unreleased
 
+**Compact job list view.**
+
+- The Jobs sidebar can now render each job as a single line — name on the left,
+  status on the right — instead of the three-line block. A toggle button beside
+  the Folder filter switches between **Compact** and **Detailed**; it is
+  labelled with the action it performs, like the "Disable auto" button. Compact
+  fits many more jobs on screen without scrolling; selection, the details panel,
+  the folder filter, and live status updates all work unchanged in both modes.
+- The choice is persisted as a new `Config.JobListView` field
+  (`"detailed"` / `"compact"`, written to `gosentry.json` as `job_list_view`),
+  so it survives a restart. Empty/legacy configs and any unrecognised value
+  normalize to detailed, so existing installs keep the current look.
+
 **Timeouts: 0 now means "no timeout" at both levels.**
 
 - The global **Default timeout** in Settings now defaults to `0`, meaning jobs

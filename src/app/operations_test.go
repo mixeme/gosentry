@@ -590,6 +590,63 @@ func TestSetGlobalPausePersistsToConfigFile(t *testing.T) {
 	}
 }
 
+func TestSetJobListViewPersistsToConfigFile(t *testing.T) {
+	svc := newTempService(t, nil)
+
+	readConfig := func(stage string) domain.Config {
+		t.Helper()
+		data, err := os.ReadFile(svc.store.Paths.ConfigPath)
+		if err != nil {
+			t.Fatalf("reading config file %s: %v", stage, err)
+		}
+		var cfg domain.Config
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			t.Fatalf("unmarshalling config %s: %v", stage, err)
+		}
+		return cfg
+	}
+
+	if err := svc.SetJobListView(domain.JobListViewCompact); err != nil {
+		t.Fatalf("SetJobListView(compact): %v", err)
+	}
+	if got := readConfig("after compact").JobListView; got != domain.JobListViewCompact {
+		t.Errorf("persisted JobListView = %q, want %q", got, domain.JobListViewCompact)
+	}
+
+	if err := svc.SetJobListView(domain.JobListViewDetailed); err != nil {
+		t.Fatalf("SetJobListView(detailed): %v", err)
+	}
+	if got := readConfig("after detailed").JobListView; got != domain.JobListViewDetailed {
+		t.Errorf("persisted JobListView = %q, want %q", got, domain.JobListViewDetailed)
+	}
+}
+
+// TestSetJobListViewNormalizesUnknownValue guards the config file against
+// gaining a value no reader understands: anything but "compact" is stored as
+// "detailed".
+func TestSetJobListViewNormalizesUnknownValue(t *testing.T) {
+	svc := newTempService(t, nil)
+
+	if err := svc.SetJobListView(domain.JobListViewCompact); err != nil {
+		t.Fatalf("SetJobListView(compact): %v", err)
+	}
+	if err := svc.SetJobListView("tiny"); err != nil {
+		t.Fatalf("SetJobListView(tiny): %v", err)
+	}
+
+	data, err := os.ReadFile(svc.store.Paths.ConfigPath)
+	if err != nil {
+		t.Fatalf("reading config file: %v", err)
+	}
+	var cfg domain.Config
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshalling config: %v", err)
+	}
+	if cfg.JobListView != domain.JobListViewDetailed {
+		t.Errorf("persisted JobListView = %q, want %q", cfg.JobListView, domain.JobListViewDetailed)
+	}
+}
+
 func TestServiceRebuiltFromPausedStoreStartsPaused(t *testing.T) {
 	jobs := []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}}
 	svc := newTempService(t, jobs)
