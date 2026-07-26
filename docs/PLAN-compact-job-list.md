@@ -14,8 +14,15 @@ persisted in `gosentry.json`, so it survives a restart like `Config.Theme` does.
 
 ## Design decisions
 
-- **Control lives in the Jobs sidebar header** — a "View" dropdown beside the
-  existing "Folder" filter. Switching is one click, next to what it affects.
+- **Control lives in the Jobs sidebar header** — a toggle button on the same row
+  as the existing "Folder" filter, to its right. Switching is one click, next to
+  what it affects. Fyne 2.7.4 has no dedicated toggle widget, so the button
+  flips its own text and icon on tap, exactly like `stopAllButton`
+  ("Disable auto" / "Enable auto") already does in `src/ui/jobs_view.go`. Like
+  that button it is labelled with the *action*, not the current state:
+  `Compact` + `theme.ListIcon()` while detailed, `Detailed` +
+  `theme.ViewFullScreenIcon()` while compact. The toolbar row (New job / Edit /
+  Run now / Pause / Delete) is left untouched.
 - **Compact row = name + status** on a single line. Same height as one label,
   so per-job health stays visible at a glance.
 - **One list, one row template.** `widget.List` caches the row template's
@@ -71,33 +78,40 @@ reasoning.
   `app.StatusText`) and **re-apply visibility on every update**: a full
   `Refresh` reuses the already-visible row objects, which were created under the
   old mode, so visibility cannot be left to `CreateItem` alone.
-- **View dropdown**: `widget.NewSelect([]string{viewLabelDetailed,
-  viewLabelCompact}, …)`. Its handler maps label → `domain.JobListView`, returns
-  early when unchanged, updates `compactList`, persists via
-  `svc.SetJobListView` (on error `dialog.ShowError` and revert the select, per
-  the error rule in `docs/STANDARDS.md`), then calls `list.Refresh()`. The
-  selection and the details panel are untouched by the switch.
-- **Header layout**: replace the current `"Folder"` caption + `folderSelect`
-  pair in `sidebarHeader` with
-  `container.NewGridWithColumns(2, <Folder caption + select>, <View caption +
-  select>)`, so the second dropdown costs no extra header height and the list
-  keeps the same room. The 400px `minJobsSidebarWidth` comfortably fits two
-  short selects.
+- **View toggle button**: `viewButton := widget.NewButtonWithIcon(…)` built with
+  the text/icon for the current mode. Its `OnTapped` flips the mode
+  (`nextJobListView`), persists via `svc.SetJobListView` — on error
+  `dialog.ShowError` and roll the local mode back without touching the button,
+  per the error rule in `docs/STANDARDS.md` — then applies the new
+  `SetText`/`SetIcon` and calls `list.Refresh()`. This mirrors `stopAllButton`'s
+  flip-and-revert handler in the same file. The list selection and the details
+  panel are untouched by the switch.
+- **Header layout**: keep the `"Folder"` caption and `folderSelect` exactly as
+  they are, and put the button beside the select on the same row —
+  `container.NewBorder(nil, nil, nil, viewButton, folderSelect)`. The border
+  layout gives the button its `MinSize` on the right and lets the select fill
+  the rest, so the header gains no height and the toolbar row is not touched.
 
-### 4. `src/ui/jobs_view_helpers.go` — label mapping
+### 4. `src/ui/jobs_view_helpers.go` — button state helpers
 
-`viewLabelDetailed`/`viewLabelCompact` consts plus pure
-`viewLabel(domain.JobListView) string` and
-`viewFromLabel(string) domain.JobListView`, mirroring
-`themeLabel`/`themeFromLabel` (`src/ui/settings_view.go:370`) so the on-disk
-strings never reach the user.
+Two pure helpers so the on-disk strings never reach the user and the button's
+wording is testable without a running GUI:
+
+- `nextJobListView(current domain.JobListView) domain.JobListView` — flips the
+  mode, treating anything that is not `compact` as detailed (via `IsCompact`).
+- `viewToggleText(current domain.JobListView) string` — the action label:
+  `"Compact"` while detailed, `"Detailed"` while compact.
+
+The icon choice stays inline at the button, next to `SetText`/`SetIcon`, so the
+helpers file keeps its "no widget imports" character.
 
 ### 5. Tests
 
 - `src/domain/config_test.go` (new): `JobListView.IsCompact` for `"compact"`,
   `"detailed"`, `""`, and a junk value.
-- `src/ui/jobs_view_test.go`: `viewLabel`/`viewFromLabel` round-trip, and
-  unknown/empty label → detailed.
+- `src/ui/jobs_view_test.go`: `nextJobListView` flips both ways and maps an
+  empty/unknown value to compact (since such a value reads as detailed), and
+  `viewToggleText` returns the action label for each mode.
 - `src/app/operations_test.go`: `TestSetJobListViewPersistsToConfigFile`
   modelled on `TestSetGlobalPausePersistsToConfigFile`
   (`src/app/operations_test.go:553`) — switch to compact, unmarshal
@@ -125,9 +139,11 @@ export PATH="/c/msys64/ucrt64/bin:$PATH"; export CGO_ENABLED=1; go build ./... &
 ```
 
 2. Run the app (`go run ./cmd/gosentry`) with several jobs configured and check:
-   - Default launch is Detailed and looks exactly as before.
-   - Switching to Compact collapses every row to one line, name left / status
-     right, and many more jobs fit without scrolling.
+   - Default launch is Detailed and looks exactly as before; the button reads
+     "Compact" and sits to the right of the folder filter without making the
+     header taller.
+   - Tapping it collapses every row to one line, name left / status right, many
+     more jobs fit without scrolling, and the button now reads "Detailed".
    - Selection and the details panel keep working after switching, in both
      directions, including with a folder filter active and with an empty list.
    - A running job's status still updates live in compact rows.
