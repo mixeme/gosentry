@@ -1,7 +1,8 @@
 # GoSentry — Standards
 
 Quality rules and intentional behavior for contributors. Package contracts live
-in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
+in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md);
+what a whole-project review looks at, in [REVIEW.md](REVIEW.md).
 
 ## Code quality
 
@@ -11,6 +12,25 @@ in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
 - Fixes with severity ≥ medium → regression test.
 - Documented intentional behavior → section below, not a backlog bug.
 - UI view constructors accept `*app.Service`; call `app.Open()` only from `run.go`.
+
+## Config file compatibility
+
+There is no migration step: `gosentry.json` and `jobs.json` are read as-is, are
+meant to be hand-editable, and may have been written by an older version. A
+change to their shape has to stay compatible on its own.
+
+- A new `Config` field is tagged `omitempty`, and its zero value must mean the
+  behavior that existed before the field was added — a file written without it
+  keeps working unchanged. `DefaultConfig()` still sets the value explicitly.
+- A zero that carries meaning is not a missing field and must not be backfilled
+  on load. See `DefaultTimeoutSeconds` in `storage.loadOrCreateConfig` and
+  `Job.TimeoutSeconds *int`, where unset and `0` are different answers.
+- An unrecognised enum value reads as the default rather than an error, through
+  one helper that every consumer shares (`JobListView.IsCompact`, `ui.themeFor`),
+  and is normalized before being written back, so the file never gains a value
+  no reader understands.
+- Each of the three gets a test: the default in `storage`, the normalization in
+  `domain`, and a round-trip through the real config file in `app`.
 
 ## Intentional behavior (not bugs)
 

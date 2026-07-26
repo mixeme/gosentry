@@ -49,6 +49,7 @@ GoSentry is built and tested on **Windows** and **Linux**:
 - [Roadmap](docs/ROADMAP.md) — planned work larger than a single bug fix
 - [Architecture](docs/ARCHITECTURE.md) — component interaction model
 - [Standards](docs/STANDARDS.md) — quality rules and intentional behavior
+- [Review](docs/REVIEW.md) — what a whole-project review looks at
 - [Development](docs/DEVELOPMENT.md) — build instructions, project layout, dependencies
 - [Tests](docs/TESTS.md) — test suite layout and how to run it
 - [Performance](docs/PERFORMANCE.md) — measured performance findings

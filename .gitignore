@@ -20,6 +20,10 @@ logs/
 go.work
 go.work.sum
 
+# Claude Code per-developer settings. The shared command in .claude/commands is
+# tracked; locally granted tool permissions are not.
+.claude/settings.local.json
+
 # GoodSync metadata. This is intentionally kept because the directory is local
 # to the user's file synchronization setup.
 _gsdata_/
