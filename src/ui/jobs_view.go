@@ -354,11 +354,12 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 
 	toolbar := container.NewHBox(addButton, editButton, runButton, pauseButton, deleteButton, layout.NewSpacer())
 	globalControls := container.NewHBox(stopAllButton, schedulerState, layout.NewSpacer())
-	// The view toggle sits beside the folder filter: the border layout gives it
-	// its MinSize on the right and lets the select fill the rest, so the header
-	// gains no height.
-	filterRow := container.NewBorder(nil, nil, nil, viewButton, folderSelect)
-	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), filterRow, toolbar)
+	// The whole filter is one row: caption on the left, view toggle on the right,
+	// select filling what is left. The border layout gives both edges their
+	// MinSize, so the header is a line shorter than a stacked caption would make it.
+	folderCaption := widget.NewLabelWithStyle("Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	filterRow := container.NewBorder(nil, nil, folderCaption, viewButton, folderSelect)
+	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), filterRow, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
 	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)
