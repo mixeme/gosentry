@@ -2,23 +2,10 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## Unreleased
+## 0.14.0 - 2026-07-26
 
-**Settings:**
-
-- The **Logs directory** row gained an **Open** button that shows the folder in
-  the desktop file manager (Explorer on Windows, the XDG handler on Linux), so
-  reading a log file no longer means copying the path by hand. It opens the
-  path currently in the field — including an edit that has not been saved yet —
-  resolving a relative directory against the application folder exactly as the
-  store does. A folder that is missing (the logs directory is created on the
-  first run) or cannot be opened is reported in a dialog.
-
-**Job dialog:**
-
-- The **Arguments** placeholder now states the field's rule — one argument per
-  line, no quoting — instead of showing a lone example path that left the
-  line-per-argument convention to guesswork.
+**Compact job list view, "no timeout" at both timeout levels, and an Open
+button for the logs folder.**
 
 **Compact job list view.**
 
@@ -32,6 +19,31 @@ All notable GoSentry changes are recorded in this file.
   (`"detailed"` / `"compact"`, written to `gosentry.json` as `job_list_view`),
   so it survives a restart. Empty/legacy configs and any unrecognised value
   normalize to detailed, so existing installs keep the current look.
+
+**Jobs sidebar:**
+
+- The **Folder** caption moved onto the filter row itself, beside the select and
+  the view toggle, instead of occupying its own line above it — the job list now
+  starts a full label higher.
+
+**Settings:**
+
+- The **Logs directory** row gained an **Open** button that shows the folder in
+  the desktop file manager (Explorer on Windows, the XDG handler on Linux), so
+  reading a log file no longer means copying the path by hand. It opens the
+  path currently in the field — including an edit that has not been saved yet —
+  resolving a relative directory against the application folder exactly as the
+  store does. A folder that is missing (the logs directory is created on the
+  first run) or cannot be opened is reported in a dialog.
+- The Save/Cancel/Defaults row sat flush against the separator above it and the
+  tab's left edge; it now uses the same padding as the other vertical gaps in
+  the tab.
+
+**Job dialog:**
+
+- The **Arguments** placeholder now states the field's rule — one argument per
+  line, no quoting — instead of showing a lone example path that left the
+  line-per-argument convention to guesswork.
 
 **Timeouts: 0 now means "no timeout" at both levels.**
 
@@ -48,6 +60,16 @@ All notable GoSentry changes are recorded in this file.
 
 Existing jobs and configs are unaffected: a job with no `timeout_seconds` still
 inherits, and a saved global default of 30 stays 30.
+
+**Internal:**
+
+- Job names in the list are truncated through the widget's `Truncation` field;
+  `fyne.TextTruncate` is deprecated in Fyne 2.7.4. Behavior is unchanged.
+- Docker release builds mount `.gocache/` from the host, so `--rm` container
+  removal no longer wipes `GOCACHE` between runs.
+- Added `docs/REVIEW.md` (the project-review agenda) and a "Config file
+  compatibility" section in `docs/STANDARDS.md` recording the rule the `Theme`,
+  `JobListView`, and `TimeoutSeconds` fields already follow. Added `CLAUDE.md`.
 
 ## 0.13.0 - 2026-07-26
 
