@@ -39,7 +39,9 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	})
 	commandRow := container.NewBorder(nil, nil, nil, commandBrowse, commandEntry)
 	argumentsEntry := widget.NewMultiLineEntry()
-	argumentsEntry.SetPlaceHolder(`D:\Local\Jobs\Auto.ffs_batch`)
+	// One argument per line is the whole point of the field: each line is passed
+	// to the process verbatim, so paths with spaces need no quoting.
+	argumentsEntry.SetPlaceHolder("One argument per line, no quotes:\n--input\n" + `C:\Data\My Files\input.txt`)
 	argumentsEntry.SetText(current.Arguments)
 	startOnly := widget.NewCheck("Start only, do not wait for exit", nil)
 	startOnly.SetChecked(current.StartOnly)

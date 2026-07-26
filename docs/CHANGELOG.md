@@ -4,6 +4,12 @@ All notable GoSentry changes are recorded in this file.
 
 ## Unreleased
 
+**Job dialog:**
+
+- The **Arguments** placeholder now states the field's rule — one argument per
+  line, no quoting — instead of showing a lone example path that left the
+  line-per-argument convention to guesswork.
+
 **Compact job list view.**
 
 - The Jobs sidebar can now render each job as a single line — name on the left,
