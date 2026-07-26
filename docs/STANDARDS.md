@@ -17,8 +17,9 @@ in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
 - `RunNow` is allowed during global pause and for disabled jobs.
 - Sequential mode runs jobs FIFO by order in `jobs.json`.
 - Scheduler tick is 1s — sub-second `@every` intervals are not supported.
-- Command timeout defaults to 30s globally and is overridable per job
-  (`Job.TimeoutSeconds`, 0 = inherit `Config.DefaultTimeoutSeconds`).
+- Command timeout defaults to no timeout globally (`Config.DefaultTimeoutSeconds`
+  = 0) and is overridable per job (`Job.TimeoutSeconds`, 0 = inherit the global
+  default).
 - **History tab is session-only.** `JobRuntime.Logs` exists only in memory for the
   current process. Log files on disk feed aggregate statistics via `SeedStats`
   only. See [ARCHITECTURE.md](ARCHITECTURE.md).

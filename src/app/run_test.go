@@ -633,4 +633,9 @@ func TestEffectiveTimeout(t *testing.T) {
 	if got, want := svc.effectiveTimeout(own), 5*time.Second; got != want {
 		t.Errorf("per-job timeout = %s, want %s", got, want)
 	}
+
+	svc.store.Config.DefaultTimeoutSeconds = 0
+	if got, want := svc.effectiveTimeout(inherit), time.Duration(0); got != want {
+		t.Errorf("inherited timeout with no global default = %s, want %s (no timeout)", got, want)
+	}
 }

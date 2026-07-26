@@ -376,6 +376,31 @@ func TestRunJobTimesOut(t *testing.T) {
 	}
 }
 
+func TestRunJobZeroTimeoutMeansNoTimeout(t *testing.T) {
+	command := "sh"
+	arguments := "-c\nsleep 0.2"
+	if runtime.GOOS == "windows" {
+		command = `C:\Windows\System32\cmd.exe`
+		arguments = "/C\nping -n 2 127.0.0.1 >NUL"
+	}
+	job := domain.Job{
+		ID:        52,
+		Name:      "No Timeout Test",
+		Command:   command,
+		Arguments: arguments,
+	}
+
+	// A non-positive timeout must not expire immediately (context.WithTimeout
+	// with a zero duration would); the job must run to completion.
+	record, err := RunJob(context.Background(), &job, "Manual", t.TempDir(), 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.State != "OK" {
+		t.Fatalf("expected job with no timeout to complete OK, got state %q detail %q", record.State, record.Detail)
+	}
+}
+
 func TestRunJobStartOnlyIgnoresTimeout(t *testing.T) {
 	command := "sh"
 	arguments := "-c\nsleep 5"

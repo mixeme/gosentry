@@ -86,6 +86,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	overlapPolicySelect.SetSelected(string(store.Config.OverlapPolicy))
 	overlapPolicySelect.OnChanged = func(string) { updateSaveState() }
 	defaultTimeout := widget.NewEntry()
+	defaultTimeout.SetPlaceHolder("0 = no timeout")
 	defaultTimeout.SetText(strconv.Itoa(store.Config.DefaultTimeoutSeconds))
 	defaultTimeout.OnChanged = func(string) { updateSaveState() }
 	jobsDir := widget.NewEntry()
@@ -132,8 +133,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			return
 		}
 		timeout, err := strconv.Atoi(strings.TrimSpace(defaultTimeout.Text))
-		if err != nil || timeout <= 0 {
-			settingsStatus.SetText("Default timeout must be a positive number")
+		if err != nil || timeout < 0 {
+			settingsStatus.SetText("Default timeout must not be negative (0 = no timeout)")
 			return
 		}
 		// Build the new config from the form and hand it to the Service, which

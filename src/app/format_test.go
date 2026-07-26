@@ -173,4 +173,7 @@ func TestDisplayTimeout(t *testing.T) {
 	if got, want := DisplayTimeout(inherit, 30), "30 s (global default)"; got != want {
 		t.Errorf("inherited timeout = %q, want %q", got, want)
 	}
+	if got, want := DisplayTimeout(inherit, 0), "no timeout (global default)"; got != want {
+		t.Errorf("inherited infinite timeout = %q, want %q", got, want)
+	}
 }

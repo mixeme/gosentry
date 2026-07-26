@@ -527,7 +527,7 @@ func TestUpdateSettingsRejectsInvalidConfigs(t *testing.T) {
 		{"missing logs dir", func(c *domain.Config) { c.LogsDir = "" }},
 		{"non-positive max files", func(c *domain.Config) { c.MaxLogFiles = 0 }},
 		{"non-positive max age", func(c *domain.Config) { c.MaxLogAgeDays = -1 }},
-		{"non-positive default timeout", func(c *domain.Config) { c.DefaultTimeoutSeconds = 0 }},
+		{"negative default timeout", func(c *domain.Config) { c.DefaultTimeoutSeconds = -1 }},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

@@ -168,8 +168,8 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.MaxLogAgeDays != 30 {
 		t.Errorf("default MaxLogAgeDays = %d, want 30", got.MaxLogAgeDays)
 	}
-	if got.DefaultTimeoutSeconds != 30 {
-		t.Errorf("default DefaultTimeoutSeconds = %d, want 30", got.DefaultTimeoutSeconds)
+	if got.DefaultTimeoutSeconds != 0 {
+		t.Errorf("default DefaultTimeoutSeconds = %d, want 0 (no timeout)", got.DefaultTimeoutSeconds)
 	}
 	if got.Theme != domain.ThemeDefault {
 		t.Errorf("default Theme = %q, want %q", got.Theme, domain.ThemeDefault)

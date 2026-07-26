@@ -18,5 +18,6 @@ type Job struct {
 	// TimeoutSeconds bounds how long a run may take before it is killed. 0 means
 	// "inherit the global Config.DefaultTimeoutSeconds", mirroring OverlapPolicy:
 	// normalizeJobs must leave 0 untouched rather than backfilling the default.
+	// The inherited global default may itself be 0, meaning no timeout at all.
 	TimeoutSeconds int `json:"timeout_seconds,omitempty"`
 }

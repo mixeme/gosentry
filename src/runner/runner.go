@@ -18,8 +18,17 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	started := time.Now()
 	// Commands can hang forever if a script waits for input or a child process
 	// stalls. The effective timeout is resolved by the caller (per-job value or
-	// the global default), keeping the runner ignorant of the global config.
-	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	// the global default), keeping the runner ignorant of the global config. A
+	// non-positive timeout means "no timeout": context.WithTimeout(ctx, 0) would
+	// expire immediately, so fall back to a plain cancelable context that only
+	// ever ends via ctx (e.g. app shutdown).
+	var runCtx context.Context
+	var cancel context.CancelFunc
+	if timeout > 0 {
+		runCtx, cancel = context.WithTimeout(ctx, timeout)
+	} else {
+		runCtx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 
 	var output string

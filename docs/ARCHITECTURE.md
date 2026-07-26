@@ -133,14 +133,16 @@ in flight increments `JobRuntime.PendingRuns`. When the current run finishes,
 
 `domain.Job` carries a `TimeoutSeconds` field (`json:"timeout_seconds,omitempty"`),
 following the same inherit pattern as the overlap policy. `0` means inherit the
-global `Config.DefaultTimeoutSeconds` (default **30**); a positive value overrides
-it for that job alone. `app.Service.effectiveTimeout` resolves the effective
-duration under `mu` and `startRunLocked` snapshots it into `runEnv.timeout`.
-`runner.RunJob(ctx, job, trigger, logsDir, timeout)` takes the resolved duration
-as an argument, so the runner stays ignorant of the global config: it applies the
-timeout via `context.WithTimeout` and reports `Timed out after <timeout>` on
-expiry. `StartOnly` jobs run on the untimed context and so measure launch latency
-only, unaffected by the run timeout.
+global `Config.DefaultTimeoutSeconds` (default **0**, i.e. no timeout); a
+positive value overrides it for that job alone. `app.Service.effectiveTimeout`
+resolves the effective duration under `mu` and `startRunLocked` snapshots it into
+`runEnv.timeout`. `runner.RunJob(ctx, job, trigger, logsDir, timeout)` takes the
+resolved duration as an argument, so the runner stays ignorant of the global
+config: a positive duration applies the timeout via `context.WithTimeout` and
+reports `Timed out after <timeout>` on expiry; a non-positive duration runs
+without a deadline, bounded only by `ctx` (app shutdown). `StartOnly` jobs run on
+the untimed context and so measure launch latency only, unaffected by the run
+timeout.
 
 ### Run-time statistics
 

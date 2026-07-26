@@ -54,7 +54,8 @@ type Config struct {
 	ExecutionMode     ExecutionMode `json:"execution_mode,omitempty"`
 	OverlapPolicy     OverlapPolicy `json:"overlap_policy,omitempty"`
 	// DefaultTimeoutSeconds is the run timeout applied to jobs that do not set
-	// their own Job.TimeoutSeconds. It carries the formerly hard-coded 30s guard.
+	// their own Job.TimeoutSeconds. 0 (the default) means no timeout: such jobs
+	// run to completion however long that takes.
 	DefaultTimeoutSeconds int  `json:"default_timeout_seconds,omitempty"`
 	Paused                bool `json:"paused,omitempty"`
 	// Theme selects the visual appearance. Empty is treated as ThemeDefault so
@@ -77,7 +78,7 @@ func DefaultConfig() Config {
 		ExecutionMode:         ExecutionModeParallel,
 		OverlapPolicy:         OverlapPolicySkip,
 		Theme:                 ThemeDefault,
-		DefaultTimeoutSeconds: 30,
+		DefaultTimeoutSeconds: 0,
 	}
 }
 
