@@ -1,6 +1,9 @@
 # Build outputs
 dist/
 
+# Persistent Go build cache for Docker-based release builds.
+.gocache/
+
 # Generated Windows resource compiled from packaging/windows/gosentry.rc.
 cmd/gosentry/*.syso
 

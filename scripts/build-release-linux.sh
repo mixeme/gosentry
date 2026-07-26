@@ -88,11 +88,13 @@ normalize_targets() {
 }
 
 run_in_builder() {
+    mkdir -p "${repo_root}/.gocache"
     docker run --rm \
         "${docker_user_args[@]}" \
         -e "VERSION=${version}" \
         -e "GOCACHE=/tmp/go-build-cache" \
         -v "${repo_root}:/src" \
+        -v "${repo_root}/.gocache:/tmp/go-build-cache" \
         -w /src \
         "$tag" \
         bash -c "$1"

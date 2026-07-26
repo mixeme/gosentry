@@ -18,12 +18,14 @@ fi
 docker build -f Dockerfile -t "$tag" .
 
 mkdir -p "$(dirname "$output")"
+mkdir -p "$(pwd)/.gocache"
 docker run --rm \
     "${docker_user_args[@]}" \
     -e "VERSION=${version}" \
     -e "OUTPUT=${output}" \
     -e "GOCACHE=/tmp/go-build-cache" \
     -v "$(pwd):/src" \
+    -v "$(pwd)/.gocache:/tmp/go-build-cache" \
     -w /src \
     "$tag" \
     bash -c 'CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -buildvcs=false -trimpath -ldflags "-s -w -X gitea.mixdep.ru/mix/gosentry/src/app.Version=${VERSION}" -o "${OUTPUT}" ./cmd/gosentry'
