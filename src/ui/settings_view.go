@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image/color"
 	"net/url"
 	"runtime"
 	"runtime/debug"
@@ -11,6 +12,7 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
@@ -274,13 +276,24 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// Wrapping the whole thing in a vertical scroll keeps its minimum height small
 	// so it does not dictate the window's minimum height (AppTabs sizes to the
 	// tallest tab) and it scrolls on short 720p screens.
+	// The button row sits right below the separator's hairline, which reads as
+	// tighter than the other vertical gaps in the tab (those separate whole
+	// sections, not a single thin line from a row of buttons). A spacer the
+	// height of the default padding closes that gap up to match, and a matching
+	// width spacer indents the buttons from the left edge the same amount.
+	buttonRowSpacer := canvas.NewRectangle(color.Transparent)
+	buttonRowSpacer.SetMinSize(fyne.NewSize(0, theme.Padding()))
+	buttonRowLeftInset := canvas.NewRectangle(color.Transparent)
+	buttonRowLeftInset.SetMinSize(fyne.NewSize(theme.Padding(), 0))
+
 	return container.NewVScroll(container.NewPadded(container.NewVBox(
 		container.NewGridWithColumns(2, leftColumn, rightColumn),
 		widget.NewSeparator(),
+		buttonRowSpacer,
 		// Save/Cancel/Defaults share one row with the status so an empty status
 		// (the common case) does not leave a blank line above the separator. The
 		// status appears beside the buttons once a save reports a result.
-		container.NewHBox(saveSettings, cancelSettings, restoreDefaults, settingsStatus),
+		container.NewHBox(buttonRowLeftInset, saveSettings, cancelSettings, restoreDefaults, settingsStatus),
 	)))
 }
 
