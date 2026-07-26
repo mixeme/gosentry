@@ -68,20 +68,7 @@ func (s *Store) SaveJobs(jobs []domain.Job) error {
 func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	// Defaults favor a portable installation: settings and jobs begin next to the
 	// executable, while logs are grouped under a dedicated subdirectory.
-	config := domain.Config{
-		JobsDir:           ".",
-		LogsDir:           "logs",
-		MaxLogFiles:       100,
-		MaxLogAgeDays:     30,
-		StartOnLogin:      false,
-		KeepRunningInTray: true,
-		NotifyOnFailure:   true,
-		ExecutionMode:     domain.ExecutionModeParallel,
-		OverlapPolicy:     domain.OverlapPolicySkip,
-		Theme:             domain.ThemeDefault,
-
-		DefaultTimeoutSeconds: 30,
-	}
+	config := domain.DefaultConfig()
 
 	if _, err := os.Stat(paths.ConfigPath); errors.Is(err, os.ErrNotExist) {
 		return config, writeJSON(paths.ConfigPath, config)

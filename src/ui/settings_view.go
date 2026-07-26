@@ -35,6 +35,9 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// when something differs. It is defined below (once Save and every field
 	// exist) but declared here so the field change handlers can reference it.
 	var updateSaveState func()
+	// loadFields populates every form control from the given config. It backs
+	// both the initial load and the Cancel/Defaults buttons below.
+	var loadFields func(domain.Config)
 	startOnLogin := widget.NewCheck("Start on login", nil)
 	startOnLogin.SetChecked(store.Config.StartOnLogin)
 	autostartStatus := widget.NewLabel("")
@@ -188,6 +191,38 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	}
 	updateSaveState()
 
+	// loadFields populates every form control from a config without saving it,
+	// backing both the Cancel button (reload the saved config, discarding edits)
+	// and the Defaults button (load the built-in defaults for review before
+	// Save is clicked).
+	loadFields = func(c domain.Config) {
+		startOnLogin.SetChecked(c.StartOnLogin)
+		minimizeToTray.SetChecked(c.KeepRunningInTray)
+		notifications.SetChecked(c.NotifyOnFailure)
+		themeSelect.SetSelected(themeLabel(c.Theme))
+		applyTheme(fyne.CurrentApp(), themeFromLabel(themeSelect.Selected))
+		executionModeSelect.SetSelected(string(c.ExecutionMode))
+		overlapPolicySelect.SetSelected(string(c.OverlapPolicy))
+		defaultTimeout.SetText(strconv.Itoa(c.DefaultTimeoutSeconds))
+		jobsDir.SetText(c.JobsDir)
+		logsDir.SetText(c.LogsDir)
+		maxLogFiles.SetText(strconv.Itoa(c.MaxLogFiles))
+		maxLogAgeDays.SetText(strconv.Itoa(c.MaxLogAgeDays))
+		if startOnLogin.Checked != store.Config.StartOnLogin {
+			autostartStatus.SetText("Pending: save settings to apply")
+		} else {
+			refreshAutostartStatus()
+		}
+		settingsStatus.SetText("")
+		updateSaveState()
+	}
+	cancelSettings := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+		loadFields(store.Config)
+	})
+	restoreDefaults := widget.NewButtonWithIcon("Defaults", theme.MediaReplayIcon(), func() {
+		loadFields(domain.DefaultConfig())
+	})
+
 	// The form is split into two columns so a wide window uses its horizontal
 	// space instead of stretching into one tall strip. The left column holds the
 	// toggles (Application, Queue); the right holds the editable Storage fields and
@@ -241,10 +276,10 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	return container.NewVScroll(container.NewPadded(container.NewVBox(
 		container.NewGridWithColumns(2, leftColumn, rightColumn),
 		widget.NewSeparator(),
-		// Save button and its status share one row so an empty status (the common
-		// case) does not leave a blank line above the separator. The status appears
-		// beside the button once a save reports a result.
-		container.NewHBox(saveSettings, settingsStatus),
+		// Save/Cancel/Defaults share one row with the status so an empty status
+		// (the common case) does not leave a blank line above the separator. The
+		// status appears beside the buttons once a save reports a result.
+		container.NewHBox(saveSettings, cancelSettings, restoreDefaults, settingsStatus),
 	)))
 }
 

@@ -62,6 +62,25 @@ type Config struct {
 	Theme Theme `json:"theme,omitempty"`
 }
 
+// DefaultConfig returns the built-in default settings. It is the config used
+// when gosentry.json does not yet exist, and is also what the Settings UI
+// offers to restore via its "Defaults" button.
+func DefaultConfig() Config {
+	return Config{
+		JobsDir:               ".",
+		LogsDir:               "logs",
+		MaxLogFiles:           100,
+		MaxLogAgeDays:         30,
+		StartOnLogin:          false,
+		KeepRunningInTray:     true,
+		NotifyOnFailure:       true,
+		ExecutionMode:         ExecutionModeParallel,
+		OverlapPolicy:         OverlapPolicySkip,
+		Theme:                 ThemeDefault,
+		DefaultTimeoutSeconds: 30,
+	}
+}
+
 // JobsFile is the on-disk shape of jobs.json. Wrapping the slice in a top-level
 // object leaves room for future metadata without breaking the basic file format.
 type JobsFile struct {
