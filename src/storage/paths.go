@@ -9,9 +9,11 @@ const (
 	// The config file stays beside the executable so the portable build behaves
 	// predictably: moving the program folder moves its settings with it.
 	ConfigFileName = "gosentry.json"
-	// Jobs are kept in a separate JSON file because the user can choose a
-	// different jobs directory, while application settings remain local to the
-	// installed/copied program.
+	// Jobs are kept in a separate JSON file because the user can point the
+	// configuration at any jobs file they like, while application settings
+	// remain local to the installed/copied program. This is only the default
+	// name, used before the config is read and when an older config that named
+	// just a directory is migrated.
 	JobsFileName = "jobs.json"
 
 )
@@ -23,10 +25,13 @@ type Paths struct {
 	ExecutablePath string
 	AppDir         string
 	ConfigPath     string
-	JobsDir        string
-	JobsPath       string
-	LogsDir        string
-	DesktopIcon    string
+	// JobsDir is the directory containing JobsPath. It is derived from the
+	// configured jobs file, never configured on its own, and exists so writers
+	// can create the folder before saving.
+	JobsDir     string
+	JobsPath    string
+	LogsDir     string
+	DesktopIcon string
 }
 
 func ResolvePaths() (Paths, error) {

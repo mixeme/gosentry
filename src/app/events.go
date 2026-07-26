@@ -41,6 +41,17 @@ type SchedulerStateChanged struct {
 	Paused bool
 }
 
+// JobsLoaded signals that the whole job list was replaced by the contents of a
+// jobs file the user selected in Settings. It carries the path and job count
+// because that is what the user needs to see confirmed — the switch happens
+// without a prompt, and the previous list is no longer on screen to compare
+// against. Observers that render jobs should re-read them through the Service;
+// a broad JobChanged is emitted alongside for exactly that.
+type JobsLoaded struct {
+	Path  string
+	Count int
+}
+
 // ErrorOccurred signals a background error that could not be returned to a
 // caller — typically a failed save or cleanup after an async run. The UI
 // surfaces it in the History tab so the user is not silently left with
@@ -50,6 +61,7 @@ type ErrorOccurred struct {
 }
 
 func (JobChanged) isEvent()            {}
+func (JobsLoaded) isEvent()            {}
 func (RunRecorded) isEvent()           {}
 func (SchedulerStateChanged) isEvent() {}
 func (ErrorOccurred) isEvent()         {}

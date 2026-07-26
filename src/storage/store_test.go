@@ -77,7 +77,7 @@ func TestConfigRoundTrip(t *testing.T) {
 	}
 
 	want := domain.Config{
-		JobsDir:           "/custom/jobs",
+		JobsFile:          "/custom/jobs/team.json",
 		LogsDir:           "/custom/logs",
 		MaxLogFiles:       50,
 		MaxLogAgeDays:     14,
@@ -94,8 +94,8 @@ func TestConfigRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if got.JobsDir != want.JobsDir {
-		t.Errorf("JobsDir: got %q, want %q", got.JobsDir, want.JobsDir)
+	if got.JobsFile != want.JobsFile {
+		t.Errorf("JobsFile: got %q, want %q", got.JobsFile, want.JobsFile)
 	}
 	if got.LogsDir != want.LogsDir {
 		t.Errorf("LogsDir: got %q, want %q", got.LogsDir, want.LogsDir)
@@ -156,8 +156,8 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.JobsDir != "." {
-		t.Errorf("default JobsDir = %q, want '.'", got.JobsDir)
+	if got.JobsFile != "jobs.json" {
+		t.Errorf("default JobsFile = %q, want 'jobs.json'", got.JobsFile)
 	}
 	if got.LogsDir != "logs" {
 		t.Errorf("default LogsDir = %q, want 'logs'", got.LogsDir)
@@ -204,6 +204,108 @@ func TestLoadOrCreateConfigKeepsZeroTimeoutOnReload(t *testing.T) {
 	}
 	if reloaded.DefaultTimeoutSeconds != 0 {
 		t.Errorf("reloaded DefaultTimeoutSeconds = %d, want 0 (no timeout)", reloaded.DefaultTimeoutSeconds)
+	}
+}
+
+// TestLoadOrCreateConfigMigratesJobsDir covers a gosentry.json written before
+// the setting named a file: the old jobs_dir keeps pointing at the same jobs
+// file, and the retired key is dropped so it is not written back.
+func TestLoadOrCreateConfigMigratesJobsDir(t *testing.T) {
+	dir := t.TempDir()
+	paths := Paths{
+		AppDir:     dir,
+		ConfigPath: filepath.Join(dir, ConfigFileName),
+	}
+	legacy := map[string]any{
+		"jobs_dir":         filepath.Join(dir, "shared"),
+		"logs_dir":         "logs",
+		"max_log_files":    100,
+		"max_log_age_days": 30,
+	}
+	if err := writeJSON(paths.ConfigPath, legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadOrCreateConfig(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(dir, "shared", JobsFileName)
+	if got.JobsFile != want {
+		t.Errorf("migrated JobsFile: got %q, want %q", got.JobsFile, want)
+	}
+	if got.JobsDir != "" {
+		t.Errorf("legacy JobsDir should be cleared, got %q", got.JobsDir)
+	}
+
+	// The migrated config must not carry the retired key once it is saved.
+	store := &Store{Paths: paths, Config: got}
+	if err := store.SaveConfig(); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(paths.ConfigPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(data), "jobs_dir") {
+		t.Errorf("saved config should not contain jobs_dir:\n%s", data)
+	}
+}
+
+// TestLoadJobsFileReportsMissingWithoutCreating covers the loader the Settings
+// tab uses to decide between adopting a jobs file and writing the current jobs
+// to it: a missing file is reported as "not found" rather than an error, and —
+// unlike the startup path — is not seeded with sample jobs.
+func TestLoadJobsFileReportsMissingWithoutCreating(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "nothing-here.json")
+
+	jobs, found, err := LoadJobsFile(missing)
+	if err != nil {
+		t.Fatalf("missing file should not be an error: %v", err)
+	}
+	if found || jobs != nil {
+		t.Errorf("missing file: got found=%v jobs=%+v, want false/nil", found, jobs)
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Error("LoadJobsFile must not create the file it was asked about")
+	}
+
+	// An existing file comes back normalized, so a hand-written jobs file gains
+	// its IDs and defaults before the application adopts it.
+	path := filepath.Join(dir, "hand-written.json")
+	if err := writeJSON(path, domain.JobsFile{Jobs: []domain.Job{{Name: "No ID"}}}); err != nil {
+		t.Fatal(err)
+	}
+	jobs, found, err = LoadJobsFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !found || len(jobs) != 1 {
+		t.Fatalf("existing file: got found=%v jobs=%+v, want true and one job", found, jobs)
+	}
+	if jobs[0].ID != 1 || jobs[0].Schedule == "" || jobs[0].Command == "" {
+		t.Errorf("loaded job should be normalized, got %+v", jobs[0])
+	}
+}
+
+// TestApplyConfigPathsDerivesJobsDir checks that the jobs file drives both
+// resolved paths: relative values resolve against the program folder, and the
+// containing directory comes from the file name the user chose.
+func TestApplyConfigPathsDerivesJobsDir(t *testing.T) {
+	dir := t.TempDir()
+	store := &Store{
+		Paths:  Paths{AppDir: dir},
+		Config: domain.Config{JobsFile: filepath.Join("shared", "team.json"), LogsDir: "logs"},
+	}
+
+	store.applyConfigPaths()
+
+	if want := filepath.Join(dir, "shared", "team.json"); store.Paths.JobsPath != want {
+		t.Errorf("JobsPath: got %q, want %q", store.Paths.JobsPath, want)
+	}
+	if want := filepath.Join(dir, "shared"); store.Paths.JobsDir != want {
+		t.Errorf("JobsDir: got %q, want %q", store.Paths.JobsDir, want)
 	}
 }
 

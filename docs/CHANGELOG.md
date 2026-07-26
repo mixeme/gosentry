@@ -2,6 +2,48 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.15.0 - 2026-07-26
+
+**Settings points at the jobs file itself, not the folder holding it.**
+
+**Settings:**
+
+- The **Jobs directory** row is now a **Jobs file** row. Browse opens a file
+  picker filtered to `.json` instead of a folder picker, so the job list can
+  live under any file name — `team-jobs.json`, one file per machine, a file
+  shared over a network drive — rather than a fixed `jobs.json` per folder. The
+  field stays editable, which is how a file that does not exist yet is named.
+- **Selecting an existing jobs file now loads it.** Previously the current job
+  list was written over whatever was at the new path, which made it impossible
+  to switch to an existing jobs file — its contents were destroyed on Save. Now
+  an existing file wins: its jobs are loaded, normalized, and replace the loaded
+  list, with runtimes, parsed schedules, next-run times, and log-seeded
+  statistics rebuilt around them. A path with no file behind it still receives
+  the current jobs (and its folder is created), which is how the jobs file is
+  renamed or relocated. History records `Jobs loaded — N jobs from <path>`,
+  since the switch happens without a prompt.
+- Switching to a different jobs file is refused while a job is running: adoption
+  discards every runtime, and a run finishing afterwards would write its result
+  onto whichever job inherited its ID. Settings unrelated to the jobs file still
+  save normally during a run.
+- Saving a path with no file name (a trailing separator, `.`, `..`) is rejected
+  with "jobs file must include a file name" instead of failing later with an
+  opaque OS error.
+
+**Configuration:**
+
+- `Config.JobsDir` / `jobs_dir` is replaced by `Config.JobsFile` / `jobs_file`,
+  which holds the full path including the file name; the default is
+  `"jobs.json"`, resolved against the program folder as before. `Paths.JobsDir`
+  is now derived from the configured file so job saves still create the folder.
+- A `gosentry.json` written by an earlier version is migrated on load: its
+  `jobs_dir` is joined with `jobs.json`, which is the exact file that version
+  used, and the retired key is dropped when the config is rewritten.
+- New `app.JobsLoaded{Path, Count}` event, emitted when a selected jobs file
+  replaces the job list; the UI turns it into the History entry. New
+  `storage.LoadJobsFile`, which reads and normalizes a jobs file and reports a
+  missing one as "not found" instead of seeding it the way startup does.
+
 ## 0.14.0 - 2026-07-26
 
 **Compact job list view, "no timeout" at both timeout levels, and an Open

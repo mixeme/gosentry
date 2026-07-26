@@ -69,28 +69,38 @@ type Service struct {
 // store is the Service's sole channel to persistence.
 func NewService(store *storage.Store, jobs []domain.Job) *Service {
 	s := &Service{
-		store:     store,
-		jobs:      jobs,
-		runtimes:  domain.NewRuntimes(jobs),
-		schedules: make(map[int]domain.Schedule, len(jobs)),
-		runJob:    runner.RunJob,
-		ctx:       context.Background(),
-		paused:    store.Config.Paused,
+		store:  store,
+		runJob: runner.RunJob,
+		ctx:    context.Background(),
+		paused: store.Config.Paused,
 	}
-	// Parse every schedule once, then compute each job's first next-run so the
-	// Service is ready to schedule the moment it exists — mirroring the old
-	// scheduler's reset-on-construction. No lock is needed: construction is
-	// single-threaded, before Start launches the timing loop.
+	// No lock is needed here: construction is single-threaded, before Start
+	// launches the timing loop.
+	s.adoptJobsLocked(jobs)
+	return s
+}
+
+// adoptJobsLocked makes jobs the Service's durable state and rebuilds everything
+// derived from it: the runtime map, the parsed-schedule cache, each job's first
+// next-run — so the Service is ready to schedule the moment it exists, mirroring
+// the old scheduler's reset-on-construction — and the statistics seeded from
+// existing log files, so the details panel shows accumulated run history
+// immediately rather than only runs since this process started.
+//
+// It backs both construction and a Settings change that points at a different
+// jobs file. The caller must hold mu.
+func (s *Service) adoptJobsLocked(jobs []domain.Job) {
+	s.jobs = jobs
+	s.runtimes = domain.NewRuntimes(jobs)
+	s.schedules = make(map[int]domain.Schedule, len(jobs))
+
 	now := time.Now()
 	for index := range s.jobs {
 		job := &s.jobs[index]
 		s.parseScheduleLocked(job)
 		s.refreshNextRunFromLocked(job, s.runtimes[job.ID], now)
 	}
-	// Seed execution-time statistics from existing log files so the details panel
-	// shows accumulated run history immediately after a restart, not just runs
-	// since this process started.
-	for id, seed := range runner.SeedStats(store.Paths.LogsDir, jobs, store.Config.MaxLogFiles) {
+	for id, seed := range runner.SeedStats(s.store.Paths.LogsDir, s.jobs, s.store.Config.MaxLogFiles) {
 		runtime := s.runtimes[id]
 		if runtime == nil {
 			continue
@@ -102,7 +112,6 @@ func NewService(store *storage.Store, jobs []domain.Job) *Service {
 		runtime.MaxDurationMS = seed.MaxDurationMS
 		runtime.TimedRunCount = seed.TimedRunCount
 	}
-	return s
 }
 
 // Start begins scheduling with the real wall clock. It is the production entry

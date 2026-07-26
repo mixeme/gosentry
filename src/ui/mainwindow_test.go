@@ -27,7 +27,7 @@ func newTestStore(t *testing.T) *storage.Store {
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
 		Config: domain.Config{
-			JobsDir:               ".",
+			JobsFile:              "jobs.json",
 			LogsDir:               "logs",
 			MaxLogFiles:           100,
 			MaxLogAgeDays:         30,

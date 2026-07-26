@@ -63,7 +63,7 @@ portable application: moving the program folder also moves its configuration.
 
 ```json
 {
-  "jobs_dir": ".",
+  "jobs_file": "jobs.json",
   "logs_dir": "logs",
   "max_log_files": 100,
   "max_log_age_days": 30,
@@ -91,9 +91,14 @@ portable application: moving the program folder also moves its configuration.
 }
 ```
 
-`jobs_dir` is the directory GoSentry reads `jobs.json` from. The default `"."`
-means the same folder as the executable. An absolute path can be used when jobs
+`jobs_file` is the file GoSentry reads job definitions from, file name included,
+so the file can be named anything. The default `"jobs.json"` is relative and
+resolves to the executable's folder. An absolute path can be used when jobs
 should live elsewhere, such as a shared network drive.
+
+A `gosentry.json` from an earlier version that carries `jobs_dir` instead keeps
+working: the directory is combined with `jobs.json` on load, and the file is
+rewritten with `jobs_file`.
 
 `logs_dir` is relative to the program folder when it does not start with a
 drive letter or `/`.
@@ -132,9 +137,20 @@ Standard 5-field cron expressions:
 5. Use **Pause** on a single job to suspend it without deleting it.
 6. Use **Pause all** as a global stop switch for all scheduled runs.
 7. Open **History** to see past runs, their trigger (`Manual`, `Schedule`, or `UI`), state, and log file.
-8. Open **Settings** to change storage directories, log cleanup limits, queue behavior, and notifications.
+8. Open **Settings** to change the storage paths, log cleanup limits, queue behavior, and notifications.
 
-Changing `jobs_dir` in Settings saves the current job list to the new directory.
+The **Jobs file** row picks the file itself: **Browse** lists `.json` files, and
+a path can also be typed to name a file that does not exist yet. What Save does
+depends on whether that file is already there:
+
+- **The file exists** — its jobs are loaded and replace the current list, so
+  selecting a jobs file switches to it (another machine's file, a shared one on
+  a network drive). History records how many jobs were loaded and from where.
+- **The file does not exist** — the current jobs are written to it, which is how
+  the jobs file is renamed or moved somewhere else.
+
+Switching to a different jobs file is refused while a job is running, because
+loading a new list discards the run state of the old one.
 
 The **Start on login** checkbox shows an `OK` or `Problem` status. Saving with
 it enabled writes an autostart entry using the current executable path.

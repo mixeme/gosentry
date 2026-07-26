@@ -29,12 +29,24 @@ change to their shape has to stay compatible on its own.
   one helper that every consumer shares (`JobListView.IsCompact`, `ui.themeFor`),
   and is normalized before being written back, so the file never gains a value
   no reader understands.
+- A renamed key keeps the old field on `Config` (tagged `omitempty`) purely so
+  it can still be read. `storage.loadOrCreateConfig` converts it to the new
+  field and clears it, so the retired key disappears on the next save. See
+  `Config.JobsDir` → `Config.JobsFile`. Where the new field has a non-empty
+  default, clear that default before unmarshalling, or "the file omits it" and
+  "the file sets it" become indistinguishable and the conversion never runs.
 - Each of the three gets a test: the default in `storage`, the normalization in
   `domain`, and a round-trip through the real config file in `app`.
 
 ## Intentional behavior (not bugs)
 
 - `RunNow` is allowed during global pause and for disabled jobs.
+- Selecting a jobs file that already exists **loads** it: its jobs replace the
+  in-memory list, which is the only way the user can switch between job lists. A
+  path with no file behind it receives the current jobs (rename/relocate). The
+  switch is refused while a job is running, because adoption drops every runtime
+  and a finishing run would then write its result onto whichever job inherited
+  its ID.
 - Sequential mode runs jobs FIFO by order in `jobs.json`.
 - Scheduler tick is 1s — sub-second `@every` intervals are not supported.
 - Command timeout defaults to no timeout globally (`Config.DefaultTimeoutSeconds`

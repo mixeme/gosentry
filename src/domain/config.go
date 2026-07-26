@@ -64,7 +64,15 @@ const (
 // application-level choices: where to read jobs from, where to write logs, and
 // how the desktop shell should behave.
 type Config struct {
-	JobsDir           string        `json:"jobs_dir"`
+	// JobsFile is the full path of the JSON file holding the job definitions,
+	// file name included, so the user can keep jobs under any name they like. A
+	// relative path is resolved against the program folder.
+	JobsFile string `json:"jobs_file"`
+	// JobsDir is the pre-0.15 setting that named only the directory, with the
+	// file name fixed to jobs.json. It is still read so an older gosentry.json
+	// keeps working: storage.loadOrCreateConfig turns it into JobsFile and
+	// clears it, so the field disappears from the file on the next save.
+	JobsDir           string        `json:"jobs_dir,omitempty"`
 	LogsDir           string        `json:"logs_dir"`
 	MaxLogFiles       int           `json:"max_log_files"`
 	MaxLogAgeDays     int           `json:"max_log_age_days"`
@@ -93,7 +101,7 @@ type Config struct {
 // offers to restore via its "Defaults" button.
 func DefaultConfig() Config {
 	return Config{
-		JobsDir:               ".",
+		JobsFile:              "jobs.json",
 		LogsDir:               "logs",
 		MaxLogFiles:           100,
 		MaxLogAgeDays:         30,

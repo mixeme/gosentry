@@ -27,7 +27,7 @@ func newTempService(t *testing.T, jobs []domain.Job) *Service {
 			JobsPath:       filepath.Join(dir, "jobs.json"),
 			LogsDir:        filepath.Join(dir, "logs"),
 		},
-		Config: domain.Config{JobsDir: ".", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30, ExecutionMode: domain.ExecutionModeParallel, OverlapPolicy: domain.OverlapPolicySkip, DefaultTimeoutSeconds: 30},
+		Config: domain.Config{JobsFile: "jobs.json", LogsDir: "logs", MaxLogFiles: 100, MaxLogAgeDays: 30, ExecutionMode: domain.ExecutionModeParallel, OverlapPolicy: domain.OverlapPolicySkip, DefaultTimeoutSeconds: 30},
 	}
 	return NewService(store, jobs)
 }
@@ -527,7 +527,8 @@ func TestUpdateSettingsRejectsInvalidConfigs(t *testing.T) {
 		name   string
 		mutate func(c *domain.Config)
 	}{
-		{"missing jobs dir", func(c *domain.Config) { c.JobsDir = "  " }},
+		{"missing jobs file", func(c *domain.Config) { c.JobsFile = "  " }},
+		{"jobs file without a file name", func(c *domain.Config) { c.JobsFile = "jobs" + string(filepath.Separator) }},
 		{"missing logs dir", func(c *domain.Config) { c.LogsDir = "" }},
 		{"non-positive max files", func(c *domain.Config) { c.MaxLogFiles = 0 }},
 		{"non-positive max age", func(c *domain.Config) { c.MaxLogAgeDays = -1 }},
@@ -542,6 +543,169 @@ func TestUpdateSettingsRejectsInvalidConfigs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHasFileName(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		{"jobs.json", true},
+		{filepath.Join("data", "team.json"), true},
+		{"jobs" + string(filepath.Separator), false},
+		{"data/", false},
+		{".", false},
+		{"..", false},
+		{string(filepath.Separator), false},
+	}
+	for _, tc := range tests {
+		if got := hasFileName(tc.path); got != tc.want {
+			t.Errorf("hasFileName(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
+// Renaming or relocating the jobs file writes the loaded jobs to the new path,
+// which is what makes the Settings change take effect without a restart.
+func TestUpdateSettingsWritesJobsToTheNewFile(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "Kept", Schedule: "@every 1m", Command: "echo hi", Enabled: true}})
+
+	config := svc.store.Config
+	config.JobsFile = filepath.Join("data", "team-jobs.json")
+	if err := svc.UpdateSettings(config); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+
+	moved := filepath.Join(svc.store.Paths.AppDir, "data", "team-jobs.json")
+	if svc.store.Paths.JobsPath != moved {
+		t.Errorf("JobsPath: got %q, want %q", svc.store.Paths.JobsPath, moved)
+	}
+	data, err := os.ReadFile(moved)
+	if err != nil {
+		t.Fatalf("read moved jobs file: %v", err)
+	}
+	var file domain.JobsFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatalf("unmarshal moved jobs file: %v", err)
+	}
+	if len(file.Jobs) != 1 || file.Jobs[0].Name != "Kept" {
+		t.Errorf("moved jobs file: got %+v, want the single 'Kept' job", file.Jobs)
+	}
+}
+
+// Pointing Settings at a jobs file that already exists must adopt that file:
+// its jobs replace the loaded ones instead of being overwritten by them. This is
+// the only way the user can switch between job lists, so the file's contents
+// win, the job list is rebuilt around them, and History is told where they came
+// from.
+func TestUpdateSettingsAdoptsExistingJobsFile(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "Local", Schedule: "@every 1m", Command: "echo local", Enabled: true}})
+	rec := &recorder{}
+	svc.Subscribe(rec)
+
+	shared := filepath.Join(svc.store.Paths.AppDir, "shared.json")
+	existing := domain.JobsFile{Jobs: []domain.Job{
+		{ID: 4, Name: "Adopted", Schedule: "@every 5m", Command: "echo adopted", Enabled: true},
+		{Name: "Needs an ID", Schedule: "@every 9m", Command: "echo second", Enabled: false},
+	}}
+	data, err := json.Marshal(existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shared, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	config := svc.store.Config
+	config.JobsFile = shared
+	if err := svc.UpdateSettings(config); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+
+	jobs := svc.Jobs()
+	if len(jobs) != 2 || jobs[0].Name != "Adopted" {
+		t.Fatalf("jobs after adoption: got %+v, want the two jobs from the selected file", jobs)
+	}
+	// The adopted jobs must be fully live, not just listed: runtime and parsed
+	// schedule are rebuilt for the IDs the file brought (including the one
+	// normalization had to assign).
+	for _, job := range jobs {
+		if svc.Runtime(job.ID) == nil {
+			t.Errorf("job %d (%q) has no runtime after adoption", job.ID, job.Name)
+		}
+	}
+	if svc.Runtime(1) != nil {
+		t.Error("runtime of the replaced job should be gone")
+	}
+
+	var loaded []JobsLoaded
+	for _, e := range rec.events {
+		if jl, ok := e.(JobsLoaded); ok {
+			loaded = append(loaded, jl)
+		}
+	}
+	if len(loaded) != 1 || loaded[0].Path != shared || loaded[0].Count != 2 {
+		t.Errorf("JobsLoaded events: got %+v, want one for %q with 2 jobs", loaded, shared)
+	}
+}
+
+// A path with no file behind it is the "rename or relocate" case: the current
+// jobs are written there rather than an empty list being adopted.
+func TestUpdateSettingsKeepsJobsWhenTheNewFileIsMissing(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "Local", Schedule: "@every 1m", Command: "echo local", Enabled: true}})
+
+	config := svc.store.Config
+	config.JobsFile = filepath.Join("moved", "jobs.json")
+	if err := svc.UpdateSettings(config); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+
+	jobs := svc.Jobs()
+	if len(jobs) != 1 || jobs[0].Name != "Local" {
+		t.Fatalf("jobs after the move: got %+v, want the original job", jobs)
+	}
+	if _, err := os.Stat(filepath.Join(svc.store.Paths.AppDir, "moved", "jobs.json")); err != nil {
+		t.Errorf("jobs should have been written to the new path: %v", err)
+	}
+}
+
+// Adoption throws away every runtime, including the state of a run in flight,
+// and a finishing run would then write its result onto whichever job inherited
+// its ID. Refusing the switch is what keeps that from happening.
+func TestUpdateSettingsRefusesJobsFileSwitchWhileRunning(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "Long", Schedule: "@every 1h", Command: "echo long", Enabled: true}})
+	entered := make(chan int, 1)
+	release := make(chan struct{})
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
+		entered <- job.ID
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
+	}
+	done := completions(svc)
+
+	if err := svc.RunNow(1); err != nil {
+		t.Fatalf("RunNow: %v", err)
+	}
+	<-entered
+
+	config := svc.store.Config
+	config.JobsFile = filepath.Join("elsewhere", "jobs.json")
+	if err := svc.UpdateSettings(config); err == nil {
+		t.Error("expected the jobs-file switch to be refused while a job is running")
+	}
+	if svc.Store().Config.JobsFile == config.JobsFile {
+		t.Error("the refused switch must not have been persisted")
+	}
+
+	// A setting that does not touch the jobs file still saves during a run.
+	unrelated := svc.Store().Config
+	unrelated.NotifyOnFailure = !unrelated.NotifyOnFailure
+	if err := svc.UpdateSettings(unrelated); err != nil {
+		t.Errorf("unrelated setting should still save during a run: %v", err)
+	}
+
+	close(release)
+	waitRecord(t, done)
 }
 
 func TestPrependLogCapsActivityList(t *testing.T) {

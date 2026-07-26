@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	fynestorage "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -94,11 +95,13 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	defaultTimeout.SetPlaceHolder("0 = no timeout")
 	defaultTimeout.SetText(strconv.Itoa(store.Config.DefaultTimeoutSeconds))
 	defaultTimeout.OnChanged = func(string) { updateSaveState() }
-	jobsDir := widget.NewEntry()
-	jobsDir.SetText(store.Config.JobsDir)
-	jobsDir.OnChanged = func(string) { updateSaveState() }
-	jobsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
-		chooseFolder(w, jobsDir)
+	jobsFile := widget.NewEntry()
+	jobsFile.SetText(store.Config.JobsFile)
+	jobsFile.OnChanged = func(string) { updateSaveState() }
+	// The picker only offers existing files; a jobs file that does not exist yet
+	// is entered by typing its path, which Save then creates.
+	jobsFileBrowse := widget.NewButtonWithIcon("Browse", theme.FileIcon(), func() {
+		chooseJSONFile(w, jobsFile)
 	})
 	logsDir := widget.NewEntry()
 	logsDir.SetText(store.Config.LogsDir)
@@ -136,8 +139,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsStatus.SetText("Max log age days must be a positive number")
 			return
 		}
-		if strings.TrimSpace(jobsDir.Text) == "" {
-			settingsStatus.SetText("Jobs directory is required")
+		if strings.TrimSpace(jobsFile.Text) == "" {
+			settingsStatus.SetText("Jobs file is required")
 			return
 		}
 		if strings.TrimSpace(logsDir.Text) == "" {
@@ -153,7 +156,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		// validates it, persists config and jobs to the (possibly new) directory,
 		// and runs log cleanup so tightened retention limits take effect at once.
 		config := store.Config
-		config.JobsDir = strings.TrimSpace(jobsDir.Text)
+		config.JobsFile = strings.TrimSpace(jobsFile.Text)
 		config.LogsDir = strings.TrimSpace(logsDir.Text)
 		config.MaxLogFiles = files
 		config.MaxLogAgeDays = days
@@ -191,7 +194,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			executionModeSelect.Selected != string(c.ExecutionMode) ||
 			overlapPolicySelect.Selected != string(c.OverlapPolicy) ||
 			strings.TrimSpace(defaultTimeout.Text) != strconv.Itoa(c.DefaultTimeoutSeconds) ||
-			strings.TrimSpace(jobsDir.Text) != c.JobsDir ||
+			strings.TrimSpace(jobsFile.Text) != c.JobsFile ||
 			strings.TrimSpace(logsDir.Text) != c.LogsDir ||
 			strings.TrimSpace(maxLogFiles.Text) != strconv.Itoa(c.MaxLogFiles) ||
 			strings.TrimSpace(maxLogAgeDays.Text) != strconv.Itoa(c.MaxLogAgeDays) ||
@@ -217,7 +220,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		executionModeSelect.SetSelected(string(c.ExecutionMode))
 		overlapPolicySelect.SetSelected(string(c.OverlapPolicy))
 		defaultTimeout.SetText(strconv.Itoa(c.DefaultTimeoutSeconds))
-		jobsDir.SetText(c.JobsDir)
+		jobsFile.SetText(c.JobsFile)
 		logsDir.SetText(c.LogsDir)
 		maxLogFiles.SetText(strconv.Itoa(c.MaxLogFiles))
 		maxLogAgeDays.SetText(strconv.Itoa(c.MaxLogAgeDays))
@@ -268,8 +271,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		container.NewVBox(
 			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			settingsRow("Config JSON", widget.NewLabel(store.Paths.ConfigPath)),
-			settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
-			// Browse stays rightmost so it lines up with the Jobs directory row
+			settingsRow("Jobs file", container.NewBorder(nil, nil, nil, jobsFileBrowse, jobsFile)),
+			// Browse stays rightmost so it lines up with the Jobs file row
 			// above it; Open sits between it and the path it opens.
 			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, container.NewHBox(logsDirOpen, logsDirBrowse), logsDir)),
 			settingsRow("Max log files", maxLogFiles),
@@ -358,6 +361,21 @@ func chooseFile(w fyne.Window, target *widget.Entry) {
 	fileDialog.Show()
 }
 
+// chooseJSONFile is chooseFile restricted to .json files, used for the jobs
+// file so the picker does not list every file in the folder. The entry stays
+// editable, which is how a path to a file that does not exist yet is entered.
+func chooseJSONFile(w fyne.Window, target *widget.Entry) {
+	fileDialog := dialog.NewFileOpen(func(uri fyne.URIReadCloser, err error) {
+		if err != nil || uri == nil {
+			return
+		}
+		target.SetText(uri.URI().Path())
+	}, w)
+	fileDialog.SetFilter(fynestorage.NewExtensionFileFilter([]string{".json"}))
+	fileDialog.Resize(fyne.NewSize(900, 640))
+	fileDialog.Show()
+}
+
 func chooseFolder(w fyne.Window, target *widget.Entry) {
 	folderDialog := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
 		if err != nil || uri == nil {
@@ -380,7 +398,7 @@ func settingsFolderPath(appDir string, text string) string {
 	if trimmed == "" {
 		return ""
 	}
-	return storage.ResolveConfiguredDir(appDir, trimmed)
+	return storage.ResolveConfiguredPath(appDir, trimmed)
 }
 
 // openFolder reveals dir in the desktop file manager. A folder that is not set

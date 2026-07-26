@@ -130,6 +130,11 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 |------|---------|
 | `TestUpdateSettingsPersistsAndValidates` | Verifies that `UpdateSettings` persists a valid config and rewrites autostart if needed. |
 | `TestUpdateSettingsRejectsInvalidConfigs` | Verifies that `UpdateSettings` returns validation errors without persisting. |
+| `TestHasFileName` | Verifies the jobs-file path check: a file name passes; a trailing separator, `.`, and `..` do not. |
+| `TestUpdateSettingsWritesJobsToTheNewFile` | Verifies that changing `JobsFile` re-resolves `Paths.JobsPath` and writes the loaded jobs to the new file, creating its folder. |
+| `TestUpdateSettingsAdoptsExistingJobsFile` | Verifies that selecting a jobs file that already exists replaces the job list with its contents, rebuilds runtimes, and emits `JobsLoaded`. |
+| `TestUpdateSettingsKeepsJobsWhenTheNewFileIsMissing` | Verifies that a path with no file behind it receives the current jobs instead (the rename/relocate case). |
+| `TestUpdateSettingsRefusesJobsFileSwitchWhileRunning` | Verifies that switching the jobs file is refused (and not persisted) while a job runs, while unrelated settings still save. |
 | `TestPrependLogCapsActivityList` | Verifies that the activity log never grows beyond its maximum cap. |
 
 ---
@@ -204,6 +209,9 @@ Tests JSON round-tripping and default generation.
 | `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
 | `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
+| `TestLoadOrCreateConfigMigratesJobsDir` | Verifies that a pre-0.15 `jobs_dir` becomes `jobs_file` pointing at the same `jobs.json`, and that the retired key is not written back. |
+| `TestLoadJobsFileReportsMissingWithoutCreating` | Verifies that `LoadJobsFile` reports a missing file as not-found without creating or seeding it, and normalizes the jobs it does load. |
+| `TestApplyConfigPathsDerivesJobsDir` | Verifies that the configured jobs file resolves against the program folder and that `Paths.JobsDir` is derived from it. |
 | `TestJobsJSONDoesNotPersistRuntimeNoise` | Verifies that `jobs.json` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
 
 ---

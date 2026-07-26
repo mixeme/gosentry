@@ -3,11 +3,13 @@ package app
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 	"gitea.mixdep.ru/mix/gosentry/src/runner"
+	"gitea.mixdep.ru/mix/gosentry/src/storage"
 )
 
 // maxJobLogs bounds the in-memory activity list kept per job. The full history
@@ -224,30 +226,71 @@ func (s *Service) ShouldNotifyOnFailure() bool {
 }
 
 // UpdateSettings validates and persists a new application configuration. The
-// loaded jobs are re-saved because the jobs directory may have changed, and log
+// loaded jobs are re-saved because the jobs file may have changed, and log
 // cleanup runs so a tightened retention policy takes effect immediately.
+//
+// Pointing the config at a different jobs file that already exists adopts that
+// file: its jobs replace the loaded ones, which is the only way the user can
+// switch between job lists. A path with no file there yet receives the current
+// jobs instead, which is how the jobs file is renamed or relocated. Adoption
+// discards all runtime state, so it is refused while a job is running.
 func (s *Service) UpdateSettings(config domain.Config) error {
 	if err := validateConfig(config); err != nil {
 		return err
 	}
+	// The path is stored exactly as it is resolved, so a hand-typed value with
+	// stray spaces cannot make the saved setting and the file in use disagree.
+	config.JobsFile = strings.TrimSpace(config.JobsFile)
 
 	s.mu.Lock()
+	jobsPath := storage.ResolveConfiguredPath(s.store.Paths.AppDir, config.JobsFile)
+	switching := jobsPath != s.store.Paths.JobsPath
+	if switching && s.anyRunningLocked() {
+		s.mu.Unlock()
+		return errors.New("cannot change the jobs file while a job is running")
+	}
+	// Read the new file before anything is written, so a file that cannot be
+	// parsed leaves both the config and the current jobs untouched.
+	var adopted []domain.Job
+	if switching {
+		jobs, found, err := storage.LoadJobsFile(jobsPath)
+		if err != nil {
+			s.mu.Unlock()
+			return fmt.Errorf("read jobs file %s: %w", jobsPath, err)
+		}
+		if found {
+			adopted = jobs
+		}
+	}
+
 	s.store.Config = config
 	if err := s.store.SaveConfig(); err != nil {
 		s.mu.Unlock()
 		return err
 	}
+	if adopted != nil {
+		s.adoptJobsLocked(adopted)
+	}
 	// SaveConfig re-resolved the paths from the new config, so SaveJobs writes to
-	// the (possibly new) jobs directory and cleanup targets the new logs dir.
+	// the (possibly new) jobs file and cleanup targets the new logs dir. Adopted
+	// jobs are written back too, which persists the IDs and defaults that
+	// normalization filled in, exactly as loading them at startup would.
 	if err := s.store.SaveJobs(s.jobs); err != nil {
 		s.mu.Unlock()
 		return err
 	}
+	loaded := len(s.jobs)
 	logsDir := s.store.Paths.LogsDir
 	maxFiles := s.store.Config.MaxLogFiles
 	maxAge := s.store.Config.MaxLogAgeDays
 	s.mu.Unlock()
 
+	if adopted != nil {
+		// A broad JobChanged redraws the job list; JobsLoaded tells the user in
+		// History which file those jobs came from, since nothing was asked.
+		s.emit(JobsLoaded{Path: jobsPath, Count: loaded})
+		s.emit(JobChanged{})
+	}
 	return runner.CleanupLogs(logsDir, maxFiles, maxAge)
 }
 
@@ -394,10 +437,31 @@ func validateJob(job domain.Job) error {
 	return nil
 }
 
+// hasFileName reports whether a path ends in something that can be a file name.
+// It is a syntax check only — an existing directory whose name looks like a file
+// name still passes, and fails at write time — but it catches the shapes a user
+// types when they mean a folder: a trailing separator, "." and "..".
+func hasFileName(path string) bool {
+	if strings.HasSuffix(path, "/") || strings.HasSuffix(path, string(filepath.Separator)) {
+		return false
+	}
+	switch filepath.Base(path) {
+	case ".", "..", string(filepath.Separator):
+		return false
+	}
+	return true
+}
+
 // validateConfig rejects settings that would break persistence or cleanup.
 func validateConfig(config domain.Config) error {
-	if strings.TrimSpace(config.JobsDir) == "" {
-		return errors.New("jobs directory is required")
+	jobsFile := strings.TrimSpace(config.JobsFile)
+	if jobsFile == "" {
+		return errors.New("jobs file is required")
+	}
+	// A path that names only a folder would be written to as if it were a file
+	// and fail later with an opaque OS error, so require a file name here.
+	if !hasFileName(jobsFile) {
+		return errors.New("jobs file must include a file name")
 	}
 	if strings.TrimSpace(config.LogsDir) == "" {
 		return errors.New("logs directory is required")

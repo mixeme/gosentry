@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"time"
 
 	"gitea.mixdep.ru/mix/gosentry/assets"
@@ -64,6 +65,7 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 	svc.Subscribe(app.ObserverFunc(func(ev app.Event) {
 		recorded, isRecorded := ev.(app.RunRecorded)
 		errOccurred, isError := ev.(app.ErrorOccurred)
+		jobsLoaded, isJobsLoaded := ev.(app.JobsLoaded)
 		fyne.Do(func() {
 			if isRecorded {
 				events = append(events, recorded.Record)
@@ -79,6 +81,12 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 			}
 			if isError {
 				events = append(events, newEvent(0, "Service", "Error", errOccurred.Err.Error()))
+			}
+			if isJobsLoaded {
+				// Selecting an existing jobs file replaces the job list without a
+				// prompt, so History carries the receipt: how many jobs, from where.
+				detail := strconv.Itoa(jobsLoaded.Count) + " jobs from " + jobsLoaded.Path
+				events = append(events, newEvent(0, "Service", "Jobs loaded", detail))
 			}
 			refresh()
 		})

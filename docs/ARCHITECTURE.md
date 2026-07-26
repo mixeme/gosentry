@@ -51,7 +51,7 @@ flowchart LR
     runner -->|"execute command"| shell
     runner -->|"write stdout/stderr log"| logs
     runner -->|"RunRecord"| svc
-    svc -->|"emit JobChanged / RunRecorded / ErrorOccurred"| ui
+    svc -->|"emit JobChanged / RunRecorded / JobsLoaded / ErrorOccurred"| ui
     ui -->|"display jobs, history, status"| user
 
     ui -->|"SetAutostart, AutostartStatus"| autostart
@@ -74,6 +74,14 @@ flowchart LR
    its in-memory state, persists through `storage.Store`, and emits a typed
    `Event`. The UI's observer receives the event and refreshes the relevant
    widget on the main thread via `fyne.Do`.
+
+   `UpdateSettings` has one extra step: when the configured jobs file changes
+   and a file already exists at the new path, that file is authoritative. The
+   Service loads it, calls `adoptJobsLocked` to rebuild the jobs slice, runtime
+   map, schedule cache, next-run times, and log-seeded statistics around it, and
+   emits `JobsLoaded` plus a broad `JobChanged`. A path with no file behind it
+   receives the current jobs instead. Adoption drops all runtime state, so it is
+   refused while a job is running.
 
 3. Scheduled run:
    `scheduler.Scheduler` fires a tick every second. On each tick it calls

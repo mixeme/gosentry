@@ -78,14 +78,25 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	if err != nil {
 		return domain.Config{}, err
 	}
+	// Clearing the default first keeps "the file sets jobs_file" distinguishable
+	// from "the file omits it", which the jobs_dir migration below depends on.
+	// The fallbacks restore a value in either case.
+	config.JobsFile = ""
 	if err := json.Unmarshal(data, &config); err != nil {
 		return domain.Config{}, err
 	}
 
-	if strings.TrimSpace(config.JobsDir) == "" {
+	// A config written before the setting named a file carries jobs_dir instead
+	// of jobs_file. Keep its meaning by appending the fixed name that version
+	// used, then drop the old key so the file is rewritten in the current shape.
+	if strings.TrimSpace(config.JobsFile) == "" && strings.TrimSpace(config.JobsDir) != "" {
+		config.JobsFile = filepath.Join(config.JobsDir, JobsFileName)
+	}
+	config.JobsDir = ""
+	if strings.TrimSpace(config.JobsFile) == "" {
 		// Empty paths are treated as missing values rather than intentional root
 		// directories. This avoids accidentally writing jobs to unexpected places.
-		config.JobsDir = "."
+		config.JobsFile = JobsFileName
 	}
 	if strings.TrimSpace(config.LogsDir) == "" {
 		config.LogsDir = "logs"
@@ -112,24 +123,39 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	return config, nil
 }
 
-func loadOrCreateJobs(path string) ([]domain.Job, error) {
-	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		// Seed harmless sample jobs so a new user can immediately see scheduled
-		// and manual execution without inventing a command.
-		jobs := defaultJobs()
-		normalizeJobs(jobs)
-		return jobs, writeJSON(path, domain.JobsFile{Jobs: jobs})
-	}
-
+// LoadJobsFile reads and normalizes the job definitions at path. The bool
+// reports whether the file was there: a missing file is not an error but the
+// answer to "is this file already a jobs file?", which is what the Settings tab
+// needs when the user points the application at a different jobs file.
+func LoadJobsFile(path string) ([]domain.Job, bool, error) {
 	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	var file domain.JobsFile
 	if err := json.Unmarshal(data, &file); err != nil {
+		return nil, false, err
+	}
+	normalizeJobs(file.Jobs)
+	return file.Jobs, true, nil
+}
+
+func loadOrCreateJobs(path string) ([]domain.Job, error) {
+	jobs, found, err := LoadJobsFile(path)
+	if err != nil {
 		return nil, err
 	}
-	return file.Jobs, nil
+	if found {
+		return jobs, nil
+	}
+	// Seed harmless sample jobs so a new user can immediately see scheduled
+	// and manual execution without inventing a command.
+	jobs = defaultJobs()
+	normalizeJobs(jobs)
+	return jobs, writeJSON(path, domain.JobsFile{Jobs: jobs})
 }
 
 func normalizeJobs(jobs []domain.Job) {
@@ -162,28 +188,26 @@ func normalizeJobs(jobs []domain.Job) {
 	}
 }
 
-func resolveJobsDir(appDir string, jobsDir string) string {
-	return ResolveConfiguredDir(appDir, jobsDir)
-}
-
-// ResolveConfiguredDir turns a directory from the config into the absolute
-// path the application will actually use. It is exported so callers outside
-// storage — the settings tab, which opens the configured logs folder — apply
-// the same rule to a path the user has typed but not yet saved.
-func ResolveConfiguredDir(appDir string, dir string) string {
-	if filepath.IsAbs(dir) {
-		return dir
+// ResolveConfiguredPath turns a file or directory path from the config into the
+// absolute path the application will actually use. It is exported so callers
+// outside storage — the settings tab, which opens the configured logs folder —
+// apply the same rule to a path the user has typed but not yet saved.
+func ResolveConfiguredPath(appDir string, path string) string {
+	if filepath.IsAbs(path) {
+		return path
 	}
 	// Relative paths are resolved against the executable directory, not the
 	// process working directory. This matches ResolvePaths and keeps shortcuts,
 	// Explorer launches, and terminal launches consistent.
-	return filepath.Clean(filepath.Join(appDir, dir))
+	return filepath.Clean(filepath.Join(appDir, path))
 }
 
 func (s *Store) applyConfigPaths() {
-	s.Paths.JobsDir = ResolveConfiguredDir(s.Paths.AppDir, s.Config.JobsDir)
-	s.Paths.JobsPath = filepath.Join(s.Paths.JobsDir, JobsFileName)
-	s.Paths.LogsDir = ResolveConfiguredDir(s.Paths.AppDir, s.Config.LogsDir)
+	// The jobs file is configured as a whole path; its directory is derived so
+	// SaveJobs can create the folder when the user points at a new location.
+	s.Paths.JobsPath = ResolveConfiguredPath(s.Paths.AppDir, s.Config.JobsFile)
+	s.Paths.JobsDir = filepath.Dir(s.Paths.JobsPath)
+	s.Paths.LogsDir = ResolveConfiguredPath(s.Paths.AppDir, s.Config.LogsDir)
 }
 
 func writeJSON(path string, value any) error {
