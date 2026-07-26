@@ -211,15 +211,16 @@ func (s *Service) effectiveOverlapPolicy(job *domain.Job) domain.OverlapPolicy {
 }
 
 // effectiveTimeout resolves the run timeout that actually governs a job: the
-// job's own TimeoutSeconds when positive, otherwise the global
-// Config.DefaultTimeoutSeconds. A non-positive Job.TimeoutSeconds means "inherit
-// the global default", which is why normalizeJob leaves 0 rather than
+// job's own TimeoutSeconds whenever it is set — including an explicit 0, which
+// means "no timeout" and deliberately does not inherit — otherwise the global
+// Config.DefaultTimeoutSeconds. A nil Job.TimeoutSeconds means "inherit the
+// global default", which is why normalizeJob leaves it nil rather than
 // backfilling the configured value. A resolved duration of 0 means no timeout;
 // runner.RunJob treats it as "run without a deadline". The caller must hold mu.
 func (s *Service) effectiveTimeout(job *domain.Job) time.Duration {
-	secs := job.TimeoutSeconds
-	if secs <= 0 {
-		secs = s.store.Config.DefaultTimeoutSeconds
+	secs := s.store.Config.DefaultTimeoutSeconds
+	if job.TimeoutSeconds != nil {
+		secs = *job.TimeoutSeconds
 	}
 	return time.Duration(secs) * time.Second
 }

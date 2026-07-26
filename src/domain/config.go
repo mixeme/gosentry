@@ -53,10 +53,11 @@ type Config struct {
 	NotifyOnFailure   bool          `json:"notify_on_failure,omitempty"`
 	ExecutionMode     ExecutionMode `json:"execution_mode,omitempty"`
 	OverlapPolicy     OverlapPolicy `json:"overlap_policy,omitempty"`
-	// DefaultTimeoutSeconds is the run timeout applied to jobs that do not set
-	// their own Job.TimeoutSeconds. 0 (the default) means no timeout: such jobs
-	// run to completion however long that takes.
-	DefaultTimeoutSeconds int  `json:"default_timeout_seconds,omitempty"`
+	// DefaultTimeoutSeconds is the run timeout applied to jobs that leave their
+	// own Job.TimeoutSeconds unset. 0 (the default) means no timeout: such jobs
+	// run to completion however long that takes. It is written even when 0 —
+	// omitempty would hide a deliberate choice from the hand-editable config.
+	DefaultTimeoutSeconds int  `json:"default_timeout_seconds"`
 	Paused                bool `json:"paused,omitempty"`
 	// Theme selects the visual appearance. Empty is treated as ThemeDefault so
 	// configs written before this field existed keep the original look.

@@ -102,9 +102,10 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	if config.OverlapPolicy == "" {
 		config.OverlapPolicy = domain.OverlapPolicySkip
 	}
-	if config.DefaultTimeoutSeconds <= 0 {
-		config.DefaultTimeoutSeconds = 30
-	}
+	// DefaultTimeoutSeconds is deliberately not normalized: 0 is a meaningful
+	// value ("no timeout"), not a missing one, so backfilling it here would make
+	// the setting impossible to persist. Negative values are rejected by
+	// app.validateConfig before they can be saved.
 	if config.Theme == "" {
 		config.Theme = domain.ThemeDefault
 	}

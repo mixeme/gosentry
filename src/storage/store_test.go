@@ -180,6 +180,63 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	}
 }
 
+// TestLoadOrCreateConfigKeepsZeroTimeoutOnReload guards the "0 = no timeout"
+// setting against being normalized away when an existing gosentry.json is read
+// back. Loading must not treat 0 as a missing value.
+func TestLoadOrCreateConfigKeepsZeroTimeoutOnReload(t *testing.T) {
+	dir := t.TempDir()
+	paths := Paths{
+		AppDir:     dir,
+		ConfigPath: filepath.Join(dir, ConfigFileName),
+	}
+
+	// First call writes the defaults (DefaultTimeoutSeconds = 0) to disk.
+	if _, err := loadOrCreateConfig(paths); err != nil {
+		t.Fatal(err)
+	}
+	// Second call takes the "file exists" branch, where normalization runs.
+	reloaded, err := loadOrCreateConfig(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reloaded.DefaultTimeoutSeconds != 0 {
+		t.Errorf("reloaded DefaultTimeoutSeconds = %d, want 0 (no timeout)", reloaded.DefaultTimeoutSeconds)
+	}
+}
+
+// TestJobTimeoutRoundTripsThreeStates pins the on-disk encoding that keeps
+// "inherit" and "no timeout" distinguishable: nil is omitted entirely, while an
+// explicit 0 is written and read back as a set value.
+func TestJobTimeoutRoundTripsThreeStates(t *testing.T) {
+	jobs := []domain.Job{
+		{ID: 1, Name: "Inherit", TimeoutSeconds: nil},
+		{ID: 2, Name: "No timeout", TimeoutSeconds: domain.TimeoutSecondsPtr(0)},
+		{ID: 3, Name: "Own", TimeoutSeconds: domain.TimeoutSecondsPtr(45)},
+	}
+
+	data, err := json.Marshal(domain.JobsFile{Jobs: jobs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `"timeout_seconds":0`; !strings.Contains(string(data), want) {
+		t.Fatalf("explicit zero timeout should be written as %s:\n%s", want, data)
+	}
+
+	var got domain.JobsFile
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Jobs[0].TimeoutSeconds != nil {
+		t.Errorf("unset timeout should stay nil, got %d", *got.Jobs[0].TimeoutSeconds)
+	}
+	if got.Jobs[1].TimeoutSeconds == nil || *got.Jobs[1].TimeoutSeconds != 0 {
+		t.Errorf("explicit zero timeout should survive the round trip, got %v", got.Jobs[1].TimeoutSeconds)
+	}
+	if got.Jobs[2].TimeoutSeconds == nil || *got.Jobs[2].TimeoutSeconds != 45 {
+		t.Errorf("per-job timeout should survive the round trip, got %v", got.Jobs[2].TimeoutSeconds)
+	}
+}
+
 func TestJobsJSONDoesNotPersistRuntimeNoise(t *testing.T) {
 	// Job carries only durable configuration; runtime state lives in
 	// domain.JobRuntime and is never marshalled. This guards against a future

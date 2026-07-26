@@ -103,8 +103,12 @@ func TestCreateJobValidates(t *testing.T) {
 	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", OverlapPolicy: "invalid"}); err == nil {
 		t.Error("expected error for invalid overlap policy")
 	}
-	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", TimeoutSeconds: -1}); err == nil {
+	if _, err := svc.CreateJob(domain.Job{Name: "A", Schedule: "@every 1m", Command: "echo", TimeoutSeconds: domain.TimeoutSecondsPtr(-1)}); err == nil {
 		t.Error("expected error for negative per-job timeout")
+	}
+	// An explicit 0 is a valid choice ("no timeout"), not a rejected one.
+	if _, err := svc.CreateJob(domain.Job{Name: "Zero", Schedule: "@every 1m", Command: "echo", TimeoutSeconds: domain.TimeoutSecondsPtr(0)}); err != nil {
+		t.Errorf("explicit zero per-job timeout should be accepted: %v", err)
 	}
 }
 

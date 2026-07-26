@@ -18,8 +18,9 @@ in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
 - Sequential mode runs jobs FIFO by order in `jobs.json`.
 - Scheduler tick is 1s — sub-second `@every` intervals are not supported.
 - Command timeout defaults to no timeout globally (`Config.DefaultTimeoutSeconds`
-  = 0) and is overridable per job (`Job.TimeoutSeconds`, 0 = inherit the global
-  default).
+  = 0) and is overridable per job (`Job.TimeoutSeconds *int`: unset = inherit the
+  global default, 0 = no timeout, positive = seconds). Neither zero may be
+  normalized away on load — 0 is a value, not a missing field.
 - **History tab is session-only.** `JobRuntime.Logs` exists only in memory for the
   current process. Log files on disk feed aggregate statistics via `SeedStats`
   only. See [ARCHITECTURE.md](ARCHITECTURE.md).

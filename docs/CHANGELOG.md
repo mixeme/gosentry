@@ -2,6 +2,24 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## Unreleased
+
+**Timeouts: 0 now means "no timeout" at both levels.**
+
+- The global **Default timeout** in Settings now defaults to `0`, meaning jobs
+  run to completion with no deadline instead of being killed after 30s.
+- A per-job timeout of `0` now also means "no timeout" and no longer inherits
+  the global default. Leaving the job's timeout **empty** is what inherits.
+  `Job.TimeoutSeconds` became `*int` so the three states — unset, explicit 0,
+  and a positive limit — stay distinguishable in `jobs.json`.
+- Fixed: a global default of `0` did not survive a restart. `gosentry.json` was
+  loaded with `0` treated as a missing value and silently reset to 30s, so the
+  setting only held for the current session. `default_timeout_seconds` is now
+  written unconditionally and read back as-is.
+
+Existing jobs and configs are unaffected: a job with no `timeout_seconds` still
+inherits, and a saved global default of 30 stays 30.
+
 ## 0.13.0 - 2026-07-26
 
 **Branded GoSentry color theme; Cancel/Defaults buttons in Settings.**

@@ -55,9 +55,9 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	}
 	overlapSelect.SetSelected(overlapSelected)
 	timeoutEntry := widget.NewEntry()
-	timeoutEntry.SetPlaceHolder("Empty = use global default")
-	if current.TimeoutSeconds > 0 {
-		timeoutEntry.SetText(strconv.Itoa(current.TimeoutSeconds))
+	timeoutEntry.SetPlaceHolder("Empty = global default, 0 = no timeout")
+	if current.TimeoutSeconds != nil {
+		timeoutEntry.SetText(strconv.Itoa(*current.TimeoutSeconds))
 	}
 
 	form := dialog.NewForm(
@@ -89,16 +89,17 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 				dialog.ShowError(fmt.Errorf("invalid schedule: %w", err), w)
 				return
 			}
-			// An empty timeout inherits the global default (0); any entry must be a
+			// An empty timeout inherits the global default (nil); an explicit 0
+			// means "no timeout" and does not inherit; anything else must be a
 			// positive whole number of seconds.
-			timeoutSeconds := 0
+			var timeoutSeconds *int
 			if trimmed := strings.TrimSpace(timeoutEntry.Text); trimmed != "" {
 				parsed, err := strconv.Atoi(trimmed)
-				if err != nil || parsed <= 0 {
-					dialog.ShowError(fmt.Errorf("timeout must be a positive number of seconds, or empty to use the global default"), w)
+				if err != nil || parsed < 0 {
+					dialog.ShowError(fmt.Errorf("timeout must be 0 (no timeout) or a positive number of seconds, or empty to use the global default"), w)
 					return
 				}
-				timeoutSeconds = parsed
+				timeoutSeconds = domain.TimeoutSecondsPtr(parsed)
 			}
 			current.Name = strings.TrimSpace(name.Text)
 			current.Folder = strings.TrimSpace(folderEntry.Text)

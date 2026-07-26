@@ -131,10 +131,21 @@ in flight increments `JobRuntime.PendingRuns`. When the current run finishes,
 
 ### Per-job command timeout
 
-`domain.Job` carries a `TimeoutSeconds` field (`json:"timeout_seconds,omitempty"`),
-following the same inherit pattern as the overlap policy. `0` means inherit the
-global `Config.DefaultTimeoutSeconds` (default **0**, i.e. no timeout); a
-positive value overrides it for that job alone. `app.Service.effectiveTimeout`
+`domain.Job` carries a `TimeoutSeconds *int` field
+(`json:"timeout_seconds,omitempty"`), following the same inherit pattern as the
+overlap policy. It is a **pointer** because the setting has three states that
+must stay distinguishable on disk:
+
+| `Job.TimeoutSeconds` | jobs.json | Meaning |
+| --- | --- | --- |
+| `nil` | field absent | inherit `Config.DefaultTimeoutSeconds` |
+| `0` | `"timeout_seconds": 0` | no timeout, does **not** inherit |
+| `> 0` | `"timeout_seconds": 45` | per-job limit in seconds |
+
+The global `Config.DefaultTimeoutSeconds` (default **0**, i.e. no timeout) is
+written unconditionally — no `omitempty` — for the same reason: `0` there is a
+deliberate choice, not a missing value, and `storage.loadOrCreateConfig` must not
+normalize it away. `app.Service.effectiveTimeout`
 resolves the effective duration under `mu` and `startRunLocked` snapshots it into
 `runEnv.timeout`. `runner.RunJob(ctx, job, trigger, logsDir, timeout)` takes the
 resolved duration as an argument, so the runner stays ignorant of the global

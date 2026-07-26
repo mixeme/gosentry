@@ -617,21 +617,28 @@ func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 	}
 }
 
-// TestEffectiveTimeout verifies the inherit-or-override resolution: a zero
-// Job.TimeoutSeconds falls back to the global default, while a positive value
-// overrides it.
+// TestEffectiveTimeout verifies the three-state resolution: an unset (nil)
+// Job.TimeoutSeconds falls back to the global default, a positive value
+// overrides it, and an explicit 0 means "no timeout" without inheriting.
 func TestEffectiveTimeout(t *testing.T) {
 	svc := newTempService(t, nil)
 	svc.store.Config.DefaultTimeoutSeconds = 30
 
-	inherit := &domain.Job{TimeoutSeconds: 0}
+	inherit := &domain.Job{TimeoutSeconds: nil}
 	if got, want := svc.effectiveTimeout(inherit), 30*time.Second; got != want {
 		t.Errorf("inherited timeout = %s, want %s", got, want)
 	}
 
-	own := &domain.Job{TimeoutSeconds: 5}
+	own := &domain.Job{TimeoutSeconds: domain.TimeoutSecondsPtr(5)}
 	if got, want := svc.effectiveTimeout(own), 5*time.Second; got != want {
 		t.Errorf("per-job timeout = %s, want %s", got, want)
+	}
+
+	// An explicit per-job 0 must beat a positive global default rather than be
+	// mistaken for "unset".
+	none := &domain.Job{TimeoutSeconds: domain.TimeoutSecondsPtr(0)}
+	if got, want := svc.effectiveTimeout(none), time.Duration(0); got != want {
+		t.Errorf("explicit per-job zero timeout = %s, want %s (no timeout)", got, want)
 	}
 
 	svc.store.Config.DefaultTimeoutSeconds = 0

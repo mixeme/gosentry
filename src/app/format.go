@@ -103,12 +103,16 @@ func DisplayOverlapPolicy(job domain.Job, globalPolicy domain.OverlapPolicy) str
 }
 
 // DisplayTimeout formats a job's effective run timeout for the details panel.
-// When the job sets its own TimeoutSeconds it is shown as-is; when 0 (inherit),
-// the global default is shown with "(global default)" appended, mirroring
-// DisplayOverlapPolicy. A non-positive global default means no timeout at all.
+// When the job sets its own TimeoutSeconds it is shown as-is, with an explicit 0
+// rendered as "no timeout"; when unset (nil), the global default is shown with
+// "(global default)" appended, mirroring DisplayOverlapPolicy. A non-positive
+// global default means no timeout at all.
 func DisplayTimeout(job domain.Job, globalDefault int) string {
-	if job.TimeoutSeconds > 0 {
-		return fmt.Sprintf("%d s", job.TimeoutSeconds)
+	if job.TimeoutSeconds != nil {
+		if *job.TimeoutSeconds <= 0 {
+			return "no timeout"
+		}
+		return fmt.Sprintf("%d s", *job.TimeoutSeconds)
 	}
 	if globalDefault <= 0 {
 		return "no timeout (global default)"

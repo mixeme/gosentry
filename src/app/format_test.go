@@ -165,11 +165,15 @@ func TestDisplayOverlapPolicy(t *testing.T) {
 }
 
 func TestDisplayTimeout(t *testing.T) {
-	own := domain.Job{TimeoutSeconds: 45}
+	own := domain.Job{TimeoutSeconds: domain.TimeoutSecondsPtr(45)}
 	if got, want := DisplayTimeout(own, 30), "45 s"; got != want {
 		t.Errorf("per-job timeout = %q, want %q", got, want)
 	}
-	inherit := domain.Job{TimeoutSeconds: 0}
+	none := domain.Job{TimeoutSeconds: domain.TimeoutSecondsPtr(0)}
+	if got, want := DisplayTimeout(none, 30), "no timeout"; got != want {
+		t.Errorf("explicit per-job zero timeout = %q, want %q", got, want)
+	}
+	inherit := domain.Job{TimeoutSeconds: nil}
 	if got, want := DisplayTimeout(inherit, 30), "30 s (global default)"; got != want {
 		t.Errorf("inherited timeout = %q, want %q", got, want)
 	}
