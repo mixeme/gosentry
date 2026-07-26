@@ -2,6 +2,33 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.13.0 - 2026-07-26
+
+**Branded GoSentry color theme; Cancel/Defaults buttons in Settings.**
+
+**Theme:**
+- Added a custom Fyne theme derived from the logo and app icon (deep teal
+  primary, amber accent, branded job-status colors) with light and dark
+  variants; users can switch between it and Fyne's default theme from
+  Settings. The choice is persisted as a new `Config.Theme` field
+  (`"default"` / `"gosentry"`), applied at startup before the first frame
+  and live-previewed when picked in Settings. Empty/legacy configs
+  normalize to the default theme so existing installs keep the original
+  look.
+- The light variant is boldly branded: a soft teal window canvas with
+  white inputs, menus, dialogs, and buttons on top, plus teal-tinted
+  separators, input borders, and table headers, so cards and fields lift
+  off the background instead of reading as a plain accent swap on gray.
+  The dark variant uses deep-teal surfaces to echo the app icon. Text
+  stays dark/light per the base foreground for contrast in both variants.
+
+**Settings tab:**
+- Added Cancel and Defaults buttons. Cancel discards unsaved edits by
+  reloading the saved config; Defaults loads built-in default values into
+  the form for review before saving. `domain.DefaultConfig()` is now the
+  single source of truth for default values, shared by storage and the
+  Settings UI.
+
 ## 0.12.0 - 2026-07-25
 
 **Per-job command timeout:**
