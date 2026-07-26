@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"image/color"
 	"net/url"
 	"runtime"
@@ -10,6 +11,8 @@ import (
 
 	"gitea.mixdep.ru/mix/gosentry/src/app"
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
+	"gitea.mixdep.ru/mix/gosentry/src/platform/filemanager"
+	"gitea.mixdep.ru/mix/gosentry/src/storage"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -102,6 +105,13 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	logsDir.OnChanged = func(string) { updateSaveState() }
 	logsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		chooseFolder(w, logsDir)
+	})
+	// Log files are read outside the app, so the folder gets a direct shortcut
+	// beside its path instead of making the user copy the path into a file
+	// manager. It reveals whatever the field currently holds, so an edit can be
+	// checked before Save.
+	logsDirOpen := widget.NewButtonWithIcon("Open", theme.FolderIcon(), func() {
+		openFolder(w, settingsFolderPath(store.Paths.AppDir, logsDir.Text))
 	})
 	maxLogFiles := widget.NewEntry()
 	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
@@ -259,7 +269,9 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			settingsRow("Config JSON", widget.NewLabel(store.Paths.ConfigPath)),
 			settingsRow("Jobs directory", container.NewBorder(nil, nil, nil, jobsDirBrowse, jobsDir)),
-			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, logsDirBrowse, logsDir)),
+			// Browse stays rightmost so it lines up with the Jobs directory row
+			// above it; Open sits between it and the path it opens.
+			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, container.NewHBox(logsDirOpen, logsDirBrowse), logsDir)),
 			settingsRow("Max log files", maxLogFiles),
 			settingsRow("Max log age days", maxLogAgeDays),
 		),
@@ -357,6 +369,32 @@ func chooseFolder(w fyne.Window, target *widget.Entry) {
 	// long paths readable and avoids forcing the user to resize it every time.
 	folderDialog.Resize(fyne.NewSize(900, 640))
 	folderDialog.Show()
+}
+
+// settingsFolderPath resolves what a directory field currently points at,
+// applying the same relative-path rule the store uses when it loads the config
+// so the folder that opens is the one the setting would use. Blank text has no
+// folder to open and yields an empty path.
+func settingsFolderPath(appDir string, text string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return ""
+	}
+	return storage.ResolveConfiguredDir(appDir, trimmed)
+}
+
+// openFolder reveals dir in the desktop file manager. A folder that is not set
+// or cannot be opened (most often: it does not exist yet, because the logs
+// directory is created on the first run) is reported in a dialog rather than
+// leaving the button looking dead.
+func openFolder(w fyne.Window, dir string) {
+	if dir == "" {
+		dialog.ShowError(errors.New("no folder is set"), w)
+		return
+	}
+	if err := filemanager.Open(dir); err != nil {
+		dialog.ShowError(err, w)
+	}
 }
 
 // Theme dropdown labels. These are the human-facing captions; themeLabel and

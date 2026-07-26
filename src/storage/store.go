@@ -163,10 +163,14 @@ func normalizeJobs(jobs []domain.Job) {
 }
 
 func resolveJobsDir(appDir string, jobsDir string) string {
-	return resolveConfiguredDir(appDir, jobsDir)
+	return ResolveConfiguredDir(appDir, jobsDir)
 }
 
-func resolveConfiguredDir(appDir string, dir string) string {
+// ResolveConfiguredDir turns a directory from the config into the absolute
+// path the application will actually use. It is exported so callers outside
+// storage — the settings tab, which opens the configured logs folder — apply
+// the same rule to a path the user has typed but not yet saved.
+func ResolveConfiguredDir(appDir string, dir string) string {
 	if filepath.IsAbs(dir) {
 		return dir
 	}
@@ -177,9 +181,9 @@ func resolveConfiguredDir(appDir string, dir string) string {
 }
 
 func (s *Store) applyConfigPaths() {
-	s.Paths.JobsDir = resolveConfiguredDir(s.Paths.AppDir, s.Config.JobsDir)
+	s.Paths.JobsDir = ResolveConfiguredDir(s.Paths.AppDir, s.Config.JobsDir)
 	s.Paths.JobsPath = filepath.Join(s.Paths.JobsDir, JobsFileName)
-	s.Paths.LogsDir = resolveConfiguredDir(s.Paths.AppDir, s.Config.LogsDir)
+	s.Paths.LogsDir = ResolveConfiguredDir(s.Paths.AppDir, s.Config.LogsDir)
 }
 
 func writeJSON(path string, value any) error {

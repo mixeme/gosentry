@@ -379,6 +379,33 @@ Tests pure History tab helpers (no Fyne widget construction).
 
 ---
 
+### src/platform/filemanager/filemanager_test.go
+
+**Package:** `filemanager`
+
+Tests the guards around opening a folder in the desktop file manager. The
+success path is not tested: it would open a real file manager window.
+
+| Test | Purpose |
+|------|---------|
+| `TestOpenRejectsMissingFolder` | Verifies that `Open` reports a missing directory (naming the path) instead of launching a handler. |
+| `TestOpenRejectsFile` | Verifies that `Open` refuses a path that is a file rather than a directory. |
+| `TestOpenCommandNamesPlatformHandler` | Verifies the per-platform handler (`explorer` / `xdg-open`, none elsewhere) and that the path is passed as one argument. |
+
+---
+
+### src/ui/settings_view_test.go
+
+**Package:** `ui`
+
+Tests pure Settings tab helpers (no Fyne widget construction).
+
+| Test | Purpose |
+|------|---------|
+| `TestSettingsFolderPath` | Verifies the folder the Logs directory "Open" button targets: blank text yields no path, a relative path resolves against the application directory, an absolute path is used as typed. |
+
+---
+
 ### src/ui/mainwindow_test.go
 
 **Package:** `ui`

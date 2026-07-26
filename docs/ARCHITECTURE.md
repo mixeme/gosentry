@@ -18,6 +18,7 @@ src/
   platform/
     autostart/          Manager interface + Windows (shortcut) and Linux (XDG) impls
     desktop/            display-scale helper (Linux only)
+    filemanager/        open a folder in the desktop file manager
     winproc/            hidden-window startup flags (Windows only)
   ui/                   Fyne windows, tabs, and dialogs; reads service via Events
 ```

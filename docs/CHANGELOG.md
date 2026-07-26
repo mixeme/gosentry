@@ -4,6 +4,16 @@ All notable GoSentry changes are recorded in this file.
 
 ## Unreleased
 
+**Settings:**
+
+- The **Logs directory** row gained an **Open** button that shows the folder in
+  the desktop file manager (Explorer on Windows, the XDG handler on Linux), so
+  reading a log file no longer means copying the path by hand. It opens the
+  path currently in the field — including an edit that has not been saved yet —
+  resolving a relative directory against the application folder exactly as the
+  store does. A folder that is missing (the logs directory is created on the
+  first run) or cannot be opened is reported in a dialog.
+
 **Job dialog:**
 
 - The **Arguments** placeholder now states the field's rule — one argument per
