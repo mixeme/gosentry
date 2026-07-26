@@ -30,16 +30,29 @@ var (
 // gosentryLight and gosentryDark hold only the colors the brand theme overrides;
 // every other ColorName falls through to the base theme, which keeps neutral
 // surfaces and text contrast correct in both variants.
+//
+// The light variant is intentionally more than an accent swap: the window canvas
+// is a soft teal while inputs, menus, and dialogs stay white, so cards and fields
+// lift off a branded background instead of sitting on plain gray. Text stays dark
+// (delegated to the base foreground), which keeps high contrast on both the teal
+// canvas and the white surfaces.
 var gosentryLight = map[fyne.ThemeColorName]color.Color{
-	theme.ColorNamePrimary:    brandTeal,
-	theme.ColorNameFocus:      brandAmber,
-	theme.ColorNameHyperlink:  brandTealMid,
-	theme.ColorNameSuccess:    color.NRGBA{R: 0x2E, G: 0x9E, B: 0x5B, A: 0xFF},
-	theme.ColorNameWarning:    brandAmber,
-	theme.ColorNameError:      color.NRGBA{R: 0xD6, G: 0x45, B: 0x45, A: 0xFF},
-	theme.ColorNameBackground: color.NRGBA{R: 0xF5, G: 0xF7, B: 0xF8, A: 0xFF},
-	theme.ColorNameSelection:  color.NRGBA{R: 0x0A, G: 0x4A, B: 0x58, A: 0x33},
-	theme.ColorNameHover:      color.NRGBA{R: 0x0A, G: 0x4A, B: 0x58, A: 0x14},
+	theme.ColorNamePrimary:           brandTeal,
+	theme.ColorNameFocus:             brandAmber,
+	theme.ColorNameHyperlink:         brandTealMid,
+	theme.ColorNameSuccess:           color.NRGBA{R: 0x2E, G: 0x9E, B: 0x5B, A: 0xFF},
+	theme.ColorNameWarning:           brandAmber,
+	theme.ColorNameError:             color.NRGBA{R: 0xD6, G: 0x45, B: 0x45, A: 0xFF},
+	theme.ColorNameBackground:        color.NRGBA{R: 0xDC, G: 0xEA, B: 0xED, A: 0xFF}, // teal canvas
+	theme.ColorNameButton:            color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF},
+	theme.ColorNameInputBackground:   color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF},
+	theme.ColorNameMenuBackground:    color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF},
+	theme.ColorNameOverlayBackground: color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF},
+	theme.ColorNameHeaderBackground:  color.NRGBA{R: 0xC7, G: 0xDE, B: 0xE2, A: 0xFF}, // deeper teal for table headers
+	theme.ColorNameSeparator:         color.NRGBA{R: 0xB4, G: 0xD0, B: 0xD6, A: 0xFF},
+	theme.ColorNameInputBorder:       color.NRGBA{R: 0xB4, G: 0xD0, B: 0xD6, A: 0xFF},
+	theme.ColorNameSelection:         color.NRGBA{R: 0x0A, G: 0x4A, B: 0x58, A: 0x33},
+	theme.ColorNameHover:             color.NRGBA{R: 0x0A, G: 0x4A, B: 0x58, A: 0x14},
 }
 
 var gosentryDark = map[fyne.ThemeColorName]color.Color{

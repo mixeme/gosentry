@@ -24,6 +24,8 @@ func TestGoSentryThemeBrandColors(t *testing.T) {
 	}{
 		{"light primary is teal", theme.ColorNamePrimary, 0, brandTeal},
 		{"light focus is amber", theme.ColorNameFocus, 0, brandAmber},
+		{"light canvas is a teal tint", theme.ColorNameBackground, 0, color.NRGBA{R: 0xDC, G: 0xEA, B: 0xED, A: 0xFF}},
+		{"light inputs stay white", theme.ColorNameInputBackground, 0, color.NRGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xFF}},
 		{"dark primary is lifted teal", theme.ColorNamePrimary, 1, brandTealLight},
 		{"dark focus is amber", theme.ColorNameFocus, 1, brandAmber},
 	}
