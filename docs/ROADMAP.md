@@ -37,6 +37,88 @@ Design notes / open questions:
 - *No auto-download.* Scope is detection and notification only; installing the
   update stays a manual click-through to the release page.
 
+### Import/export jobs as a cron table
+
+Jobs can only be moved between machines by copying `jobs.json` by hand. Add
+"Import" / "Export" actions (Settings tab, file dialogs) that read and write a
+crontab-style text file, so a job list can be shared, version-controlled, or
+seeded from an existing Unix crontab.
+
+Export writes one line per job — schedule fields, then command and arguments —
+and import parses the same format back into `domain.Job` values.
+
+Design notes / open questions:
+
+- *The job model is wider than a crontab line.* `Name`, `Folder`, `StartOnly`,
+  `OverlapPolicy`, `TimeoutSeconds`, and `Enabled` have no cron equivalent.
+  Either accept a lossy export (schedule + command only) or carry the extra
+  fields in a structured comment above each line (`# gosentry: name=… folder=…
+  timeout=…`), which keeps the file readable by real cron while making the
+  round-trip lossless. The comment form is preferred; decide the exact key set
+  before implementing.
+- *Disabled jobs.* `Enabled: false` maps naturally to a commented-out line, but
+  then a disabled job is indistinguishable from a user's own comment unless the
+  `# gosentry:` marker is present. Pick one representation and document it.
+- *`@every` is not crontab.* GoSentry accepts `@every 10s` (see
+  [`domain.Parse`](../src/domain/schedule.go)), which no cron implementation
+  understands. Exporting it produces a file that is not a valid crontab;
+  exporting it as an approximation would silently change the schedule. Keep the
+  raw string and flag the file as GoSentry-flavoured, rather than converting.
+- *Command vs arguments.* Crontab has a single command string; GoSentry splits
+  `Command` and `Arguments`. Import must split the line the same way the runner
+  would (see `runner/invocation*.go`, which differs per OS), and export must
+  join them back without changing quoting.
+- *What to skip on import.* Environment assignments (`SHELL=`, `PATH=`,
+  `MAILTO=`), six-field (seconds) crontabs, and `@reboot` are outside what
+  `domain.Parse` accepts. Skip them, and report which lines were skipped and
+  why — a partial import that silently drops rows is worse than a failed one.
+- *Merge semantics.* Import must decide between replacing the job list and
+  appending to it, and must assign fresh IDs rather than trusting the file.
+  Appending with a confirmation dialog is the safer default; replacing needs an
+  explicit "this deletes N jobs" confirmation.
+- *Where it lives.* Encoding/decoding is pure text handling and belongs in
+  `domain` (or a small `storage` codec) with unit tests over round-trips; the
+  Service exposes import/export operations; the UI only picks the file and
+  shows the outcome.
+
+### GUI review — custom layouts and composition
+
+The `ui` package has accumulated hand-written layouts and tuned constants that
+work but have never been reviewed as a whole:
+[`layout.go`](../src/ui/layout.go) holds four custom `fyne.Layout`
+implementations (`minWidthLayout`, `compactVBoxLayout`, `fixedHeightLayout`,
+`captionValueLayout`), and the views drive them with negative spacings
+(`detailRowSpacing = -8`, `jobRowSpacing = -8`, `settingsRowSpacing = -6`) that
+cancel out the built-in padding of Fyne widgets.
+
+Do a focused pass over composition only — not a general code review — and
+answer, per layout and per constant: is it still needed, is it the smallest
+thing that works, and does it hold up at different window sizes and theme
+scales.
+
+What to look for:
+
+- *Negative spacing as a workaround.* Pulling rows together to overlap label
+  padding is a workaround for widget metrics, not a layout decision. Check
+  whether a `widget.Form`, a grid, or a custom text row would express the same
+  result without depending on the padding a future Fyne release may change.
+- *Hard-coded pixel constants.* Widths and heights expressed in raw pixels
+  (`logColumnMinWidth`, `minJobsSidebarWidth`, `settingsControlWidth`) do not
+  follow `theme.Padding()` / text size, so they behave differently under a
+  scaled UI. `activityRowsHeight` already derives its height from the theme —
+  decide which of the rest should do the same.
+- *Layouts with one call site.* `fixedHeightLayout` is used once. If a stock
+  container expresses the same intent, deleting the type is a net win — the
+  complexity rule in [REVIEW.md](REVIEW.md) §2 applies to layouts too.
+- *File size.* `settings_view.go` is well past the ~250-line guideline in
+  [ARCHITECTURE.md](ARCHITECTURE.md) and should be split the way `jobs_view.go`
+  was.
+- *Behaviour at small sizes.* The details pane was condensed to fit 720p; verify
+  the current composition still degrades sensibly when the window is narrow or
+  short, instead of clipping.
+
+Findings that are single fixes go straight in; anything larger comes back here.
+
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled
