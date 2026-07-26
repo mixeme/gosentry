@@ -128,8 +128,9 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		func() fyne.CanvasObject {
 			name := widget.NewLabelWithStyle("Job name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 			// Truncating stops a long name from pushing the compact row's status
-			// off the right-hand edge.
-			name.Wrapping = fyne.TextTruncate
+			// off the right-hand edge. Labels default to TextWrapOff, which grows
+			// the widget to fit instead.
+			name.Truncation = fyne.TextTruncateClip
 			inlineStatus := widget.NewLabel("status")
 			meta := widget.NewLabel("schedule")
 			status := widget.NewLabel("status")
