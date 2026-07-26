@@ -15,6 +15,19 @@ const (
 	ExecutionModeSequential ExecutionMode = "sequential"
 )
 
+// Theme selects the application's visual appearance. It is a UI-only choice with
+// no effect on scheduling; it is stored in Config so it persists across launches
+// alongside the other desktop-shell preferences.
+type Theme string
+
+const (
+	// ThemeDefault keeps Fyne's built-in theme — the original look.
+	ThemeDefault Theme = "default"
+	// ThemeGoSentry applies the branded teal/amber theme derived from the logo
+	// and app icon.
+	ThemeGoSentry Theme = "gosentry"
+)
+
 // OverlapPolicy decides what happens when a job's next run fires while the
 // previous run is still active.
 type OverlapPolicy string
@@ -44,6 +57,9 @@ type Config struct {
 	// their own Job.TimeoutSeconds. It carries the formerly hard-coded 30s guard.
 	DefaultTimeoutSeconds int  `json:"default_timeout_seconds,omitempty"`
 	Paused                bool `json:"paused,omitempty"`
+	// Theme selects the visual appearance. Empty is treated as ThemeDefault so
+	// configs written before this field existed keep the original look.
+	Theme Theme `json:"theme,omitempty"`
 }
 
 // JobsFile is the on-disk shape of jobs.json. Wrapping the slice in a top-level

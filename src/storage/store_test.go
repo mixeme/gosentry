@@ -171,6 +171,9 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.DefaultTimeoutSeconds != 30 {
 		t.Errorf("default DefaultTimeoutSeconds = %d, want 30", got.DefaultTimeoutSeconds)
 	}
+	if got.Theme != domain.ThemeDefault {
+		t.Errorf("default Theme = %q, want %q", got.Theme, domain.ThemeDefault)
+	}
 	// The function must have written the defaults to gosentry.json.
 	if _, err := os.Stat(paths.ConfigPath); err != nil {
 		t.Errorf("gosentry.json should have been created: %v", err)

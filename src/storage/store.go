@@ -78,6 +78,7 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 		NotifyOnFailure:   true,
 		ExecutionMode:     domain.ExecutionModeParallel,
 		OverlapPolicy:     domain.OverlapPolicySkip,
+		Theme:             domain.ThemeDefault,
 
 		DefaultTimeoutSeconds: 30,
 	}
@@ -116,6 +117,9 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	}
 	if config.DefaultTimeoutSeconds <= 0 {
 		config.DefaultTimeoutSeconds = 30
+	}
+	if config.Theme == "" {
+		config.Theme = domain.ThemeDefault
 	}
 	return config, nil
 }

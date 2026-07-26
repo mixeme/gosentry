@@ -61,6 +61,15 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
 	notifications.OnChanged = func(bool) { updateSaveState() }
+	themeSelect := widget.NewSelect([]string{themeLabelDefault, themeLabelGoSentry}, nil)
+	themeSelect.SetSelected(themeLabel(store.Config.Theme))
+	// Preview the theme the moment it is picked so the choice is visible before
+	// saving; Save persists it. Reverting the selection reverts the preview, and
+	// closing without saving falls back to the stored theme on next launch.
+	themeSelect.OnChanged = func(string) {
+		applyTheme(fyne.CurrentApp(), themeFromLabel(themeSelect.Selected))
+		updateSaveState()
+	}
 	executionModeSelect := widget.NewSelect(
 		[]string{string(domain.ExecutionModeParallel), string(domain.ExecutionModeSequential)},
 		nil,
@@ -138,6 +147,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		config.ExecutionMode = domain.ExecutionMode(executionModeSelect.Selected)
 		config.OverlapPolicy = domain.OverlapPolicy(overlapPolicySelect.Selected)
 		config.DefaultTimeoutSeconds = timeout
+		config.Theme = themeFromLabel(themeSelect.Selected)
 		if err := svc.UpdateSettings(config); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
@@ -168,7 +178,8 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			strings.TrimSpace(jobsDir.Text) != c.JobsDir ||
 			strings.TrimSpace(logsDir.Text) != c.LogsDir ||
 			strings.TrimSpace(maxLogFiles.Text) != strconv.Itoa(c.MaxLogFiles) ||
-			strings.TrimSpace(maxLogAgeDays.Text) != strconv.Itoa(c.MaxLogAgeDays)
+			strings.TrimSpace(maxLogAgeDays.Text) != strconv.Itoa(c.MaxLogAgeDays) ||
+			themeSelect.Selected != themeLabel(c.Theme)
 		if changed {
 			saveSettings.Enable()
 		} else {
@@ -189,6 +200,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			settingsRow("", autostartStatus),
 			settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
 			settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
+			settingsRow("Theme", container.New(minWidthLayout{width: settingsControlWidth}, themeSelect)),
 		),
 		widget.NewSeparator(),
 		// Queue holds the execution mode and overlap policy comboboxes. Like
@@ -296,6 +308,28 @@ func chooseFolder(w fyne.Window, target *widget.Entry) {
 	// long paths readable and avoids forcing the user to resize it every time.
 	folderDialog.Resize(fyne.NewSize(900, 640))
 	folderDialog.Show()
+}
+
+// Theme dropdown labels. These are the human-facing captions; themeLabel and
+// themeFromLabel translate between them and the stored domain.Theme values so the
+// select never leaks the on-disk "default"/"gosentry" strings to the user.
+const (
+	themeLabelDefault  = "Default"
+	themeLabelGoSentry = "GoSentry"
+)
+
+func themeLabel(choice domain.Theme) string {
+	if choice == domain.ThemeGoSentry {
+		return themeLabelGoSentry
+	}
+	return themeLabelDefault
+}
+
+func themeFromLabel(label string) domain.Theme {
+	if label == themeLabelGoSentry {
+		return domain.ThemeGoSentry
+	}
+	return domain.ThemeDefault
 }
 
 func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
