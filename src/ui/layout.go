@@ -113,6 +113,13 @@ func (l fixedHeightLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 // stops it from growing with the window (as an even two-column grid would), so
 // the extra space a wider window provides goes entirely to the value column. It
 // expects exactly two children: caption first, value second.
+//
+// The value column has no minimum of its own: it gets whatever the container's
+// width leaves, down to zero. What keeps it readable in the details pane is the
+// 460 px minimum on commandOutputScroll (jobs_view_details.go), which is that
+// pane's widest minimum and therefore its floor — a constant that exists for an
+// unrelated reason. A new caller that gives this layout less width gets a value
+// column that silently renders narrow or empty rather than one that clips.
 type captionValueLayout struct {
 	captionWidth float32
 }

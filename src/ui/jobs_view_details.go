@@ -60,6 +60,12 @@ func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy do
 	// The height here is only a floor: the scroll grows to fill whatever space the
 	// border layout gives it, so keep the minimum small so the whole window can be
 	// shrunk on short (720p) screens. Long output stays reachable by scrolling.
+	// The width, unlike the height, is load-bearing outside this widget: it is the
+	// details pane's widest minimum, so it is also what keeps the metadata value
+	// column non-empty — captionValueLayout hands the value whatever is left after
+	// the caption and has no floor of its own (see its comment in layout.go).
+	// Lowering it narrows those values with nothing to warn about it; the user can
+	// only widen them, by dragging the jobs split divider left.
 	d.commandOutputScroll.SetMinSize(fyne.NewSize(460, 70))
 	d.logs = widget.NewList(
 		func() int { return len(d.selectedLogs) },

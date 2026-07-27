@@ -2,7 +2,7 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## 0.16.0 - 2026-07-27
+## 1.0.0 - 2026-07-27
 
 **The window opens at the size it asks for, and the Jobs divider can be
 dragged.**
