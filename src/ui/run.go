@@ -15,6 +15,13 @@ import (
 
 const appID = "ru.mixeme.gosentry.desktop"
 
+// defaultWindowWidth and defaultWindowHeight are the size the window opens at
+// on first launch (later launches restore the last size from preferences).
+// Fyne enforces the assembled content's MinSize as a hard floor over these, so
+// they only take effect if the content actually fits within them.
+const defaultWindowWidth = 1024
+const defaultWindowHeight = 660
+
 // Run is the application entry point. It owns the process lifecycle — single
 // instance arbitration, Fyne app + window construction, tray wiring, and the
 // startup-timing record — and delegates all view construction to newMainView in
@@ -51,8 +58,8 @@ func Run(startInTray bool) {
 	w := a.NewWindow("GoSentry " + app.Version)
 	configureSystemTray(a, w)
 	prefs := a.Preferences()
-	winW := float32(prefs.FloatWithFallback("window.width", 1024))
-	winH := float32(prefs.FloatWithFallback("window.height", 660))
+	winW := float32(prefs.FloatWithFallback("window.width", defaultWindowWidth))
+	winH := float32(prefs.FloatWithFallback("window.height", defaultWindowHeight))
 	w.Resize(fyne.NewSize(winW, winH))
 	svc, err := app.Open()
 	if err != nil {

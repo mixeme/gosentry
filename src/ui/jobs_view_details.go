@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -121,7 +122,7 @@ func (d *detailsPanel) container() fyne.CanvasObject {
 	// keeping the details pane usable on 720p screens where a single column of
 	// ten rows pushes the minimum window height past the available space.
 	capW := detailCaptionWidth()
-	rows := container.New(compactVBoxLayout{spacing: detailRowSpacing},
+	rows := container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()),
 		detailRowPair(capW, "Folder", d.folder, "Schedule", d.schedule),
 		detailRowPair(capW, "Command", d.command, "Arguments", d.arguments),
 		detailRowPair(capW, "Run mode", d.runMode, "Overlap policy", d.overlapPolicy),

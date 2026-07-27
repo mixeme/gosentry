@@ -16,23 +16,11 @@ import (
 
 const allFolders = "All"
 const noFolder = "No folder"
-const minJobsSidebarWidth float32 = 400
 
 // maxJobActivityRows caps the "Selected job activity" panel to the most recent
 // entries. The full per-job history (up to maxJobLogs) remains in the History
 // view; this panel is a quick at-a-glance summary anchored below the output.
 const maxJobActivityRows = 3
-
-// detailRowSpacing is the (negative) gap applied between metadata rows in the
-// details panel. Pulling rows together overlaps the labels' built-in vertical
-// padding, tightening the block so it fits comfortably on 720p screens.
-const detailRowSpacing float32 = -8
-
-// jobRowSpacing is the (negative) gap between the name, metadata, and status
-// lines within each job list row. Like the details panel, it overlaps the
-// labels' built-in vertical padding so each row reads as one compact block and
-// more jobs are visible without scrolling.
-const jobRowSpacing float32 = -8
 
 // newJobsView builds the Jobs tab: list sidebar, details panel, and toolbar.
 // It returns the assembled panel and a refresh function the caller invokes
@@ -109,8 +97,8 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	// applyRowMode expresses the current view mode as visibility on the row's
 	// four labels. widget.List caches the row template's MinSize, and
 	// list.Refresh() re-creates the template and recomputes it, so hiding lines
-	// is what actually shrinks the rows: compactVBoxLayout and the border layout
-	// both skip hidden children when measuring.
+	// is what actually shrinks the rows: layout.NewCustomPaddedVBoxLayout and the
+	// border layout both skip hidden children when measuring.
 	applyRowMode := func(inlineStatus, meta, status fyne.CanvasObject) {
 		if listView.IsCompact() {
 			inlineStatus.Show()
@@ -136,7 +124,7 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			status := widget.NewLabel("status")
 			applyRowMode(inlineStatus, meta, status)
 			nameLine := container.NewBorder(nil, nil, nil, inlineStatus, name)
-			return container.New(compactVBoxLayout{spacing: jobRowSpacing}, nameLine, meta, status)
+			return container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()), nameLine, meta, status)
 		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
 			row := item.(*fyne.Container)
@@ -362,7 +350,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), filterRow, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
-	fixedSidebar := container.New(minWidthLayout{width: minJobsSidebarWidth}, sidebar)
-	panel := container.NewBorder(nil, nil, fixedSidebar, nil, container.NewPadded(dp.container()))
+	panel := container.NewBorder(nil, nil, sidebar, nil, container.NewPadded(dp.container()))
 	return panel, refreshView
 }

@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	fynestorage "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -27,13 +28,7 @@ import (
 // overlap policy") in full; the captions truncate, so a narrower width would
 // clip it. All rows share this width so their value controls stay aligned.
 const settingsLabelWidth float32 = 180
-const settingsControlWidth float32 = 330
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
-
-// settingsRowSpacing is the (negative) gap between rows of the settings form,
-// overlapping each control's built-in vertical padding so the column is tighter
-// and more compact, matching the condensed job details panel.
-const settingsRowSpacing float32 = -6
 
 func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	store := svc.Store()
@@ -245,13 +240,13 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// the read-only About block. Save spans the full width below both columns.
 	leftColumn := container.NewVBox(
 		settingsSection("Application",
-			settingsRow("Autostart", container.New(minWidthLayout{width: settingsControlWidth}, startOnLogin)),
+			settingsRow("Autostart", startOnLogin),
 			// Autostart status sits on its own row, aligned under the checkbox via an
 			// empty caption, so the Application section fits in a half-width column.
 			settingsRow("", autostartStatus),
-			settingsRow("Tray", container.New(minWidthLayout{width: settingsControlWidth}, minimizeToTray)),
-			settingsRow("Notifications", container.New(minWidthLayout{width: settingsControlWidth}, notifications)),
-			settingsRow("Theme", container.New(minWidthLayout{width: settingsControlWidth}, themeSelect)),
+			settingsRow("Tray", minimizeToTray),
+			settingsRow("Notifications", notifications),
+			settingsRow("Theme", themeSelect),
 		),
 		widget.NewSeparator(),
 		// Queue holds the execution mode and overlap policy comboboxes. Like
@@ -259,18 +254,22 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		// layout) so the comboboxes keep a visible gap between them.
 		container.NewVBox(
 			widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			settingsRow("Execution mode", container.New(minWidthLayout{width: settingsControlWidth}, executionModeSelect)),
-			settingsRow("Default overlap policy", container.New(minWidthLayout{width: settingsControlWidth}, overlapPolicySelect)),
-			settingsRow("Default timeout (s)", container.New(minWidthLayout{width: settingsControlWidth}, defaultTimeout)),
+			settingsRow("Execution mode", executionModeSelect),
+			settingsRow("Default overlap policy", overlapPolicySelect),
+			settingsRow("Default timeout (s)", defaultTimeout),
 		),
 	)
+	// Truncating keeps a long config path from forcing the Settings tab's
+	// minimum width to track the path length instead of the layout itself.
+	configPathLabel := widget.NewLabel(store.Paths.ConfigPath)
+	configPathLabel.Truncation = fyne.TextTruncateClip
 	rightColumn := container.NewVBox(
 		// Storage holds editable entry fields. It uses the default VBox spacing
 		// (not the condensed section layout) so the entry boxes keep a visible
 		// gap between them instead of merging into one block.
 		container.NewVBox(
 			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			settingsRow("Config JSON", widget.NewLabel(store.Paths.ConfigPath)),
+			settingsRow("Config JSON", configPathLabel),
 			settingsRow("Jobs file", container.NewBorder(nil, nil, nil, jobsFileBrowse, jobsFile)),
 			// Browse stays rightmost so it lines up with the Jobs file row
 			// above it; Open sits between it and the path it opens.
@@ -313,14 +312,14 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 }
 
 // settingsSection groups a bold header above its rows using the tight
-// settingsRowSpacing so a block of label rows reads as one compact unit. The
+// rowOverlap spacing so a block of label rows reads as one compact unit. The
 // caller keeps separators and entry-heavy sections in the surrounding VBox so
 // they retain the theme's normal spacing.
 func settingsSection(title string, rows ...fyne.CanvasObject) fyne.CanvasObject {
 	children := make([]fyne.CanvasObject, 0, len(rows)+1)
 	children = append(children, widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	children = append(children, rows...)
-	return container.New(compactVBoxLayout{spacing: settingsRowSpacing}, children...)
+	return container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()), children...)
 }
 
 func fyneVersion() string {

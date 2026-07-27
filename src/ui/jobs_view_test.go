@@ -137,21 +137,17 @@ func findFirst(root fyne.CanvasObject, match func(fyne.CanvasObject) bool) fyne.
 
 // jobsSidebar narrows the search to the left pane. The details panel has a
 // widget.List of its own (the activity log), so a search from the whole view
-// would find the wrong one.
+// would find the wrong one. newJobsView assembles the panel as
+// container.NewBorder(nil, nil, sidebar, nil, ...); NewBorder keeps the centre
+// object first and appends the border slots after it, so panel.Objects[1] is
+// the left (sidebar) slot.
 func jobsSidebar(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
 	t.Helper()
-	found := findFirst(content, func(o fyne.CanvasObject) bool {
-		wrapper, ok := o.(*fyne.Container)
-		if !ok {
-			return false
-		}
-		_, ok = wrapper.Layout.(minWidthLayout)
-		return ok
-	})
-	if found == nil {
-		t.Fatal("jobs view has no fixed-width sidebar")
+	panel, ok := content.(*fyne.Container)
+	if !ok || len(panel.Objects) < 2 {
+		t.Fatal("jobs view is not the expected Border container")
 	}
-	return found
+	return panel.Objects[1]
 }
 
 func jobsList(t *testing.T, content fyne.CanvasObject) *widget.List {
@@ -164,6 +160,24 @@ func jobsList(t *testing.T, content fyne.CanvasObject) *widget.List {
 		t.Fatal("jobs sidebar contains no list widget")
 	}
 	return found.(*widget.List)
+}
+
+// jobsToolbar finds the add/edit/run/pause/delete button row inside the
+// sidebar, identified by its first child being the "New job" button.
+func jobsToolbar(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
+	t.Helper()
+	found := findFirst(jobsSidebar(t, content), func(o fyne.CanvasObject) bool {
+		wrapper, ok := o.(*fyne.Container)
+		if !ok || len(wrapper.Objects) == 0 {
+			return false
+		}
+		button, ok := wrapper.Objects[0].(*widget.Button)
+		return ok && button.Text == "New job"
+	})
+	if found == nil {
+		t.Fatal("jobs sidebar has no toolbar row")
+	}
+	return found
 }
 
 func jobsViewToggle(t *testing.T, content fyne.CanvasObject) *widget.Button {
@@ -255,6 +269,29 @@ func TestJobListViewCompactConfigOpensCompact(t *testing.T) {
 
 	if got := jobsViewToggle(t, content).Text; got != "Detailed" {
 		t.Errorf("button text for a compact config = %q, want %q", got, "Detailed")
+	}
+}
+
+// TestJobsSidebarWidthIsItsContent is the regression guard for F7: nothing
+// but the sidebar's own content (here, the toolbar row) should impose a
+// width floor on it.
+func TestJobsSidebarWidthIsItsContent(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	store := newTestStore(t)
+	svc := app.NewService(store, nil)
+	defer svc.Stop()
+
+	content, _ := newJobsView(w, svc)
+	w.SetContent(content)
+
+	sidebarWidth := jobsSidebar(t, content).MinSize().Width
+	toolbarWidth := jobsToolbar(t, content).MinSize().Width
+	if sidebarWidth != toolbarWidth {
+		t.Errorf("sidebar MinSize().Width = %v, want it to equal the toolbar row's %v", sidebarWidth, toolbarWidth)
 	}
 }
 

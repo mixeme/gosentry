@@ -45,6 +45,30 @@ func newTestService(t *testing.T) *app.Service {
 	return app.NewService(newTestStore(t), nil)
 }
 
+// TestMainViewFitsTheDefaultWindowSize is the regression guard for F1: the
+// assembled content must fit within the window size the app asks for, so Fyne
+// never silently widens the window past it. The store's ConfigPath is
+// deliberately long so the test also covers F3 — the config path label must
+// not grow the Settings tab's minimum width with it.
+func TestMainViewFitsTheDefaultWindowSize(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	store := newTestStore(t)
+	store.Paths.ConfigPath = filepath.Join(t.TempDir(), "a-deliberately-long-directory-name-to-stress-the-config-path-label", "gosentry.json")
+	svc := app.NewService(store, nil)
+	defer svc.Stop()
+
+	content, _ := newMainView(w, svc)
+	min := content.MinSize()
+	if min.Width > defaultWindowWidth || min.Height > defaultWindowHeight {
+		t.Errorf("content.MinSize() = %v, want within %vx%v", min, defaultWindowWidth, defaultWindowHeight)
+	}
+}
+
 func TestMainViewBuilds(t *testing.T) {
 	testApp := test.NewApp()
 	defer testApp.Quit()
