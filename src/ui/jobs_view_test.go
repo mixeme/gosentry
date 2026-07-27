@@ -180,6 +180,58 @@ func jobsToolbar(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
 	return found
 }
 
+// jobsToolbarButton returns the toolbar button with the given caption.
+func jobsToolbarButton(t *testing.T, content fyne.CanvasObject, text string) *widget.Button {
+	t.Helper()
+	found := findFirst(jobsToolbar(t, content), func(o fyne.CanvasObject) bool {
+		button, ok := o.(*widget.Button)
+		return ok && button.Text == text
+	})
+	if found == nil {
+		t.Fatalf("jobs toolbar has no %q button", text)
+	}
+	return found.(*widget.Button)
+}
+
+// jobsDetails narrows the search to the right pane. NewBorder keeps the centre
+// object first, so panel.Objects[0] is the details pane (see jobsSidebar).
+func jobsDetails(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
+	t.Helper()
+	panel, ok := content.(*fyne.Container)
+	if !ok || len(panel.Objects) == 0 {
+		t.Fatal("jobs view is not the expected Border container")
+	}
+	return panel.Objects[0]
+}
+
+// jobsDetailsActivity returns the "Selected job activity" list, the only
+// widget.List in the details pane.
+func jobsDetailsActivity(t *testing.T, content fyne.CanvasObject) *widget.List {
+	t.Helper()
+	found := findFirst(jobsDetails(t, content), func(o fyne.CanvasObject) bool {
+		_, ok := o.(*widget.List)
+		return ok
+	})
+	if found == nil {
+		t.Fatal("details pane has no activity list")
+	}
+	return found.(*widget.List)
+}
+
+// jobsDetailsTitle reads the details pane's heading, which detailsPanel builds
+// as the first bold label in the pane.
+func jobsDetailsTitle(t *testing.T, content fyne.CanvasObject) string {
+	t.Helper()
+	found := findFirst(jobsDetails(t, content), func(o fyne.CanvasObject) bool {
+		label, ok := o.(*widget.Label)
+		return ok && label.TextStyle.Bold
+	})
+	if found == nil {
+		t.Fatal("details pane has no title label")
+	}
+	return found.(*widget.Label).Text
+}
+
 func jobsViewToggle(t *testing.T, content fyne.CanvasObject) *widget.Button {
 	t.Helper()
 	found := findFirst(jobsSidebar(t, content), func(o fyne.CanvasObject) bool {
@@ -292,6 +344,71 @@ func TestJobsSidebarWidthIsItsContent(t *testing.T) {
 	toolbarWidth := jobsToolbar(t, content).MinSize().Width
 	if sidebarWidth != toolbarWidth {
 		t.Errorf("sidebar MinSize().Width = %v, want it to equal the toolbar row's %v", sidebarWidth, toolbarWidth)
+	}
+}
+
+// TestToolbarButtonRedrawsRowAndDetails is the regression guard for F12: the
+// toolbar handlers no longer re-read the service or refresh the list
+// themselves, so refreshView alone has to re-snapshot the jobs and repopulate
+// the details pane. If it ever stops doing either, the row renders a stale
+// status and the details lose the selection — neither is a compile error.
+func TestToolbarButtonRedrawsRowAndDetails(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	store := newTestStore(t)
+	jobs := []domain.Job{
+		{ID: 1, Name: "First", Schedule: "@every 1m", Command: "echo one", Enabled: true},
+		{ID: 2, Name: "Second", Schedule: "@every 2m", Command: "echo two", Enabled: true},
+	}
+	svc := app.NewService(store, jobs)
+	defer svc.Stop()
+
+	content, _ := newJobsView(w, svc)
+	w.SetContent(content)
+
+	list := jobsList(t, content)
+	// Row layout: VBox(nameLine, meta, status), nameLine = Border(name, inlineStatus).
+	rowText := func(id int) (name string, status string) {
+		t.Helper()
+		row := list.CreateItem().(*fyne.Container)
+		list.UpdateItem(id, row)
+		nameLine := row.Objects[0].(*fyne.Container)
+		return nameLine.Objects[0].(*widget.Label).Text, row.Objects[2].(*widget.Label).Text
+	}
+
+	activity := jobsDetailsActivity(t, content)
+
+	list.Select(1)
+	if got := jobsDetailsTitle(t, content); got != "Second" {
+		t.Fatalf("details title after selecting row 1 = %q, want %q", got, "Second")
+	}
+	if _, status := rowText(1); status == "Paused" {
+		t.Fatal("the second job should start enabled")
+	}
+	if got := activity.Length(); got != 0 {
+		t.Fatalf("activity rows before the tap = %d, want 0", got)
+	}
+
+	test.Tap(jobsToolbarButton(t, content, "Pause"))
+
+	if svc.Jobs()[1].Enabled {
+		t.Fatal("tapping Pause did not reach the service")
+	}
+	name, status := rowText(1)
+	if name != "Second" || status != "Paused" {
+		t.Errorf("row 1 after Pause = (%q, %q), want (%q, %q)", name, status, "Second", "Paused")
+	}
+	if got := jobsDetailsTitle(t, content); got != "Second" {
+		t.Errorf("details title after Pause = %q, want the selection kept at %q", got, "Second")
+	}
+	// The pause writes an activity record. Seeing it here is what proves
+	// refreshView repopulated the details pane rather than leaving the panel on
+	// the snapshot it held before the tap.
+	if got := activity.Length(); got != 1 {
+		t.Errorf("activity rows after the tap = %d, want the pause record", got)
 	}
 }
 

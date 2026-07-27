@@ -166,12 +166,14 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		}
 		selectedFolder = value
 		filteredJobs = filteredJobIndexes(jobs, selectedFolder)
-		list.Refresh()
 		if len(filteredJobs) == 0 {
 			// The "No folder" filter is intentionally allowed to be empty. It is a
 			// real filter choice, not an error state, so the selection is cleared.
+			// This path returns without reaching refreshView(), so it is the one
+			// place the list has to be redrawn by hand.
 			selected = -1
 			updateDetails(-1)
+			list.Refresh()
 			return
 		}
 		selected = filteredJobs[0]
@@ -223,7 +225,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			}
 			selected = indexOfID(jobs, created.ID)
 			filteredJobs = filteredJobIndexes(jobs, selectedFolder)
-			list.Refresh()
 			list.Select(app.DisplayIndex(filteredJobs, selected))
 			refreshView()
 		})
@@ -241,7 +242,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			syncFromService()
 			folderSelect.Options = folderOptions(jobs)
 			folderSelect.Refresh()
-			list.Refresh()
 			refreshView()
 		})
 	})
@@ -255,7 +255,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			dialog.ShowError(err, w)
 			return
 		}
-		list.Refresh()
 		refreshView()
 	})
 
@@ -287,7 +286,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			stopAllButton.SetText("Disable auto")
 			stopAllButton.SetIcon(theme.MediaPauseIcon())
 		}
-		list.Refresh()
 		refreshView()
 	}
 	pauseButton := widget.NewButtonWithIcon("Pause", theme.MediaPauseIcon(), func() {
@@ -299,8 +297,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			dialog.ShowError(err, w)
 			return
 		}
-		syncFromService()
-		list.Refresh()
 		refreshView()
 	})
 	deleteButton := widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
@@ -332,7 +328,6 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			} else {
 				selected = filteredJobs[0]
 			}
-			list.Refresh()
 			if selected >= 0 {
 				list.Select(app.DisplayIndex(filteredJobs, selected))
 			}

@@ -104,35 +104,46 @@ func (h *historyHeader) SetText(text string) {
 	h.label.SetText(text)
 }
 
+// historyHeaders are the History table's column captions, in column order. The
+// Time caption is built per update because it carries the sort direction arrow.
+var historyHeaders = [...]string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
+
 func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	descending := false
 	headerText := func(id widget.TableCellID) string {
-		headers := []string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
 		if id.Row < 0 && id.Col == 0 {
 			if descending {
 				return "Time ▼"
 			}
 			return "Time ▲"
 		}
-		if id.Row < 0 && id.Col >= 0 && id.Col < len(headers) {
-			return headers[id.Col]
+		if id.Row < 0 && id.Col >= 0 && id.Col < len(historyHeaders) {
+			return historyHeaders[id.Col]
 		}
 		return ""
 	}
-	sortedEvents := func() []event {
-		result := append([]event(nil), (*events)...)
-		sort.SliceStable(result, func(left int, right int) bool {
+
+	// rows is the sorted snapshot every callback below reads — both the length
+	// callback and the cells, which must agree on the same slice. A full redraw
+	// issues one update call per visible cell, so sorting inside the cell
+	// callback re-sorted the whole event list a hundred times per Refresh.
+	// resort() is therefore the only place the order changes, and it runs once
+	// per redraw: at build time, on a sort toggle, and from refresh().
+	var rows []event
+	resort := func() {
+		rows = append(rows[:0], (*events)...)
+		sort.SliceStable(rows, func(left int, right int) bool {
 			if descending {
-				return result[left].Time > result[right].Time
+				return rows[left].Time > rows[right].Time
 			}
-			return result[left].Time < result[right].Time
+			return rows[left].Time < rows[right].Time
 		})
-		return result
 	}
+	resort()
 
 	table := widget.NewTable(
 		func() (int, int) {
-			return len(*events), 6
+			return len(rows), len(historyHeaders)
 		},
 		func() fyne.CanvasObject {
 			label := widget.NewLabel("")
@@ -140,10 +151,7 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 			return label
 		},
 		func(id widget.TableCellID, item fyne.CanvasObject) {
-			label := item.(*widget.Label)
-			label.SetText(historyCellText(id, sortedEvents()))
-			label.TextStyle = fyne.TextStyle{}
-			label.Refresh()
+			item.(*widget.Label).SetText(historyCellText(id, rows))
 		},
 	)
 	table.ShowHeaderRow = true
@@ -156,6 +164,7 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 		if id.Row < 0 && id.Col == 0 {
 			h.OnTapped = func() {
 				descending = !descending
+				resort()
 				table.Refresh()
 			}
 		} else {
@@ -173,10 +182,12 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	table.SetColumnWidth(4, 260)
 	table.SetColumnWidth(5, logColumnWidth(*events))
 
-	// refresh recomputes the content-fit Log column width before redrawing, so
-	// newly recorded events with longer file names widen the column instead of
-	// being truncated.
+	// refresh re-reads the event list into the sorted snapshot and recomputes
+	// the content-fit Log column width before redrawing, so newly recorded
+	// events appear in the current sort order and longer file names widen the
+	// column instead of being truncated.
 	refresh := func() {
+		resort()
 		table.SetColumnWidth(5, logColumnWidth(*events))
 		table.Refresh()
 	}

@@ -6,6 +6,8 @@ import (
 
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -124,6 +126,95 @@ func TestLogFileName(t *testing.T) {
 		if got := logFileName(tc.path); got != tc.want {
 			t.Errorf("logFileName(%q) = %q, want %q", tc.path, got, tc.want)
 		}
+	}
+}
+
+// TestHistorySortToggleKeepsRowsInSync is the regression guard for F11: the
+// table now reads one cached sorted snapshot instead of re-sorting inside every
+// cell callback, so the length callback and the cells have to be refilled
+// together. If either the sort toggle or refresh stops calling resort(), the
+// row count and the cell contents disagree — which no compiler check catches.
+func TestHistorySortToggleKeepsRowsInSync(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	events := []event{
+		{Time: "2026-06-01 10:00:00", JobName: "A"},
+		{Time: "2026-06-01 11:00:00", JobName: "B"},
+		{Time: "2026-06-01 12:00:00", JobName: "C"},
+	}
+	content, refresh := newHistoryView(&events)
+	table, ok := content.Objects[0].(*widget.Table)
+	if !ok {
+		t.Fatal("history view does not wrap a table")
+	}
+
+	rowCount := func() int {
+		t.Helper()
+		rows, cols := table.Length()
+		if cols != len(historyHeaders) {
+			t.Errorf("column count = %d, want %d", cols, len(historyHeaders))
+		}
+		return rows
+	}
+	// Column 2 is the Job name, the field these fixtures vary.
+	jobAt := func(row int) string {
+		t.Helper()
+		cell := table.CreateCell()
+		table.UpdateCell(widget.TableCellID{Row: row, Col: 2}, cell)
+		return cell.(*widget.Label).Text
+	}
+	// The sort toggle lives on the Time header cell, which is only wired up
+	// when UpdateHeader runs for it.
+	header := table.CreateHeader()
+	table.UpdateHeader(widget.TableCellID{Row: -1, Col: 0}, header)
+	timeHeader, ok := header.(*historyHeader)
+	if !ok {
+		t.Fatal("history table header is not a historyHeader")
+	}
+	assertOrder := func(when string, want ...string) {
+		t.Helper()
+		if got := rowCount(); got != len(want) {
+			t.Fatalf("%s: row count = %d, want %d", when, got, len(want))
+		}
+		for row, name := range want {
+			if got := jobAt(row); got != name {
+				t.Errorf("%s: row %d = %q, want %q", when, row, got, name)
+			}
+		}
+	}
+
+	assertOrder("ascending", "A", "B", "C")
+
+	test.Tap(timeHeader)
+	assertOrder("descending", "C", "B", "A")
+
+	// A new run arrives while the table is sorted newest-first: it must be
+	// counted and placed in the order currently on screen, not the build-time one.
+	events = append(events, event{Time: "2026-06-01 13:00:00", JobName: "D"})
+	refresh()
+	assertOrder("descending after refresh", "D", "C", "B", "A")
+
+	test.Tap(timeHeader)
+	assertOrder("ascending after refresh", "A", "B", "C", "D")
+}
+
+// TestHistoryCellTemplateIsPlainText guards the dropped per-cell TextStyle
+// assignment: the template must already carry the zero style, since nothing
+// resets it any more.
+func TestHistoryCellTemplateIsPlainText(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	var events []event
+	content, _ := newHistoryView(&events)
+	table := content.Objects[0].(*widget.Table)
+	label, ok := table.CreateCell().(*widget.Label)
+	if !ok {
+		t.Fatal("history cell template is not a label")
+	}
+	if label.TextStyle != (fyne.TextStyle{}) {
+		t.Errorf("cell template TextStyle = %+v, want the zero value", label.TextStyle)
 	}
 }
 
