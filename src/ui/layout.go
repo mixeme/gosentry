@@ -59,6 +59,25 @@ func (l minWidthLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 // than hard-coded so it follows a theme that changes SizeNameInnerPadding.
 func rowOverlap() float32 { return -theme.InnerPadding() }
 
+// initialSplitOffset returns the container.Split offset that opens a horizontal
+// split with its leading pane at the given natural width. SetOffset takes a
+// ratio, but a pane's natural width is absolute, so the ratio is derived from
+// the window width the app opens at rather than written as a literal: 0.44 fits
+// 1024 px but would hand a 448 px sidebar 700 px on a 1600 px-wide window.
+//
+// The divider sits between the panes and is excluded from the ratio, matching
+// container.Split's own arithmetic (its divider is two theme paddings thick).
+// Split clamps the offset to both panes' minimums when it lays out, so a result
+// that is slightly off — the window is a little wider than its content area —
+// costs at most a few pixels and can never clip either pane.
+func initialSplitOffset(leadingWidth float32) float64 {
+	available := float64(defaultWindowWidth - 2*theme.Padding())
+	if available <= 0 {
+		return 0
+	}
+	return float64(leadingWidth) / available
+}
+
 // fixedHeightLayout forces its contents to a fixed height while leaving the
 // width to the parent container. It is used to reserve a stable amount of space
 // for the activity panel so a neighbouring widget can absorb the rest.

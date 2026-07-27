@@ -345,6 +345,11 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	sidebarHeader := container.NewVBox(globalControls, widget.NewSeparator(), filterRow, toolbar)
 	sidebar := container.NewBorder(sidebarHeader, nil, nil, nil, list)
 
-	panel := container.NewBorder(nil, nil, sidebar, nil, container.NewPadded(dp.container()))
+	// A split rather than a Border left slot: the border pinned the sidebar at its
+	// MinSize forever, so the user could never trade list width for detail width.
+	// The divider lets either pane grow, and neither can be dragged below its own
+	// content minimum.
+	panel := container.NewHSplit(sidebar, container.NewPadded(dp.container()))
+	panel.SetOffset(initialSplitOffset(sidebar.MinSize().Width))
 	return panel, refreshView
 }

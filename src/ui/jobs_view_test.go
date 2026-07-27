@@ -7,6 +7,7 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
@@ -135,19 +136,24 @@ func findFirst(root fyne.CanvasObject, match func(fyne.CanvasObject) bool) fyne.
 	return nil
 }
 
+// jobsSplit returns the view's master/detail split. newJobsView assembles the
+// panel as container.NewHSplit(sidebar, details), so the two panes are reached
+// through Leading and Trailing.
+func jobsSplit(t *testing.T, content fyne.CanvasObject) *container.Split {
+	t.Helper()
+	split, ok := content.(*container.Split)
+	if !ok {
+		t.Fatal("jobs view is not the expected Split container")
+	}
+	return split
+}
+
 // jobsSidebar narrows the search to the left pane. The details panel has a
 // widget.List of its own (the activity log), so a search from the whole view
-// would find the wrong one. newJobsView assembles the panel as
-// container.NewBorder(nil, nil, sidebar, nil, ...); NewBorder keeps the centre
-// object first and appends the border slots after it, so panel.Objects[1] is
-// the left (sidebar) slot.
+// would find the wrong one.
 func jobsSidebar(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
 	t.Helper()
-	panel, ok := content.(*fyne.Container)
-	if !ok || len(panel.Objects) < 2 {
-		t.Fatal("jobs view is not the expected Border container")
-	}
-	return panel.Objects[1]
+	return jobsSplit(t, content).Leading
 }
 
 func jobsList(t *testing.T, content fyne.CanvasObject) *widget.List {
@@ -193,15 +199,10 @@ func jobsToolbarButton(t *testing.T, content fyne.CanvasObject, text string) *wi
 	return found.(*widget.Button)
 }
 
-// jobsDetails narrows the search to the right pane. NewBorder keeps the centre
-// object first, so panel.Objects[0] is the details pane (see jobsSidebar).
+// jobsDetails narrows the search to the right pane (see jobsSidebar).
 func jobsDetails(t *testing.T, content fyne.CanvasObject) fyne.CanvasObject {
 	t.Helper()
-	panel, ok := content.(*fyne.Container)
-	if !ok || len(panel.Objects) == 0 {
-		t.Fatal("jobs view is not the expected Border container")
-	}
-	return panel.Objects[0]
+	return jobsSplit(t, content).Trailing
 }
 
 // jobsDetailsActivity returns the "Selected job activity" list, the only
@@ -344,6 +345,39 @@ func TestJobsSidebarWidthIsItsContent(t *testing.T) {
 	toolbarWidth := jobsToolbar(t, content).MinSize().Width
 	if sidebarWidth != toolbarWidth {
 		t.Errorf("sidebar MinSize().Width = %v, want it to equal the toolbar row's %v", sidebarWidth, toolbarWidth)
+	}
+}
+
+// TestJobsSplitOpensAtTheSidebarWidth is the guard for the derived initial
+// offset (F15): at the default window width the divider must open at the
+// sidebar's own width — enough that the toolbar is never born clipped, and no
+// more, since every extra pixel is taken from the details pane. Split's own
+// clamp guarantees the lower bound, so the upper bound is what actually proves
+// the offset was derived rather than left at the 0.5 default.
+func TestJobsSplitOpensAtTheSidebarWidth(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	store := newTestStore(t)
+	svc := app.NewService(store, nil)
+	defer svc.Stop()
+
+	content, _ := newJobsView(w, svc)
+	w.SetContent(content)
+
+	split := jobsSplit(t, content)
+	split.Resize(fyne.NewSize(defaultWindowWidth, defaultWindowHeight))
+
+	want := split.Leading.MinSize().Width
+	got := split.Leading.Size().Width
+	// One pixel of slack for the float32 round trip through the offset ratio.
+	if got < want || got > want+1 {
+		t.Errorf("leading pane opens at %v, want its content minimum %v", got, want)
+	}
+	if trailing := split.Trailing.Size().Width; trailing < split.Trailing.MinSize().Width {
+		t.Errorf("trailing pane opens at %v, below its minimum %v", trailing, split.Trailing.MinSize().Width)
 	}
 }
 
