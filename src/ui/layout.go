@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -58,6 +60,17 @@ func (l minWidthLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 // condenses the block without letting the text lines touch. Derived rather
 // than hard-coded so it follows a theme that changes SizeNameInnerPadding.
 func rowOverlap() float32 { return -theme.InnerPadding() }
+
+// cancelRowOverlap exempts one row from the rowOverlap() spacing of the section
+// it sits in, by padding its top edge with exactly what rowOverlap takes away.
+// The overlap assumes both neighbours are text rows: each insets its text, so
+// one padding's worth is duplicated and can go. A row whose value paints its own
+// box to the row's edge — a Select, an Entry, a Button — has no such inset, so
+// the overlap eats the visible gap instead and the box ends up flush against the
+// row above it.
+func cancelRowOverlap(row fyne.CanvasObject) fyne.CanvasObject {
+	return container.New(layout.NewCustomPaddedLayout(-rowOverlap(), 0, 0, 0), row)
+}
 
 // initialSplitOffset returns the container.Split offset that opens a horizontal
 // split with its leading pane at the given natural width. SetOffset takes a

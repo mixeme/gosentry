@@ -60,7 +60,11 @@ func newSettingsLayout(f settingsFormFields) fyne.CanvasObject {
 			settingsRow(capW, "", f.autostartStatus),
 			settingsRow(capW, "Tray", f.minimizeToTray),
 			settingsRow(capW, "Notifications", f.notifications),
-			settingsRow(capW, "Theme", f.themeSelect),
+			// Theme is the one row here whose value is not text: the Select paints
+			// a box out to the row's edge, so the section's overlap would leave it
+			// flush against the Notifications checkbox. Cancelling the overlap for
+			// this row alone restores the gap the checkbox rows have.
+			cancelRowOverlap(settingsRow(capW, "Theme", f.themeSelect)),
 		),
 		widget.NewSeparator(),
 		// Queue used to inline its own container.NewVBox at the theme's default

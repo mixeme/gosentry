@@ -46,6 +46,11 @@ dragged.**
 - The **Application** and **About** blocks are about 2 px tighter: every stacked
   row group in the app now shares one spacing derived from the theme rather than
   three separately tuned numbers.
+- The **Theme** dropdown is no longer flush against the **Notifications**
+  checkbox. That shared row spacing pulls rows together by one text inset, which
+  the rows above have to give but a dropdown — which paints its box out to the
+  row's edge — does not, so the gap collapsed to about a pixel. The Theme row
+  now keeps the same gap the checkbox rows have.
 
 ## 0.15.0 - 2026-07-26
 
