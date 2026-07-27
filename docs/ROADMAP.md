@@ -81,6 +81,50 @@ Design notes / open questions:
   Service exposes import/export operations; the UI only picks the file and
   shows the outcome.
 
+### Split the files that are over the size guideline
+
+[ARCHITECTURE.md](ARCHITECTURE.md) sets a ~250-line guideline per source file
+and records the `jobs_view.go` and `settings_view.go` splits as the worked
+examples. Six non-test files are over it at 1.0.0, including both files that
+were already split once:
+
+| File | Lines |
+|------|-------|
+| `src/app/operations.go` | 490 |
+| `src/ui/jobs_view.go` | 355 |
+| `src/app/run.go` | 287 |
+| `src/ui/history_view.go` | 282 |
+| `src/ui/settings_view.go` | 277 |
+| `src/storage/store.go` | 265 |
+
+This is deliberately deferred to the next whole-project review rather than done
+piecemeal: [REVIEW.md](REVIEW.md) already asks item 2 to look for exactly this,
+a split touches every reader of the file, and doing all six in one pass keeps
+the seams consistent instead of settling them six different ways. Splitting is
+also the kind of change that reads as pure movement while quietly dropping a
+function, so it wants one careful pass, not six hurried ones.
+
+Seams visible today, as a starting point rather than a decision:
+
+- **`operations.go`** — the worst overage and the clearest split: the public
+  mutating operations (`CreateJob` … `UpdateSettings`), the `…Locked` state
+  helpers that only they call, and the pure validators and normalizers
+  (`normalizeJob`, `validateJob`, `hasFileName`, `validateConfig`) are three
+  distinct jobs already sitting in three consecutive blocks.
+- **`history_view.go`** — the column-measuring helpers (`textWidth` through
+  `historyColumnWidths`) are pure, already unit-tested, and independent of the
+  table they size.
+- **`jobs_view.go`** — nearly all of it is one `newJobsView` constructor, so the
+  split has to break that function up (list template, toolbar handlers,
+  assembly) rather than move whole functions. Larger judgement call than the
+  others.
+- **`run.go`**, **`settings_view.go`**, **`store.go`** — barely over. Worth
+  re-measuring at the time; if a pass elsewhere has shrunk them, leave them
+  alone rather than splitting for the sake of the number.
+
+Scope note: the guideline is about source files. Test files are much larger and
+that is fine — a table-driven test file grows with the cases it covers.
+
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled

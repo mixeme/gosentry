@@ -204,9 +204,10 @@ the moment the window opens.
 
 ### `jobs_view.go` file structure
 
-The size guideline for a file in this project is ~250 lines. `src/ui/jobs_view.go`
-is split across three files along these seams; the view file itself has grown
-back over the guideline since, and is the next candidate if it grows further:
+The size guideline for a file in this project is ~250 lines.
+`src/ui/jobs_view.go` is split across three files along these seams; the view
+file itself has grown back over the guideline since — see the split item in
+[ROADMAP.md](ROADMAP.md), which tracks every file currently over it:
 
 | File | Contents |
 |------|----------|
@@ -217,8 +218,7 @@ back over the guideline since, and is the next candidate if it grows further:
 ### `settings_view.go` file structure
 
 `src/ui/settings_view.go` is split across three files the same way, once its
-own size passed the guideline. `src/ui/history_view.go` is over it too and has
-not been split:
+own size passed the guideline:
 
 | File | Contents |
 |------|----------|
