@@ -42,35 +42,83 @@ func collectActivity(jobs []job, runtimes map[int]*domain.JobRuntime) []event {
 	return events
 }
 
-// logColumnMinWidth/logColumnMaxWidth bound the dynamically sized Log column.
-// The minimum keeps the column readable when names are short or absent; the
-// maximum stops a single very long file name from dominating the table (the
-// table still scrolls horizontally past it).
-const (
-	logColumnMinWidth = 240
-	logColumnMaxWidth = 520
-	logColumnPadding  = 24
-)
+// textWidth measures how wide s renders at the theme's current body text size.
+func textWidth(s string) float32 {
+	return fyne.MeasureText(s, theme.TextSize(), fyne.TextStyle{}).Width
+}
 
-// logColumnWidth measures the widest Log cell value so the column can be sized
-// to fit its content. Fyne tables do not auto-size columns, so without this the
-// fixed width clips file names like "20260601-100000_SomeJobName.log".
-func logColumnWidth(events []event) float32 {
-	width := float32(logColumnMinWidth)
-	for _, current := range events {
-		text := logFileName(current.LogFile)
+// cellPadding is the horizontal space a table cell reserves around its text.
+// It replaces a hand-tuned pixel constant with the theme's own inner padding
+// doubled (one side each), so it follows text size and DPI.
+func cellPadding() float32 { return 2 * theme.InnerPadding() }
+
+// textColumnMinWidth/textColumnMaxWidth bound every content-measured History
+// column: the minimum keeps a column readable when its values are short or
+// absent, the maximum stops one very long value from dominating the table
+// (the table still scrolls horizontally past it). Expressed as measured text
+// rather than raw pixels so both follow the theme instead of drifting from it.
+func textColumnMinWidth() float32 { return textWidth(strings.Repeat("0", 10)) + cellPadding() }
+func textColumnMaxWidth() float32 { return textWidth(strings.Repeat("0", 30)) + cellPadding() }
+
+// textColumnWidth measures the widest of samples so a table column can be
+// sized to fit its content, clamped to [min, max]. Fyne tables do not
+// auto-size columns, so without this a fixed width clips values like
+// "20260601-100000_SomeJobName.log" in the Log column.
+func textColumnWidth(samples []string, min, max float32) float32 {
+	width := min
+	for _, text := range samples {
 		if text == "" {
 			continue
 		}
-		w := fyne.MeasureText(text, theme.TextSize(), fyne.TextStyle{}).Width + logColumnPadding
-		if w > width {
+		if w := textWidth(text) + cellPadding(); w > width {
 			width = w
 		}
 	}
-	if width > logColumnMaxWidth {
-		width = logColumnMaxWidth
+	if width > max {
+		width = max
 	}
 	return width
+}
+
+// historyTriggerSamples is the closed set of Trigger values History ever
+// shows (see newEvent and app.operations.go/app.run.go, which produce "UI",
+// "Manual" and "Schedule"; historyCellText falls back to "Unknown"). Add a new
+// trigger here too if one is introduced there, or the column may clip it.
+var historyTriggerSamples = []string{"Schedule", "Manual", "UI", "Unknown"}
+
+// historyStateSamples is the closed set of State values History ever shows:
+// "OK" and "Failed" come from runner.RunJob (runStateDetail/startJobOnly);
+// "Started", "Error" and "Jobs loaded" are recorded directly in mainwindow.go.
+// Add a new state here too if one is introduced in either place.
+var historyStateSamples = []string{"OK", "Failed", "Started", "Error", "Jobs loaded"}
+
+// historyTimeSample is the rendered form of the timestamp layout every event
+// uses (see newEvent), so the Time column needs no content scan: its width is
+// fixed by the format string.
+const historyTimeSample = "2026-01-02 15:04:05"
+
+// historyColumnWidths computes every column's width from the current sorted
+// rows. Time, Trigger and State are fixed-shape or closed-set columns; Job,
+// Detail and Log are free text, so their width tracks the values actually
+// present, bounded the same way the Log column always was.
+func historyColumnWidths(rows []event) [6]float32 {
+	jobNames := make([]string, 0, len(rows))
+	details := make([]string, 0, len(rows))
+	logNames := make([]string, 0, len(rows))
+	for _, current := range rows {
+		jobNames = append(jobNames, current.JobName)
+		details = append(details, current.Detail)
+		logNames = append(logNames, logFileName(current.LogFile))
+	}
+	min, max := textColumnMinWidth(), textColumnMaxWidth()
+	return [6]float32{
+		textWidth(historyTimeSample) + cellPadding(),
+		textColumnWidth(historyTriggerSamples, min, max),
+		textColumnWidth(jobNames, min, max),
+		textColumnWidth(historyStateSamples, min, max),
+		textColumnWidth(details, min, max),
+		textColumnWidth(logNames, min, max),
+	}
 }
 
 // historyHeader is a bold tappable label used in the History table header row.
@@ -85,7 +133,7 @@ type historyHeader struct {
 func newHistoryHeader() *historyHeader {
 	h := &historyHeader{label: widget.NewLabel("")}
 	h.label.TextStyle = fyne.TextStyle{Bold: true}
-	h.label.Wrapping = fyne.TextTruncate
+	h.label.Truncation = fyne.TextTruncateClip
 	h.ExtendBaseWidget(h)
 	return h
 }
@@ -147,7 +195,7 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 		},
 		func() fyne.CanvasObject {
 			label := widget.NewLabel("")
-			label.Wrapping = fyne.TextTruncate
+			label.Truncation = fyne.TextTruncateClip
 			return label
 		},
 		func(id widget.TableCellID, item fyne.CanvasObject) {
@@ -175,20 +223,20 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	table.OnSelected = func(id widget.TableCellID) {
 		table.Unselect(id)
 	}
-	table.SetColumnWidth(0, 150)
-	table.SetColumnWidth(1, 90)
-	table.SetColumnWidth(2, 170)
-	table.SetColumnWidth(3, 90)
-	table.SetColumnWidth(4, 260)
-	table.SetColumnWidth(5, logColumnWidth(*events))
+	setColumnWidths := func() {
+		for col, width := range historyColumnWidths(rows) {
+			table.SetColumnWidth(col, width)
+		}
+	}
+	setColumnWidths()
 
 	// refresh re-reads the event list into the sorted snapshot and recomputes
-	// the content-fit Log column width before redrawing, so newly recorded
-	// events appear in the current sort order and longer file names widen the
-	// column instead of being truncated.
+	// every content-fit column width before redrawing, so newly recorded events
+	// appear in the current sort order and longer values widen their column
+	// instead of being truncated.
 	refresh := func() {
 		resort()
-		table.SetColumnWidth(5, logColumnWidth(*events))
+		setColumnWidths()
 		table.Refresh()
 	}
 	return container.NewPadded(table), refresh

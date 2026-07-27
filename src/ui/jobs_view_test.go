@@ -35,8 +35,8 @@ func TestFolderOptionsAlwaysIncludesSentinels(t *testing.T) {
 func TestFolderOptionsAppendsUniqueFolders(t *testing.T) {
 	jobs := []domain.Job{
 		{Folder: "Maintenance"},
-		{Folder: ""},           // no folder → not a named folder
-		{Folder: "  Backups "}, // trimmed to "Backups"
+		{Folder: ""},            // no folder → not a named folder
+		{Folder: "  Backups "},  // trimmed to "Backups"
 		{Folder: "Maintenance"}, // duplicate → not added again
 	}
 	opts := folderOptions(jobs)
@@ -409,6 +409,29 @@ func TestToolbarButtonRedrawsRowAndDetails(t *testing.T) {
 	// the snapshot it held before the tap.
 	if got := activity.Length(); got != 1 {
 		t.Errorf("activity rows after the tap = %d, want the pause record", got)
+	}
+}
+
+// TestDetailCaptionWidthCoversEveryCaption is the guard that makes the single
+// metadataRows list self-enforcing (F10): every caption it returns must
+// measure no wider than captionColumnWidth's result for that same list, or a
+// row added to metadataRows without updating the width measurement would
+// silently truncate.
+func TestDetailCaptionWidthCoversEveryCaption(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	d := newDetailsPanel(job{}, &domain.JobRuntime{}, domain.OverlapPolicySkip, 0)
+	specs := d.metadataRows()
+	captions := make([]string, len(specs))
+	for i, spec := range specs {
+		captions[i] = spec.caption
+	}
+	capW := captionColumnWidth(captions...)
+	for _, c := range captions {
+		if w := widget.NewLabelWithStyle(c, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}).MinSize().Width; w > capW {
+			t.Errorf("caption %q measures %v, wider than captionColumnWidth's %v", c, w, capW)
+		}
 	}
 }
 

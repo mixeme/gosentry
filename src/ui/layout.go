@@ -3,7 +3,21 @@ package ui
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
+
+// captionColumnWidth returns the width to reserve for a column of bold
+// captions: the widest of them, measured under the current theme so it tracks
+// text size and DPI instead of a hand-tuned constant.
+func captionColumnWidth(captions ...string) float32 {
+	var width float32
+	for _, caption := range captions {
+		if w := widget.NewLabelWithStyle(caption, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}).MinSize().Width; w > width {
+			width = w
+		}
+	}
+	return width
+}
 
 type minWidthLayout struct {
 	width float32
@@ -84,6 +98,10 @@ type captionValueLayout struct {
 	captionWidth float32
 }
 
+// MinSize and Layout both return silently when given anything but two
+// objects. That is acceptable here because the type is package-private with a
+// single constructor (detailRow), which always supplies exactly a caption and
+// a value — there is no external caller that could pass the wrong count.
 func (l captionValueLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	if len(objects) != 2 {
 		return fyne.Size{}

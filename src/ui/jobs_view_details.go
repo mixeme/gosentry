@@ -65,7 +65,7 @@ func newDetailsPanel(firstJob job, rt *domain.JobRuntime, globalOverlapPolicy do
 		func() int { return len(d.selectedLogs) },
 		func() fyne.CanvasObject {
 			l := widget.NewLabel("log")
-			l.Wrapping = fyne.TextTruncate
+			l.Truncation = fyne.TextTruncateClip
 			return l
 		},
 		func(id widget.ListItemID, item fyne.CanvasObject) {
@@ -115,21 +115,59 @@ func (d *detailsPanel) clear() {
 	d.logs.Refresh()
 }
 
+// detailRowSpec pairs a metadata caption with the widget that shows its value.
+// metadataRows and container derive both the caption column width and the row
+// layout from this single list, so a row added to one is never forgotten in
+// the other.
+type detailRowSpec struct {
+	caption string
+	value   fyne.CanvasObject
+}
+
+// metadataRows lists the details pane's metadata rows in display order. It is
+// the single source both the caption width measurement and the row layout in
+// container() read, so a twelfth row added here cannot silently go unmeasured
+// or unlaid-out the way two separately maintained lists could.
+func (d *detailsPanel) metadataRows() []detailRowSpec {
+	return []detailRowSpec{
+		{"Folder", d.folder},
+		{"Schedule", d.schedule},
+		{"Command", d.command},
+		{"Arguments", d.arguments},
+		{"Run mode", d.runMode},
+		{"Overlap policy", d.overlapPolicy},
+		{"Timeout", d.timeout},
+		{"State", d.state},
+		{"Last run", d.lastRun},
+		{"Next run", d.nextRun},
+		{"Statistics", d.stats},
+	}
+}
+
 // container assembles the details pane layout: metadata rows pin to the top,
 // the activity panel pins to the bottom, and command output fills the remainder.
 func (d *detailsPanel) container() fyne.CanvasObject {
 	// Metadata is laid out in two columns so the block stays half as tall,
 	// keeping the details pane usable on 720p screens where a single column of
 	// ten rows pushes the minimum window height past the available space.
-	capW := detailCaptionWidth()
-	rows := container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()),
-		detailRowPair(capW, "Folder", d.folder, "Schedule", d.schedule),
-		detailRowPair(capW, "Command", d.command, "Arguments", d.arguments),
-		detailRowPair(capW, "Run mode", d.runMode, "Overlap policy", d.overlapPolicy),
-		detailRowPair(capW, "Timeout", d.timeout, "State", d.state),
-		detailRowPair(capW, "Last run", d.lastRun, "Next run", d.nextRun),
-		detailRow(capW, "Statistics", d.stats),
-	)
+	specs := d.metadataRows()
+	captions := make([]string, len(specs))
+	for i, spec := range specs {
+		captions[i] = spec.caption
+	}
+	capW := captionColumnWidth(captions...)
+	rowObjects := make([]fyne.CanvasObject, 0, (len(specs)+1)/2)
+	for i := 0; i+1 < len(specs); i += 2 {
+		rowObjects = append(rowObjects, detailRowPair(capW, specs[i].caption, specs[i].value, specs[i+1].caption, specs[i+1].value))
+	}
+	// An odd row count leaves one caption without a partner (Statistics, today);
+	// it falls through to a single-column row rather than being paired with
+	// nothing.
+	if len(specs)%2 == 1 {
+		last := specs[len(specs)-1]
+		rowObjects = append(rowObjects, detailRow(capW, last.caption, last.value))
+	}
+	rows := container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()), rowObjects...)
 	top := container.NewVBox(
 		d.title,
 		widget.NewSeparator(),
@@ -153,28 +191,10 @@ func (d *detailsPanel) container() fyne.CanvasObject {
 // absorbs sub-pixel rounding so the last row is never clipped behind a scrollbar.
 func activityRowsHeight(rows int) float32 {
 	sample := widget.NewLabel("log")
-	sample.Wrapping = fyne.TextTruncate
+	sample.Truncation = fyne.TextTruncateClip
 	itemHeight := sample.MinSize().Height
 	padding := theme.Padding()
 	return (itemHeight+padding)*float32(rows) - padding + 1
-}
-
-// detailCaptionWidth returns the width reserved for every metadata caption,
-// derived from the widest caption label so the value columns all start at the
-// same x and no caption truncates. Measuring a real label keeps it DPI- and
-// theme-aware instead of relying on a hand-tuned constant.
-func detailCaptionWidth() float32 {
-	captions := []string{
-		"Folder", "Schedule", "Command", "Arguments", "Run mode",
-		"Overlap policy", "Timeout", "Last run", "Next run", "State", "Statistics",
-	}
-	var width float32
-	for _, c := range captions {
-		if w := widget.NewLabelWithStyle(c, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}).MinSize().Width; w > width {
-			width = w
-		}
-	}
-	return width
 }
 
 // detailRowPair places two label/value pairs side by side, producing the
@@ -185,7 +205,7 @@ func detailRowPair(captionWidth float32, l1 string, v1 fyne.CanvasObject, l2 str
 
 func detailRow(captionWidth float32, label string, value fyne.CanvasObject) fyne.CanvasObject {
 	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	caption.Wrapping = fyne.TextTruncate
+	caption.Truncation = fyne.TextTruncateClip
 	// A fixed caption width (rather than an even split) means widening the window
 	// feeds the extra space to the value, not the short caption.
 	return container.New(captionValueLayout{captionWidth: captionWidth}, caption, value)
@@ -193,6 +213,6 @@ func detailRow(captionWidth float32, label string, value fyne.CanvasObject) fyne
 
 func newJobDetailLabel(text string) *widget.Label {
 	label := widget.NewLabel(text)
-	label.Wrapping = fyne.TextTruncate
+	label.Truncation = fyne.TextTruncateClip
 	return label
 }

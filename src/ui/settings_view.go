@@ -1,34 +1,30 @@
 package ui
 
 import (
-	"errors"
-	"image/color"
-	"net/url"
-	"runtime"
-	"runtime/debug"
 	"strconv"
 	"strings"
 
 	"gitea.mixdep.ru/mix/gosentry/src/app"
 	"gitea.mixdep.ru/mix/gosentry/src/domain"
-	"gitea.mixdep.ru/mix/gosentry/src/platform/filemanager"
-	"gitea.mixdep.ru/mix/gosentry/src/storage"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
-	fynestorage "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
-// settingsLabelWidth is wide enough to show the longest caption ("Default
-// overlap policy") in full; the captions truncate, so a narrower width would
-// clip it. All rows share this width so their value controls stay aligned.
-const settingsLabelWidth float32 = 180
 const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
+
+// settingsCaptions lists every settingsRow caption in the tab, in no
+// particular order. settingsView measures this once with captionColumnWidth
+// so every row's value column starts at the same x; a caption added to a row
+// below without being added here is the one way a row would silently fall out
+// of alignment.
+var settingsCaptions = []string{
+	"Autostart", "Tray", "Notifications", "Theme",
+	"Execution mode", "Default overlap policy", "Default timeout (s)",
+	"Config JSON", "Jobs file", "Logs directory", "Max log files", "Max log age days",
+	"GoSentry", "Go", "Fyne", "Repository",
+}
 
 func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	store := svc.Store()
@@ -120,7 +116,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// Autostart status sits on its own row beneath the checkbox (rather than
 	// beside it) so the Application section fits within a half-width column.
 	// Truncating keeps a long status message from forcing the column wider.
-	autostartStatus.Wrapping = fyne.TextTruncate
+	autostartStatus.Truncation = fyne.TextTruncateClip
 	settingsStatus := widget.NewLabel("")
 
 	saveSettings := widget.NewButtonWithIcon("Save settings", theme.DocumentSaveIcon(), func() {
@@ -234,184 +230,28 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		loadFields(domain.DefaultConfig())
 	})
 
-	// The form is split into two columns so a wide window uses its horizontal
-	// space instead of stretching into one tall strip. The left column holds the
-	// toggles (Application, Queue); the right holds the editable Storage fields and
-	// the read-only About block. Save spans the full width below both columns.
-	leftColumn := container.NewVBox(
-		settingsSection("Application",
-			settingsRow("Autostart", startOnLogin),
-			// Autostart status sits on its own row, aligned under the checkbox via an
-			// empty caption, so the Application section fits in a half-width column.
-			settingsRow("", autostartStatus),
-			settingsRow("Tray", minimizeToTray),
-			settingsRow("Notifications", notifications),
-			settingsRow("Theme", themeSelect),
-		),
-		widget.NewSeparator(),
-		// Queue holds the execution mode and overlap policy comboboxes. Like
-		// Storage, it uses the default VBox spacing (not the condensed section
-		// layout) so the comboboxes keep a visible gap between them.
-		container.NewVBox(
-			widget.NewLabelWithStyle("Queue", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			settingsRow("Execution mode", executionModeSelect),
-			settingsRow("Default overlap policy", overlapPolicySelect),
-			settingsRow("Default timeout (s)", defaultTimeout),
-		),
-	)
-	// Truncating keeps a long config path from forcing the Settings tab's
-	// minimum width to track the path length instead of the layout itself.
-	configPathLabel := widget.NewLabel(store.Paths.ConfigPath)
-	configPathLabel.Truncation = fyne.TextTruncateClip
-	rightColumn := container.NewVBox(
-		// Storage holds editable entry fields. It uses the default VBox spacing
-		// (not the condensed section layout) so the entry boxes keep a visible
-		// gap between them instead of merging into one block.
-		container.NewVBox(
-			widget.NewLabelWithStyle("Storage", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			settingsRow("Config JSON", configPathLabel),
-			settingsRow("Jobs file", container.NewBorder(nil, nil, nil, jobsFileBrowse, jobsFile)),
-			// Browse stays rightmost so it lines up with the Jobs file row
-			// above it; Open sits between it and the path it opens.
-			settingsRow("Logs directory", container.NewBorder(nil, nil, nil, container.NewHBox(logsDirOpen, logsDirBrowse), logsDir)),
-			settingsRow("Max log files", maxLogFiles),
-			settingsRow("Max log age days", maxLogAgeDays),
-		),
-		widget.NewSeparator(),
-		settingsSection("About",
-			settingsRow("GoSentry", widget.NewLabel(app.Version)),
-			settingsRow("Go", widget.NewLabel(runtime.Version())),
-			settingsRow("Fyne", widget.NewLabel(fyneVersion())),
-			settingsRow("Repository", widget.NewHyperlink(projectRepositoryURL, mustParseURL(projectRepositoryURL))),
-		),
-	)
-
-	// The two columns sit in a top-aligned grid; Save spans the full width below.
-	// Wrapping the whole thing in a vertical scroll keeps its minimum height small
-	// so it does not dictate the window's minimum height (AppTabs sizes to the
-	// tallest tab) and it scrolls on short 720p screens.
-	// The button row sits right below the separator's hairline, which reads as
-	// tighter than the other vertical gaps in the tab (those separate whole
-	// sections, not a single thin line from a row of buttons). A spacer the
-	// height of the default padding closes that gap up to match, and a matching
-	// width spacer indents the buttons from the left edge the same amount.
-	buttonRowSpacer := canvas.NewRectangle(color.Transparent)
-	buttonRowSpacer.SetMinSize(fyne.NewSize(0, theme.Padding()))
-	buttonRowLeftInset := canvas.NewRectangle(color.Transparent)
-	buttonRowLeftInset.SetMinSize(fyne.NewSize(theme.Padding(), 0))
-
-	return container.NewVScroll(container.NewPadded(container.NewVBox(
-		container.NewGridWithColumns(2, leftColumn, rightColumn),
-		widget.NewSeparator(),
-		buttonRowSpacer,
-		// Save/Cancel/Defaults share one row with the status so an empty status
-		// (the common case) does not leave a blank line above the separator. The
-		// status appears beside the buttons once a save reports a result.
-		container.NewHBox(buttonRowLeftInset, saveSettings, cancelSettings, restoreDefaults, settingsStatus),
-	)))
-}
-
-// settingsSection groups a bold header above its rows using the tight
-// rowOverlap spacing so a block of label rows reads as one compact unit. The
-// caller keeps separators and entry-heavy sections in the surrounding VBox so
-// they retain the theme's normal spacing.
-func settingsSection(title string, rows ...fyne.CanvasObject) fyne.CanvasObject {
-	children := make([]fyne.CanvasObject, 0, len(rows)+1)
-	children = append(children, widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
-	children = append(children, rows...)
-	return container.New(layout.NewCustomPaddedVBoxLayout(rowOverlap()), children...)
-}
-
-func fyneVersion() string {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return "unknown"
-	}
-	for _, dependency := range info.Deps {
-		if dependency.Path == "fyne.io/fyne/v2" {
-			if dependency.Replace != nil && dependency.Replace.Version != "" {
-				return dependency.Replace.Version
-			}
-			if dependency.Version != "" {
-				return dependency.Version
-			}
-			return "local"
-		}
-	}
-	return "unknown"
-}
-
-func mustParseURL(raw string) *url.URL {
-	parsed, err := url.Parse(raw)
-	if err != nil {
-		return &url.URL{}
-	}
-	return parsed
-}
-
-func chooseFile(w fyne.Window, target *widget.Entry) {
-	fileDialog := dialog.NewFileOpen(func(uri fyne.URIReadCloser, err error) {
-		if err != nil || uri == nil {
-			return
-		}
-		target.SetText(uri.URI().Path())
-	}, w)
-	fileDialog.Resize(fyne.NewSize(900, 640))
-	fileDialog.Show()
-}
-
-// chooseJSONFile is chooseFile restricted to .json files, used for the jobs
-// file so the picker does not list every file in the folder. The entry stays
-// editable, which is how a path to a file that does not exist yet is entered.
-func chooseJSONFile(w fyne.Window, target *widget.Entry) {
-	fileDialog := dialog.NewFileOpen(func(uri fyne.URIReadCloser, err error) {
-		if err != nil || uri == nil {
-			return
-		}
-		target.SetText(uri.URI().Path())
-	}, w)
-	fileDialog.SetFilter(fynestorage.NewExtensionFileFilter([]string{".json"}))
-	fileDialog.Resize(fyne.NewSize(900, 640))
-	fileDialog.Show()
-}
-
-func chooseFolder(w fyne.Window, target *widget.Entry) {
-	folderDialog := dialog.NewFolderOpen(func(uri fyne.ListableURI, err error) {
-		if err != nil || uri == nil {
-			return
-		}
-		target.SetText(uri.Path())
-	}, w)
-	// The default folder picker can be cramped on Windows. A larger size makes
-	// long paths readable and avoids forcing the user to resize it every time.
-	folderDialog.Resize(fyne.NewSize(900, 640))
-	folderDialog.Show()
-}
-
-// settingsFolderPath resolves what a directory field currently points at,
-// applying the same relative-path rule the store uses when it loads the config
-// so the folder that opens is the one the setting would use. Blank text has no
-// folder to open and yields an empty path.
-func settingsFolderPath(appDir string, text string) string {
-	trimmed := strings.TrimSpace(text)
-	if trimmed == "" {
-		return ""
-	}
-	return storage.ResolveConfiguredPath(appDir, trimmed)
-}
-
-// openFolder reveals dir in the desktop file manager. A folder that is not set
-// or cannot be opened (most often: it does not exist yet, because the logs
-// directory is created on the first run) is reported in a dialog rather than
-// leaving the button looking dead.
-func openFolder(w fyne.Window, dir string) {
-	if dir == "" {
-		dialog.ShowError(errors.New("no folder is set"), w)
-		return
-	}
-	if err := filemanager.Open(dir); err != nil {
-		dialog.ShowError(err, w)
-	}
+	return newSettingsLayout(settingsFormFields{
+		startOnLogin:        startOnLogin,
+		autostartStatus:     autostartStatus,
+		minimizeToTray:      minimizeToTray,
+		notifications:       notifications,
+		themeSelect:         themeSelect,
+		executionModeSelect: executionModeSelect,
+		overlapPolicySelect: overlapPolicySelect,
+		defaultTimeout:      defaultTimeout,
+		configPath:          store.Paths.ConfigPath,
+		jobsFile:            jobsFile,
+		jobsFileBrowse:      jobsFileBrowse,
+		logsDir:             logsDir,
+		logsDirOpen:         logsDirOpen,
+		logsDirBrowse:       logsDirBrowse,
+		maxLogFiles:         maxLogFiles,
+		maxLogAgeDays:       maxLogAgeDays,
+		saveSettings:        saveSettings,
+		cancelSettings:      cancelSettings,
+		restoreDefaults:     restoreDefaults,
+		settingsStatus:      settingsStatus,
+	})
 }
 
 // Theme dropdown labels. These are the human-facing captions; themeLabel and
@@ -434,11 +274,4 @@ func themeFromLabel(label string) domain.Theme {
 		return domain.ThemeGoSentry
 	}
 	return domain.ThemeDefault
-}
-
-func settingsRow(label string, value fyne.CanvasObject) fyne.CanvasObject {
-	caption := widget.NewLabelWithStyle(label, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	caption.Wrapping = fyne.TextTruncate
-	captionBox := container.New(minWidthLayout{width: settingsLabelWidth}, caption)
-	return container.NewBorder(nil, nil, captionBox, nil, value)
 }

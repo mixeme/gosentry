@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -216,6 +217,79 @@ func TestHistoryCellTemplateIsPlainText(t *testing.T) {
 	if label.TextStyle != (fyne.TextStyle{}) {
 		t.Errorf("cell template TextStyle = %+v, want the zero value", label.TextStyle)
 	}
+}
+
+// TestTextColumnWidthClamps covers the three shapes textColumnWidth has to
+// handle: a sample narrower than min, one that lands between the bounds, and
+// one wide enough to hit the max cap.
+func TestTextColumnWidthClamps(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	min, max := float32(50), float32(120)
+	if got := textColumnWidth([]string{"x"}, min, max); got != min {
+		t.Errorf("below-min sample: got %v, want the floor %v", got, min)
+	}
+	inRange := textWidth("mid-sized value") + cellPadding()
+	if inRange <= min || inRange >= max {
+		t.Skip("fixture sample no longer lands strictly between the bounds under this theme")
+	}
+	if got := textColumnWidth([]string{"mid-sized value"}, min, max); got != inRange {
+		t.Errorf("in-range sample: got %v, want %v", got, inRange)
+	}
+	if got := textColumnWidth([]string{strings.Repeat("0", 200)}, min, max); got != max {
+		t.Errorf("above-max sample: got %v, want the cap %v", got, max)
+	}
+	if got := textColumnWidth(nil, min, max); got != min {
+		t.Errorf("no samples: got %v, want the floor %v", got, min)
+	}
+}
+
+// TestHistoryColumnsFitTheirContent guards F6/F14: every column must be at
+// least as wide as its widest known or actually-present value, at the default
+// theme and at a scaled one, so nothing that used to be a pixel constant
+// clips again.
+func TestHistoryColumnsFitTheirContent(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	rows := []event{
+		{
+			Time:    "2026-06-01 12:00:00",
+			Trigger: "Schedule",
+			JobName: "A moderately long job name for width testing",
+			State:   "Jobs loaded",
+			Detail:  "A somewhat longer detail message describing what happened",
+			LogFile: `/logs/20260601-120000_SomeJobName.log`,
+		},
+	}
+
+	check := func(when string) {
+		t.Helper()
+		widths := historyColumnWidths(rows)
+		samples := [][]string{
+			{historyTimeSample},
+			historyTriggerSamples,
+			{rows[0].JobName},
+			historyStateSamples,
+			{rows[0].Detail},
+			{logFileName(rows[0].LogFile)},
+		}
+		min, max := textColumnMinWidth(), textColumnMaxWidth()
+		for col, colSamples := range samples {
+			want := textColumnWidth(colSamples, min, max)
+			if col == 0 {
+				want = textWidth(historyTimeSample) + cellPadding()
+			}
+			if widths[col] < want {
+				t.Errorf("%s: column %d width = %v, want at least %v", when, col, widths[col], want)
+			}
+		}
+	}
+
+	check("default theme")
+	testApp.Settings().SetTheme(test.NewTheme())
+	check("scaled theme")
 }
 
 func TestNewEventUsesConsistentTimestampShape(t *testing.T) {

@@ -213,3 +213,14 @@ size guideline:
 | `jobs_view.go` | `newJobsView` — list, toolbar, button wiring, and layout |
 | `jobs_view_details.go` | `detailsPanel` struct — widget creation, `update`, `clear`, `container` |
 | `jobs_view_helpers.go` | Pure helpers — `filteredJobIndexes`, `folderOptions`, `filterValue`, `indexOfID`, `lastJobLogs`, `nextJobListView`, `viewToggleText` |
+
+### `settings_view.go` file structure
+
+`src/ui/settings_view.go` is split across three files the same way, once its
+own size passed the ~250-line guideline:
+
+| File | Contents |
+|------|----------|
+| `settings_view.go` | `settingsView` — field construction, save, load, validate; the Theme label translation helpers |
+| `settings_view_layout.go` | `newSettingsLayout`, `settingsSection`, `settingsRow` — the two-column arrangement and the button row |
+| `settings_view_helpers.go` | Pure helpers — `fyneVersion`, `mustParseURL`, `settingsFolderPath`, `openFolder`, `chooseFile`/`chooseJSONFile`, `chooseFolder` (`chooseFile` also backs `job_dialog.go`'s command browser) |

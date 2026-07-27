@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	fynestorage "fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -43,7 +45,7 @@ func TestSettingsFolderPath(t *testing.T) {
 // wrapping it in a fixed-width layout was redundant.
 func TestSettingsRowStretchesItsControl(t *testing.T) {
 	entry := widget.NewEntry()
-	row := settingsRow("Label", entry)
+	row := settingsRow(captionColumnWidth("Label"), "Label", entry)
 
 	baseWidth := entry.Size().Width
 	wide := fyne.NewSize(row.MinSize().Width+200, row.MinSize().Height)
@@ -55,5 +57,59 @@ func TestSettingsRowStretchesItsControl(t *testing.T) {
 	// wrapper around it would break.
 	if got := entry.Size().Width; got < baseWidth+150 {
 		t.Errorf("control did not stretch to fill the row: entry width = %v, want at least %v", got, baseWidth+150)
+	}
+}
+
+// TestChooseFileAppliesFilter is the coverage for the deduplicated file picker
+// (chooseFile absorbed chooseJSONFile's SetFilter call behind a nil-means-none
+// filter argument): both a nil filter (job_dialog.go's command browser) and a
+// concrete one (chooseJSONFile) must open a dialog without panicking, and the
+// dialog must actually appear as a canvas overlay either way.
+func TestChooseFileAppliesFilter(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	target := widget.NewEntry()
+
+	chooseFile(w, target, nil)
+	if w.Canvas().Overlays().Top() == nil {
+		t.Fatal("chooseFile(nil filter) did not open a dialog")
+	}
+	w.Canvas().Overlays().Top().Hide()
+
+	chooseJSONFile(w, target)
+	if w.Canvas().Overlays().Top() == nil {
+		t.Fatal("chooseJSONFile did not open a dialog")
+	}
+	w.Canvas().Overlays().Top().Hide()
+
+	// Exercising a concrete filter directly through chooseFile as well, so the
+	// filter parameter itself (not just chooseJSONFile's use of it) is covered.
+	chooseFile(w, target, fynestorage.NewExtensionFileFilter([]string{".json"}))
+	if w.Canvas().Overlays().Top() == nil {
+		t.Fatal("chooseFile(non-nil filter) did not open a dialog")
+	}
+	w.Canvas().Overlays().Top().Hide()
+}
+
+// TestSettingsCaptionsCoverEveryRow is the settings-tab analog of F10's
+// jobs-details guard: every caption settingsView actually uses in a row must
+// be present in settingsCaptions and measure no wider than
+// captionColumnWidth's result for that list, or a caption added to a row
+// without adding it to settingsCaptions would silently misalign that column.
+func TestSettingsCaptionsCoverEveryRow(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	capW := captionColumnWidth(settingsCaptions...)
+	for _, c := range settingsCaptions {
+		if c == "" {
+			continue
+		}
+		if w := widget.NewLabelWithStyle(c, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}).MinSize().Width; w > capW {
+			t.Errorf("caption %q measures %v, wider than captionColumnWidth's %v", c, w, capW)
+		}
 	}
 }

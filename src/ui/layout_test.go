@@ -26,3 +26,27 @@ func TestRowOverlapMatchesInnerPadding(t *testing.T) {
 		t.Errorf("under a different theme, rowOverlap() = %v, want %v", got, want)
 	}
 }
+
+// TestCaptionColumnWidth covers the shapes F10's shared helper has to handle:
+// no captions, one, and several of varying length at two text sizes.
+func TestCaptionColumnWidth(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	if got := captionColumnWidth(); got != 0 {
+		t.Errorf("no captions: got %v, want 0", got)
+	}
+	solo := captionColumnWidth("Solo")
+	if solo <= 0 {
+		t.Errorf("one caption: got %v, want > 0", solo)
+	}
+	widest := captionColumnWidth("Short", "A Much Longer Caption")
+	if widest <= solo {
+		t.Errorf("widest of several captions = %v, want it wider than a single short one (%v)", widest, solo)
+	}
+
+	testApp.Settings().SetTheme(test.NewTheme())
+	if got := captionColumnWidth("Short", "A Much Longer Caption"); got <= 0 {
+		t.Errorf("under a different theme: got %v, want > 0", got)
+	}
+}

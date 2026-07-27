@@ -35,7 +35,7 @@ func showJobDialog(w fyne.Window, title string, current job, onSave func(job)) {
 	commandEntry.SetPlaceHolder(`C:\Program Files\App\App.exe`)
 	commandEntry.SetText(current.Command)
 	commandBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
-		chooseFile(w, commandEntry)
+		chooseFile(w, commandEntry, nil)
 	})
 	commandRow := container.NewBorder(nil, nil, nil, commandBrowse, commandEntry)
 	argumentsEntry := widget.NewMultiLineEntry()
