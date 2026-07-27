@@ -52,6 +52,38 @@ dragged.**
   row's edge — does not, so the gap collapsed to about a pixel. The Theme row
   now keeps the same gap the checkbox rows have.
 
+**Documentation:**
+
+- The **README** describes the application that exists. Its `gosentry.json`
+  sample was three keys short of what the app writes on first run, which made
+  the one file the user is invited to hand-edit the least accurate thing in the
+  document; it is now the real default, with each key explained — including why
+  a zero timeout is written out and an unset one is not. The feature list has
+  caught up with the run timeout, the theme, the compact job list, and the
+  per-job overlap and timeout overrides the job dialog has always offered.
+- **`docs/DEVELOPMENT.md`** is ordered as stack, external libraries, run from
+  source, build, release, CI, behind a two-level table of contents, instead of
+  opening with MSYS2 setup and burying "Run From Source" mid-document. The
+  library table gains versions and licenses, the `package-*` scripts are
+  documented for the first time and labelled by OS, and the Codeberg
+  `RELEASE_TOKEN` note now states the failure mode rather than leaving it to be
+  inferred from a red job: build and packaging succeed, the upload step fails on
+  authentication and takes the job with it, leaving a published release with no
+  assets. The Project Layout section is gone — it duplicated ARCHITECTURE's
+  package map and had drifted out of date.
+- **`docs/TESTS.md`** matches the suite it indexes again. It listed 130 tests
+  against 170 in the tree, omitted four test files entirely, and named two tests
+  that no longer exist. Every test function now appears exactly once, under the
+  file it actually lives in.
+- **`docs/ARCHITECTURE.md`** no longer draws the UI calling the autostart
+  manager directly — it does not, and `src/ui` holds no reference to that
+  package — and `platform/desktop` is described by what it does (the XDG desktop
+  entry and icon) rather than as a display-scale helper.
+- The **~250-line file guideline** is stated as the target it is, with the six
+  files currently over it recorded as a `docs/ROADMAP.md` item. They are to be
+  split in one pass during the next whole-project review, since six separate
+  passes would settle the same seam question six ways.
+
 ## 0.15.0 - 2026-07-26
 
 **Settings points at the jobs file itself, not the folder holding it.**
