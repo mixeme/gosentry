@@ -69,5 +69,6 @@ change to their shape has to stay compatible on its own.
 
 ## Out of scope
 
-Larger or blocked work is tracked in [ROADMAP.md](ROADMAP.md) (window size
-persistence, History column filters, CI coverage gate).
+Larger or blocked work is tracked in [ROADMAP.md](ROADMAP.md) (update check from
+GitHub releases, cron-table import/export, window size persistence, History
+column filters).

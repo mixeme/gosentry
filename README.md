@@ -25,13 +25,15 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 - Job definitions stored in a clean, hand-editable `jobs.json`.
 - `@every` intervals and standard 5-field cron expressions.
 - Manual and scheduled command runs.
-- Parallel or sequential execution mode; configurable overlap policy (skip or queue).
+- Parallel or sequential execution mode; overlap policy (skip or queue) set globally or per job.
+- Run timeout, off by default, set globally or per job.
 - Per-run `.log` files with stdout/stderr capture.
 - Log cleanup by maximum file count and maximum age.
 - Global pause/resume for scheduled job execution (manual runs remain available).
 - Desktop notifications on job failure.
 - Windows tray icon: left-click to show the window, right-click for the menu.
 - Autostart on login (Windows shortcut; Linux XDG desktop entry).
+- Detailed or compact job list, and a default or branded theme; both are remembered.
 
 ## Platforms
 
@@ -70,9 +72,21 @@ portable application: moving the program folder also moves its configuration.
   "keep_running_in_tray": true,
   "notify_on_failure": true,
   "execution_mode": "parallel",
-  "overlap_policy": "skip"
+  "overlap_policy": "skip",
+  "default_timeout_seconds": 0,
+  "theme": "default",
+  "job_list_view": "detailed"
 }
 ```
+
+That is the file GoSentry writes on first run. `default_timeout_seconds` is the
+run timeout applied to jobs that do not set their own; `0` means no timeout, and
+it is written out even though it is zero, because a missing value and a
+deliberate "no timeout" have to stay distinguishable in a hand-edited file.
+`theme` is `default` or `gosentry` (the branded teal/amber look), and
+`job_list_view` is `detailed` or `compact` — both are remembered from the
+choices made in the app. Keys left at their off value (`start_on_login`,
+`paused`) are omitted until they are turned on.
 
 `jobs.json` stores job definitions:
 
@@ -159,8 +173,8 @@ without opening the main window.
 
 ## Queue Settings
 
-Two settings in the **Queue** group of the Settings tab control how simultaneous
-and overlapping runs are handled.
+Three settings in the **Queue** group of the Settings tab control how
+simultaneous, overlapping, and over-long runs are handled.
 
 **Execution mode** — applies when multiple jobs become due at the same tick:
 
@@ -169,13 +183,24 @@ and overlapping runs are handled.
 | `parallel` (default) | All due jobs start at the same time. |
 | `sequential` | Due jobs are started one after another, in the order they appear in the list. |
 
-**Overlap policy** — applies when a job's next scheduled run fires while its
-previous run is still active:
+**Default overlap policy** — applies when a job's next scheduled run fires while
+its previous run is still active:
 
 | Value | Behaviour |
 |-------|-----------|
 | `skip` (default) | The new run is discarded; the running instance continues. |
 | `queue` | The new run is held and starts immediately after the current run finishes. |
+
+**Default timeout (s)** — how long a run may take before it is killed. `0` (the
+default) means no limit.
+
+The last two are defaults: a job's own dialog has an **Overlap policy** and a
+**Timeout (s)** field that override them. A job that overrides nothing follows
+whatever the Settings tab says, so changing a default moves every such job with
+it. In `jobs.json` an override is an `overlap_policy` or `timeout_seconds` key
+on the job; absent means inherit. A `"timeout_seconds": 0` on a job is an
+override too — it means that job has no timeout even when the global default
+sets one.
 
 ## Notifications
 
@@ -197,7 +222,7 @@ Linux:
 [Desktop Entry]
 Type=Application
 Name=GoSentry
-Exec=/opt/gosentry/gosentry-0.9.0-linux-amd64 --start-in-tray
+Exec=/opt/gosentry/gosentry-<version>-linux-amd64 --start-in-tray
 Terminal=false
 ```
 
@@ -238,7 +263,7 @@ Known workaround:
 
 ```text
 dist\windows\
-  gosentry-0.9.0-windows-amd64.exe
+  gosentry-<version>-windows-amd64.exe
   opengl32.dll
   ...
 ```

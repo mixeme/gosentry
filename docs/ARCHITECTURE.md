@@ -17,7 +17,7 @@ src/
   storage/              JSON persistence (gosentry.json, jobs.json)
   platform/
     autostart/          Manager interface + Windows (shortcut) and Linux (XDG) impls
-    desktop/            display-scale helper (Linux only)
+    desktop/            desktop entry + icon under XDG data home (Linux only)
     filemanager/        open a folder in the desktop file manager
     winproc/            hidden-window startup flags (Windows only)
   ui/                   Fyne windows, tabs, and dialogs; reads service via Events
@@ -40,7 +40,7 @@ flowchart LR
     shell["Platform shell - cmd.exe /C or sh -c"]
 
     user -->|"edits jobs, settings, runs commands"| ui
-    ui -->|"CreateJob, UpdateJob, DeleteJob, RunNow, UpdateSettings, …"| svc
+    ui -->|"CreateJob, UpdateJob, DeleteJob, RunNow, UpdateSettings, AutostartStatus, …"| svc
     svc -->|"SaveJobs, SaveConfig, LoadJobs, LoadConfig"| store
     store -->|"read/write"| config
     store -->|"read/write"| jobs
@@ -54,7 +54,6 @@ flowchart LR
     svc -->|"emit JobChanged / RunRecorded / JobsLoaded / ErrorOccurred"| ui
     ui -->|"display jobs, history, status"| user
 
-    ui -->|"SetAutostart, AutostartStatus"| autostart
     svc -->|"Set / Status via Manager"| autostart
 ```
 
@@ -64,7 +63,7 @@ flowchart LR
    `cmd/gosentry` calls `ui.Run`, which creates an `app.Service`, opens the
    store, loads `gosentry.json` and `jobs.json`, subscribes the UI to service
    events, builds the main window, and calls `Service.Start` to begin the
-   scheduler loop. On first launch the service seeds per-job run-time statistics
+   scheduler loop. On every launch the service seeds per-job run-time statistics
    from existing log files so the details panel reflects accumulated history
    immediately (see §Statistics below).
 
@@ -205,8 +204,9 @@ the moment the window opens.
 
 ### `jobs_view.go` file structure
 
-`src/ui/jobs_view.go` is split across three files to stay within the ~250-line
-size guideline:
+The size guideline for a file in this project is ~250 lines. `src/ui/jobs_view.go`
+is split across three files along these seams; the view file itself has grown
+back over the guideline since, and is the next candidate if it grows further:
 
 | File | Contents |
 |------|----------|
@@ -217,7 +217,8 @@ size guideline:
 ### `settings_view.go` file structure
 
 `src/ui/settings_view.go` is split across three files the same way, once its
-own size passed the ~250-line guideline:
+own size passed the guideline. `src/ui/history_view.go` is over it too and has
+not been split:
 
 | File | Contents |
 |------|----------|

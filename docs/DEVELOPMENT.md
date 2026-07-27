@@ -64,7 +64,7 @@ The Windows build is created as a GUI application, so it does not open a termina
 The binary is written to:
 
 ```text
-dist\windows\gosentry-0.9.0-windows-amd64.exe
+dist\windows\gosentry-<version>-windows-amd64.exe
 ```
 
 ### Linux
@@ -78,7 +78,7 @@ chmod +x ./scripts/build-linux.sh
 The binary is written to:
 
 ```text
-dist/linux/gosentry-0.9.0-linux-amd64
+dist/linux/gosentry-<version>-linux-amd64
 ```
 
 ### Linux using Docker
@@ -94,7 +94,7 @@ chmod +x ./scripts/build-linux-docker.sh
 The binary is copied to:
 
 ```text
-dist/linux/gosentry-0.9.0-linux-amd64
+dist/linux/gosentry-<version>-linux-amd64
 ```
 
 ### Release build from Linux
@@ -118,9 +118,9 @@ Non-interactive release builds can pass target names:
 The binaries are copied to:
 
 ```text
-dist/linux/gosentry-0.9.0-linux-amd64
-dist/linux/gosentry-0.9.0-linux-arm64
-dist/windows/gosentry-0.9.0-windows-amd64.exe
+dist/linux/gosentry-<version>-linux-amd64
+dist/linux/gosentry-<version>-linux-arm64
+dist/windows/gosentry-<version>-windows-amd64.exe
 ```
 
 ### Automated release builds (CI)
@@ -195,7 +195,7 @@ CGO_ENABLED=1 go run ./cmd/gosentry
 - `src/runner` — shell command execution, log file writing, and log cleanup.
 - `src/storage` — JSON persistence (`gosentry.json`, `jobs.json`).
 - `src/platform/autostart` — `Manager` interface with Windows (shortcut) and Linux (XDG) implementations.
-- `src/platform/desktop` — display-scale helper (Linux only).
+- `src/platform/desktop` — desktop entry and icon under XDG data home (Linux only).
 - `src/platform/winproc` — hidden-window startup flags (Windows only).
 - `src/ui` — Fyne windows, tabs, and dialogs; reads service state through events.
 - `assets` — app icons embedded into the application binary.
