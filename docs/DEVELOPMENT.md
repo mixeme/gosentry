@@ -225,9 +225,17 @@ dist/windows/gosentry-<version>-windows-amd64.exe
 The `package-*` scripts build the binary for their platform and wrap it in a
 distributable archive together with `README.md` and `CHANGELOG.md`:
 
+Windows:
+
 ```powershell
 scripts\package-windows.bat
 ```
+
+```text
+dist\windows\gosentry-<version>-windows-amd64.zip
+```
+
+Linux:
 
 ```bash
 ./scripts/package-linux.sh
@@ -236,8 +244,10 @@ scripts\package-windows.bat
 ```text
 dist/linux/gosentry-<version>-linux-amd64.tar.gz
 dist/linux/gosentry-<version>-linux-arm64.tar.gz
-dist\windows\gosentry-<version>-windows-amd64.zip
 ```
+
+The arm64 archive is produced only when the `aarch64-linux-gnu-gcc` cross
+compiler is available; otherwise that target is skipped with a message.
 
 The version stamped into the file names and into the binary comes from
 `src/app/version.go`.
