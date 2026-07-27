@@ -81,50 +81,6 @@ Design notes / open questions:
   Service exposes import/export operations; the UI only picks the file and
   shows the outcome.
 
-### GUI review — custom layouts and composition
-
-**The review has been carried out — its findings are in
-[GUI-LAYOUT-REVIEW.md](GUI-LAYOUT-REVIEW.md).** This item stays open until they
-are applied; F9, F13 and F15 there are larger than a single fix and come back
-here once the rest has landed. The agenda below is what the pass was asked to
-answer.
-
-The `ui` package has accumulated hand-written layouts and tuned constants that
-work but have never been reviewed as a whole:
-[`layout.go`](../src/ui/layout.go) holds four custom `fyne.Layout`
-implementations (`minWidthLayout`, `compactVBoxLayout`, `fixedHeightLayout`,
-`captionValueLayout`), and the views drive them with negative spacings
-(`detailRowSpacing = -8`, `jobRowSpacing = -8`, `settingsRowSpacing = -6`) that
-cancel out the built-in padding of Fyne widgets.
-
-Do a focused pass over composition only — not a general code review — and
-answer, per layout and per constant: is it still needed, is it the smallest
-thing that works, and does it hold up at different window sizes and theme
-scales.
-
-What to look for:
-
-- *Negative spacing as a workaround.* Pulling rows together to overlap label
-  padding is a workaround for widget metrics, not a layout decision. Check
-  whether a `widget.Form`, a grid, or a custom text row would express the same
-  result without depending on the padding a future Fyne release may change.
-- *Hard-coded pixel constants.* Widths and heights expressed in raw pixels
-  (`logColumnMinWidth`, `minJobsSidebarWidth`, `settingsControlWidth`) do not
-  follow `theme.Padding()` / text size, so they behave differently under a
-  scaled UI. `activityRowsHeight` already derives its height from the theme —
-  decide which of the rest should do the same.
-- *Layouts with one call site.* `fixedHeightLayout` is used once. If a stock
-  container expresses the same intent, deleting the type is a net win — the
-  complexity rule in [REVIEW.md](REVIEW.md) §2 applies to layouts too.
-- *File size.* `settings_view.go` is well past the ~250-line guideline in
-  [ARCHITECTURE.md](ARCHITECTURE.md) and should be split the way `jobs_view.go`
-  was.
-- *Behaviour at small sizes.* The details pane was condensed to fit 720p; verify
-  the current composition still degrades sensibly when the window is narrow or
-  short, instead of clipping.
-
-Findings that are single fixes go straight in; anything larger comes back here.
-
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled

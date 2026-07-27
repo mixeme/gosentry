@@ -12,6 +12,16 @@ what a whole-project review looks at, in [REVIEW.md](REVIEW.md).
 - Fixes with severity ≥ medium → regression test.
 - Documented intentional behavior → section below, not a backlog bug.
 - UI view constructors accept `*app.Service`; call `app.Open()` only from `run.go`.
+- A size that must follow the theme is **measured at build time, not written as
+  a pixel constant.** `theme.Padding()` and text metrics depend on the running
+  app's theme, text size, and DPI, so a hand-tuned number is only correct for
+  the one theme it was tuned against and clips under any other. Measure the real
+  widget, or derive the value from the theme, in a named helper: `rowOverlap`
+  (theme padding), `captionColumnWidth` and `textColumnWidth` (the widest of the
+  actual strings), `activityRowsHeight` (the list's own row template). The same
+  applies to a ratio computed from an absolute width — see `initialSplitOffset`.
+  A raw pixel literal is left only where nothing about it tracks the theme, and
+  says so in a comment.
 
 ## Config file compatibility
 

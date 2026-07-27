@@ -2,6 +2,51 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 0.16.0 - 2026-07-27
+
+**The window opens at the size it asks for, and the Jobs divider can be
+dragged.**
+
+**Window:**
+
+- **The window opens at 1024×660 and can now be dragged narrower than it opens.**
+  Fyne treats the assembled content's minimum size as a hard floor over the
+  requested size, and two widgets in Settings pushed that minimum past 1024 px:
+  a fixed width applied to seven controls that the layout already stretched, and
+  the read-only config path, which grew the whole tab with the length of the
+  path it was showing — a 75-character path alone demanded 1501 px. The path now
+  clips when the window is genuinely narrow instead of widening the window, and
+  the content minimum is 972 px.
+
+**Jobs:**
+
+- **The divider between the job list and the details pane is draggable.**
+  Previously the list was pinned at its natural width and the details pane took
+  whatever was left, so a long command or a deep folder path could not be given
+  more room. Either pane can now be widened at the other's expense, and neither
+  can be dragged below its own content, so the details pane condenses rather
+  than clipping. The divider opens at the list's natural width; its position is
+  not saved, so a restart reopens at that default.
+
+**History:**
+
+- **Columns measure their own content.** Time, Trigger and State were fixed
+  pixel widths with as little as 1.6 px of headroom and truncated their own
+  values on a scaled UI or at a larger text size; all five now size themselves
+  from the text they have to show, under the current theme. Job and Detail stay
+  bounded so one long row cannot take over the table.
+
+**Settings:**
+
+- The **Save / Cancel / Restore defaults** row sits 4 px from the left edge, as
+  its layout always intended, rather than 8.
+- The caption column is as wide as the widest caption instead of a fixed width,
+  which gives each value column about 22 px more and keeps the captions readable
+  at a larger text size.
+- The **Application** and **About** blocks are about 2 px tighter: every stacked
+  row group in the app now shares one spacing derived from the theme rather than
+  three separately tuned numbers.
+
 ## 0.15.0 - 2026-07-26
 
 **Settings points at the jobs file itself, not the folder holding it.**
