@@ -22,6 +22,10 @@ Both scripts run:
 1. `go vet ./...` — static analysis for common errors and suspicious code patterns
 2. `go test -race ./...` — tests with race condition detection enabled
 
+The GUI tests build the Fyne desktop backend, so CGO must be enabled; on Windows
+that means the MSYS2 UCRT64 toolchain described in
+[DEVELOPMENT.md](DEVELOPMENT.md).
+
 ### Manual test commands
 
 Run all tests:
@@ -74,6 +78,20 @@ Tests schedule parsing and validation.
 
 ---
 
+### src/domain/config_test.go
+
+**Package:** `domain`
+
+Tests the normalization rule shared by every consumer of the jobs-list density
+setting.
+
+| Test | Purpose |
+|------|---------|
+| `TestJobListViewIsCompact` | Verifies only the exact `"compact"` value selects one-line rows: empty, differently-cased, and unrecognised values all read as detailed. |
+| `TestDefaultConfigUsesDetailedJobList` | Verifies `DefaultConfig` selects the detailed job list. |
+
+---
+
 ### src/app/service_test.go
 
 **Package:** `app`
@@ -114,13 +132,15 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | Test | Purpose |
 |------|---------|
 | `TestSetGlobalPauseUpdatesRuntimesAndEmits` | Verifies that `SetGlobalPause` updates all job runtimes, emits `SchedulerStateChanged`, and persists state. |
+| `TestSetGlobalPausePersistsToConfigFile` | Verifies the paused flag reaches `gosentry.json`, which is what makes the pause survive a restart. |
+| `TestServiceRebuiltFromPausedStoreStartsPaused` | Verifies a Service built from a paused config starts paused, with the paused next-run text applied before the first tick. |
 | `TestRunNowUsesRunnerAndRecords` | Verifies that `RunNow` invokes the runner, records a `RunRecord`, and emits `RunRecorded`. |
 | `TestRunNowNotFound` | Verifies that `RunNow` returns an error for an unknown job ID. |
 | `TestRunNowRefusedWhileAlreadyRunning` | Verifies that a second concurrent `RunNow` on the same job is rejected while the first is in progress. |
 | `TestRunNowAllowedWhilePaused` | Verifies that `RunNow` is allowed when the global pause flag is set (pause stops scheduled runs only). |
 | `TestRunDueStartsDueJob` | Verifies that `RunDue` launches a job whose next-run time has passed. |
 | `TestRunDueSkipsJobNotYetDue` | Verifies that `RunDue` does not launch a job that is not yet due. |
-| `TestRunDueSkipsJobInRunningState` | Verifies that `RunDue` does not start a second concurrent run for an already-running job. |
+| `TestRunDueSkipsJobInRunningState` | Verifies that `RunDue` does not start a second concurrent run for an already-running job, even with a stale `NextDue` in the past. |
 | `TestRunDueDoesNothingWhilePaused` | Verifies that `RunDue` launches nothing when the global pause flag is set. |
 | `TestStartDrivesRunDueOnTick` | Verifies that `Service.Start` wires `RunDue` to the scheduler tick and that each tick advances state. |
 
@@ -135,6 +155,8 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | `TestUpdateSettingsAdoptsExistingJobsFile` | Verifies that selecting a jobs file that already exists replaces the job list with its contents, rebuilds runtimes, and emits `JobsLoaded`. |
 | `TestUpdateSettingsKeepsJobsWhenTheNewFileIsMissing` | Verifies that a path with no file behind it receives the current jobs instead (the rename/relocate case). |
 | `TestUpdateSettingsRefusesJobsFileSwitchWhileRunning` | Verifies that switching the jobs file is refused (and not persisted) while a job runs, while unrelated settings still save. |
+| `TestSetJobListViewPersistsToConfigFile` | Verifies the Jobs-list density preference reaches `gosentry.json`, so the chosen view reopens after a restart. |
+| `TestSetJobListViewNormalizesUnknownValue` | Verifies anything but `"compact"` is stored as `"detailed"`, so the config never gains a value no reader understands. |
 | `TestPrependLogCapsActivityList` | Verifies that the activity log never grows beyond its maximum cap. |
 
 ---
@@ -143,7 +165,8 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 
 **Package:** `app`
 
-Tests overlap policy, sequential execution, run statistics, and scheduler edge cases using injected `runJob` and `primeDue`.
+Tests overlap policy, sequential execution, run statistics, timeout resolution,
+and scheduler edge cases using injected `runJob` and `primeDue`.
 
 | Test | Purpose |
 |------|---------|
@@ -160,6 +183,7 @@ Tests overlap policy, sequential execution, run statistics, and scheduler edge c
 | `TestRunNowSequentialGuard` | Manual run refused while another job runs in sequential mode. |
 | `TestStartRunLockedRollbackOnSaveFailure` | Regression: run does not start when `SaveJobs` fails. |
 | `TestRunDueQueueDrainSkippedWhenPaused` | Queued overlaps are not drained while the scheduler is paused. |
+| `TestEffectiveTimeout` | Verifies the three-state resolution: `nil` inherits the global default, a positive value overrides it, and an explicit `0` means no timeout without inheriting. |
 
 ---
 
@@ -187,6 +211,7 @@ Tests display-formatting helpers used by the UI.
 |------|---------|
 | `TestStatusText` | Verifies that job status codes map to the correct display strings. |
 | `TestEventText` | Verifies trigger-type labels for scheduled, manual, and UI triggers. |
+| `TestEventLine` | Verifies the one-line activity rendering of a `RunRecord`, including the log basename and the `Unknown` fallback for a blank trigger. |
 | `TestDisplayFolder` | Verifies that an empty folder string shows "No folder". |
 | `TestDisplayArguments` | Verifies that an empty arguments string shows "None". |
 | `TestDisplayRunMode` | Verifies run-mode labels for normal and start-only modes. |
@@ -194,6 +219,7 @@ Tests display-formatting helpers used by the UI.
 | `TestDisplayIndex` | Verifies the list position of a job index in a filtered index slice. |
 | `TestDisplayStats` | Verifies statistics line formatting for the details panel. |
 | `TestDisplayOverlapPolicy` | Verifies per-job vs inherited global overlap policy labels. |
+| `TestDisplayTimeout` | Verifies the three timeout states read differently in the details panel: `45 s`, `no timeout`, and `… (global default)`. |
 
 ---
 
@@ -201,7 +227,7 @@ Tests display-formatting helpers used by the UI.
 
 **Package:** `storage`
 
-Tests JSON round-tripping and default generation.
+Tests JSON round-tripping, default generation, and backward compatibility.
 
 | Test | Purpose |
 |------|---------|
@@ -209,9 +235,11 @@ Tests JSON round-tripping and default generation.
 | `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
 | `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
+| `TestLoadOrCreateConfigKeepsZeroTimeoutOnReload` | Verifies that `default_timeout_seconds: 0` survives a reload rather than being normalized away — 0 is a value, not a missing field. |
 | `TestLoadOrCreateConfigMigratesJobsDir` | Verifies that a pre-0.15 `jobs_dir` becomes `jobs_file` pointing at the same `jobs.json`, and that the retired key is not written back. |
 | `TestLoadJobsFileReportsMissingWithoutCreating` | Verifies that `LoadJobsFile` reports a missing file as not-found without creating or seeding it, and normalizes the jobs it does load. |
 | `TestApplyConfigPathsDerivesJobsDir` | Verifies that the configured jobs file resolves against the program folder and that `Paths.JobsDir` is derived from it. |
+| `TestJobTimeoutRoundTripsThreeStates` | Verifies the on-disk encoding that keeps "inherit" and "no timeout" distinguishable: `nil` is omitted entirely, an explicit `0` is written and read back as set. |
 | `TestJobsJSONDoesNotPersistRuntimeNoise` | Verifies that `jobs.json` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
 
 ---
@@ -233,7 +261,7 @@ Tests the timing-loop contract using a fake clock.
 
 **Package:** `runner`
 
-Tests command execution, exit code handling, output capture, and Windows-specific process behavior.
+Tests command execution, exit code handling, output capture, and the run timeout.
 
 #### Log file tests
 
@@ -266,6 +294,14 @@ Tests command execution, exit code handling, output capture, and Windows-specifi
 |------|---------|
 | `TestRunJobFailsOnNonZeroExitCode` | Verifies that a nonzero process exit code results in "Failed" status with an "exit code N" detail. |
 
+#### Timeout
+
+| Test | Purpose |
+|------|---------|
+| `TestRunJobTimesOut` | Verifies that a positive timeout kills a long-running command and reports `Timed out after <timeout>`. |
+| `TestRunJobZeroTimeoutMeansNoTimeout` | Verifies that a non-positive duration runs without a deadline, bounded only by the caller's context. |
+| `TestRunJobStartOnlyIgnoresTimeout` | Verifies that fire-and-forget jobs run on the untimed context, so the timeout never kills a process the runner is not waiting for. |
+
 #### Start-only mode
 
 | Test | Purpose |
@@ -273,14 +309,39 @@ Tests command execution, exit code handling, output capture, and Windows-specifi
 | `TestRunJobStartOnlyDoesNotWaitForExitCode` | Verifies that `StartOnly: true` jobs launch and return "OK" immediately without waiting for the process to exit. |
 | `TestRunJobStartOnlyReportsStartFailure` | Verifies that `StartOnly: true` jobs still report "Failed" if the process cannot be started. |
 
-#### Utility / Windows invocation
+---
 
-| Test | Platform | Purpose |
-|------|----------|---------|
-| `TestDirectCommandDoesNotHideWindow` | Windows | Verifies that direct executable commands do not request hidden-window startup. |
-| `TestShellCommandHidesWindow` | Windows | Verifies that shell commands request hidden-window startup to prevent console flash. |
-| `TestShellCommandUsesWindowsSafeQuoting` | Windows | Verifies `cmd.exe /S /C` quoting for paths with spaces and special characters. |
-| `TestWindowsShellCommandLineQuotesUnquotedProgramPath` | Windows | Verifies that unquoted program paths in shell commands are quoted while preserving already-quoted arguments. |
+### src/runner/runner_windows_test.go
+
+**Location:** `src/runner/runner_windows_test.go`
+**Build Tags:** `//go:build windows`
+
+Tests the Windows shell invocation and hidden-window flags.
+
+| Test | Purpose |
+|------|---------|
+| `TestDirectCommandDoesNotHideWindow` | Verifies that direct executable commands do not request hidden-window startup. |
+| `TestShellCommandHidesWindow` | Verifies that shell commands request hidden-window startup to prevent console flash. |
+| `TestShellCommandUsesWindowsSafeQuoting` | Verifies `cmd.exe /S /C` quoting for paths with spaces and special characters. |
+| `TestWindowsShellCommandLineQuotesUnquotedProgramPath` | Verifies that unquoted program paths in shell commands are quoted while preserving already-quoted arguments. |
+
+---
+
+### src/runner/seed_test.go
+
+**Package:** `runner`
+
+Tests `SeedStats`, which rebuilds aggregate run statistics from the `.log` files
+on disk at startup.
+
+| Test | Purpose |
+|------|---------|
+| `TestSeedStatsBasic` | Verifies run/fail counts and the last, average, and maximum durations parsed from a job's log headers. |
+| `TestSeedStatsDurationLessLegacyLog` | Verifies a log written before the `duration` header still counts as a run but is excluded from the duration aggregates, so a missing duration cannot masquerade as a 0 ms run. |
+| `TestSeedStatsMaxFilesHonoured` | Verifies that only the newest `MaxLogFiles` logs are parsed when the limit is positive. |
+| `TestSeedStatsMissingDir` | Verifies a missing logs directory yields an empty map rather than an error or a panic. |
+| `TestSeedStatsUnknownJobProducesNoEntry` | Verifies log files that match no known job are ignored. |
+| `TestSeedStatsMatchesByJobID` | Verifies logs are matched by the `job_id` header even when two job names sanitize to the same filename. |
 
 ---
 
@@ -311,7 +372,6 @@ Tests Windows autostart via shortcuts in the Startup folder.
 
 | Test | Purpose |
 |------|---------|
-| `TestParseRegistryRunValue` | Verifies that legacy `HKCU\...\Run` entry values are parsed correctly from `reg query` output (for migration/cleanup). |
 | `TestSameWindowsPathIgnoresCaseAndQuotes` | Verifies that Windows path comparison is case-insensitive and handles quote marks correctly. |
 | `TestSameWindowsPathHandlesSpaces` | Verifies that Windows path comparison matches paths with and without surrounding quotes. |
 | `TestSameWindowsPathStripsExtendedLengthPrefix` | Verifies that `\\?\`-prefixed paths are compared correctly after stripping the prefix. |
@@ -332,7 +392,6 @@ Tests Linux autostart via XDG Desktop Entry files.
 | Test | Purpose |
 |------|---------|
 | `TestLinuxAutostartStartsInTray` | Verifies that the XDG Desktop Entry is created with `--start-in-tray` in the `Exec=` field. |
-| `TestLinuxAutostartRemovesLegacyDesktopEntry` | Verifies that enabling autostart also removes legacy PySentry service files left by earlier builds. |
 
 ---
 
@@ -347,43 +406,6 @@ Tests Linux desktop integration (`.desktop` file and icon under XDG data home).
 |------|---------|
 | `TestInstallDesktopIntegrationWritesDesktopAndIcon` | Verifies `.desktop` and PNG icon files are written under `$XDG_DATA_HOME`. |
 | `TestQuoteDesktopExecQuotesPath` | Verifies `Exec=` paths with spaces are shell-quoted. |
-
----
-
-### src/ui/jobs_view_test.go
-
-**Package:** `ui`
-
-Tests pure helper functions in the jobs view (no Fyne widget construction).
-
-| Test | Purpose |
-|------|---------|
-| `TestFilterValue` | Verifies that `filterValue` returns the correct display string for the current folder filter. |
-| `TestFolderOptionsAlwaysIncludesSentinels` | Verifies that the folder filter list always starts with "All" and "No folder" sentinel entries. |
-| `TestFolderOptionsAppendsUniqueFolders` | Verifies that folder names from the job list are appended once each, in order, without duplicates. |
-| `TestFilteredJobIndexesAll` | Verifies that the "All" filter returns indexes for every job. |
-| `TestFilteredJobIndexesByNamedFolder` | Verifies that filtering by a named folder returns only jobs in that folder. |
-| `TestFilteredJobIndexesNoFolder` | Verifies that the "No folder" filter returns only jobs with an empty folder field. |
-| `TestFilteredJobIndexesEmptySlice` | Verifies that filtering an empty job slice returns an empty index list. |
-| `TestLastJobLogsCapsAndCopies` | Verifies activity panel cap and defensive copy semantics. |
-| `TestLastJobLogsEmpty` | Verifies nil/empty log input returns an empty slice. |
-| `TestIndexOfID` | Verifies job lookup by ID returns `-1` when not found. |
-
----
-
-### src/ui/history_view_test.go
-
-**Package:** `ui`
-
-Tests pure History tab helpers (no Fyne widget construction).
-
-| Test | Purpose |
-|------|---------|
-| `TestCollectActivityMergesAndSorts` | Verifies per-job logs are merged and sorted by time. |
-| `TestCollectActivitySkipsMissingRuntimes` | Verifies missing runtime entries are skipped safely. |
-| `TestHistoryCellText` | Verifies table cell text for all columns; empty trigger → `Unknown`. |
-| `TestLogFileName` | Verifies log path basename extraction on Windows and Unix paths. |
-| `TestNewEventUsesConsistentTimestampShape` | Verifies UI events use the same timestamp layout as run records. |
 
 ---
 
@@ -402,15 +424,98 @@ success path is not tested: it would open a real file manager window.
 
 ---
 
+### src/ui/jobs_view_test.go
+
+**Package:** `ui`
+
+Tests the Jobs tab: pure filter helpers, and — through Fyne's headless
+`test.NewApp()` — the geometry and redraw behaviour that only shows up once the
+widgets are assembled.
+
+| Test | Purpose |
+|------|---------|
+| `TestFilterValue` | Verifies that `filterValue` returns the correct display string for the current folder filter. |
+| `TestFolderOptionsAlwaysIncludesSentinels` | Verifies that the folder filter list always starts with "All" and "No folder" sentinel entries. |
+| `TestFolderOptionsAppendsUniqueFolders` | Verifies that folder names from the job list are appended once each, in order, without duplicates. |
+| `TestFilteredJobIndexesAll` | Verifies that the "All" filter returns indexes for every job. |
+| `TestFilteredJobIndexesByNamedFolder` | Verifies that filtering by a named folder returns only jobs in that folder. |
+| `TestFilteredJobIndexesNoFolder` | Verifies that the "No folder" filter returns only jobs with an empty folder field. |
+| `TestFilteredJobIndexesEmptySlice` | Verifies that filtering an empty job slice returns an empty index list. |
+| `TestNextJobListViewFlipsBothWays` | Verifies the density toggle alternates between detailed and compact from either starting value. |
+| `TestViewToggleTextNamesTheAction` | Verifies the toggle button is labelled with the action it performs, not the state it is in. |
+| `TestJobListViewToggleShrinksRowsAndPersists` | End-to-end: one tap shrinks the row height, relabels the button, and reaches the config; tapping back undoes all three. |
+| `TestJobListViewCompactConfigOpensCompact` | Verifies the persisted density is honoured at build time, not only after a tap. |
+| `TestJobsSidebarWidthIsItsContent` | Regression guard: nothing but the sidebar's own toolbar row imposes a width floor on it. |
+| `TestJobsSplitOpensAtTheSidebarWidth` | Verifies the derived split offset opens the divider at the sidebar's own width at the default window size — enough that the toolbar is never born clipped, and no more. |
+| `TestToolbarButtonRedrawsRowAndDetails` | Regression guard: with the duplicate refreshes removed from the handlers, `refreshView` alone must re-snapshot the jobs and repopulate the details pane. |
+| `TestDetailCaptionWidthCoversEveryCaption` | Verifies every caption `metadataRows` returns fits the measured caption column, which is what makes the single row list self-enforcing. |
+
+---
+
+### src/ui/history_view_test.go
+
+**Package:** `ui`
+
+Tests the History tab: the pure activity helpers and the sorted-snapshot and
+column-width behaviour of the assembled table.
+
+| Test | Purpose |
+|------|---------|
+| `TestCollectActivityMergesAndSorts` | Verifies per-job logs are merged and sorted by time. |
+| `TestCollectActivitySkipsMissingRuntimes` | Verifies missing runtime entries are skipped safely. |
+| `TestHistoryCellText` | Verifies table cell text for all columns; empty trigger → `Unknown`. |
+| `TestLogFileName` | Verifies log path basename extraction on Windows and Unix paths. |
+| `TestNewEventUsesConsistentTimestampShape` | Verifies UI events use the same timestamp layout as run records. |
+| `TestLastJobLogsCapsAndCopies` | Verifies activity panel cap and defensive copy semantics. |
+| `TestLastJobLogsEmpty` | Verifies nil/empty log input returns an empty slice. |
+| `TestIndexOfID` | Verifies job lookup by ID returns `-1` when not found. |
+| `TestHistorySortToggleKeepsRowsInSync` | Regression guard for the cached sorted snapshot: the length callback and the cells must be refilled together, or the row count and the cell contents disagree. |
+| `TestHistoryCellTemplateIsPlainText` | Verifies the cell template already carries the zero `TextStyle`, since the per-cell assignment that used to reset it is gone. |
+| `TestTextColumnWidthClamps` | Covers the three shapes of `textColumnWidth`: below the minimum, in range, and capped at the maximum. |
+| `TestHistoryColumnsFitTheirContent` | Verifies every column is at least as wide as its widest known or present value, at the default text size and at a scaled theme. |
+
+---
+
 ### src/ui/settings_view_test.go
 
 **Package:** `ui`
 
-Tests pure Settings tab helpers (no Fyne widget construction).
+Tests the Settings tab helpers and the row layout.
 
 | Test | Purpose |
 |------|---------|
 | `TestSettingsFolderPath` | Verifies the folder the Logs directory "Open" button targets: blank text yields no path, a relative path resolves against the application directory, an absolute path is used as typed. |
+| `TestSettingsRowStretchesItsControl` | Verifies the row's centre slot already stretches the control to the column width — the property that made a fixed-width wrapper around it redundant. |
+| `TestChooseFileAppliesFilter` | Verifies the deduplicated picker opens a dialog both with a nil filter (the command browser) and with a concrete one (`chooseJSONFile`). |
+| `TestSettingsCaptionsCoverEveryRow` | Verifies every caption used in a row is present in `settingsCaptions` and fits the measured caption column. |
+
+---
+
+### src/ui/layout_test.go
+
+**Package:** `ui`
+
+Tests the theme-derived sizing helpers in `layout.go`.
+
+| Test | Purpose |
+|------|---------|
+| `TestRowOverlapMatchesInnerPadding` | Pins `rowOverlap` to `-theme.InnerPadding()` under two themes, the property that lets it follow a theme instead of drifting from a hand-tuned literal. |
+| `TestCaptionColumnWidth` | Covers no captions, one, and several of varying length, at two text sizes. |
+
+---
+
+### src/ui/theme_test.go
+
+**Package:** `ui`
+
+Tests the branded theme and the stored theme choice.
+
+| Test | Purpose |
+|------|---------|
+| `TestGoSentryThemeBrandColors` | Verifies the brand colors land on the semantically correct `ColorName`s in both the light and dark variants. |
+| `TestGoSentryThemeDelegatesUnbrandedColors` | Verifies unbranded color names fall through to the base theme rather than rendering transparent. |
+| `TestThemeForChoice` | Verifies the GoSentry choice yields the branded primary and every other value — including the empty legacy one — yields the default theme. |
+| `TestThemeLabelRoundTrip` | Verifies the dropdown labels round-trip and that the empty value maps to the Default label rather than a blank option. |
 
 ---
 
@@ -418,10 +523,11 @@ Tests pure Settings tab helpers (no Fyne widget construction).
 
 **Package:** `ui`
 
-Smoke test for main view construction with an injected `*app.Service`.
+Tests main view construction with an injected `*app.Service`.
 
 | Test | Purpose |
 |------|---------|
+| `TestMainViewFitsTheDefaultWindowSize` | Verifies the assembled content's minimum fits the window size the app asks for, so Fyne never silently widens the window past it. The store's config path is deliberately long, since it was the path label that used to grow the Settings tab. |
 | `TestMainViewBuilds` | Verifies `newMainView` assembles tabs without panic using `fyne.io/fyne/v2/test`. |
 
 ---
@@ -442,10 +548,12 @@ Smoke test for main view construction with an injected `*app.Service`.
 
 7. **Regression on serious fixes** — Any fix from an internal review with severity ≥ medium gets a targeted regression test (see `run_test.go` for examples).
 
+8. **Geometry is measured, not eyeballed** — The `ui` tests that build widgets under `test.NewApp()` assert sizes and offsets, and several re-run under a scaled theme. That is what keeps [STANDARDS.md](STANDARDS.md)'s "measure at build time, never a pixel constant" rule enforceable rather than aspirational.
+
 ---
 
 ## Remaining Test Coverage Gaps
 
-- Full GUI E2E — tab navigation, dialog flows, and native file pickers are not exercised end-to-end
+- Full GUI E2E — tab navigation, dialog flows, and native file pickers are not exercised end-to-end; the `ui` tests assemble views and measure them, but nothing drives a real window.
 - History is session-only by design — `.log` files seed aggregate stats only, not the History table (see [STANDARDS.md](STANDARDS.md))
-- `layout.go` custom layouts — optional Fyne `test.NewApp()` coverage when CGO is available in CI
+- Fyne's headless driver cannot report a maximized window, which is why window-size persistence stays frozen in [ROADMAP.md](ROADMAP.md)
