@@ -292,4 +292,8 @@ also allows a manual, upload-free build to smoke-test the pipeline.
 
 Codeberg publishing needs a repository secret named `RELEASE_TOKEN` (a Codeberg
 access token with the `write:repository` scope) under
-**Settings → Actions → Secrets**. GitHub uses the built-in `GITHUB_TOKEN`.
+**Settings → Actions → Secrets**. Without it the build and packaging steps still
+succeed, but the upload step fails on authentication and takes the job down with
+it, leaving a published release with no attached assets. GitHub needs no such
+setup: `softprops/action-gh-release` falls back to the built-in `GITHUB_TOKEN`,
+and the workflow already grants it `contents: write`.
