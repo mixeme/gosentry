@@ -83,6 +83,12 @@ Design notes / open questions:
 
 ### GUI review — custom layouts and composition
 
+**The review has been carried out — its findings are in
+[GUI-LAYOUT-REVIEW.md](GUI-LAYOUT-REVIEW.md).** This item stays open until they
+are applied; F9, F13 and F15 there are larger than a single fix and come back
+here once the rest has landed. The agenda below is what the pass was asked to
+answer.
+
 The `ui` package has accumulated hand-written layouts and tuned constants that
 work but have never been reviewed as a whole:
 [`layout.go`](../src/ui/layout.go) holds four custom `fyne.Layout`
