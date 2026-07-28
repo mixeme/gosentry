@@ -19,6 +19,7 @@ Toolchain, dependency, build, and release information for contributors.
    - [Packaging](#packaging)
 6. [CI](#6-ci)
    - [Cutting a release](#cutting-a-release)
+   - [Releasing through the GitHub push mirror](#releasing-through-the-github-push-mirror)
 
 ## 1. Technology Stack and Tools
 
@@ -289,12 +290,19 @@ Before tagging:
    `main`, so the tag lands on a commit the forge actually has.
 
 Then create and publish a release with a matching `v` tag on the forge (GitHub
-Releases / Codeberg releases). You can do that from the web UI or the CLI, e.g.:
+Releases / Codeberg releases). `origin` is the Gitea repository, and GitHub is a
+push mirror of it, so the tag is pushed to Gitea and reaches GitHub through the
+mirror — never created on GitHub directly (see
+[Releasing through the GitHub push mirror](#releasing-through-the-github-push-mirror)):
 
 ```bash
 git tag v0.11.5
-git push origin v0.11.5   # and to the Codeberg remote
-gh release create v0.11.5 --generate-notes   # GitHub; publishes the release
+git push origin v0.11.5   # Gitea; and to the Codeberg remote
+
+# wait for the mirror, then confirm GitHub actually has the tag
+git ls-remote --tags https://github.com/mixeme/gosentry.git v0.11.5
+
+gh release create v0.11.5 --verify-tag --generate-notes   # GitHub; publishes the release
 ```
 
 Publishing the release triggers the workflow: it strips the leading `v` from
@@ -309,3 +317,35 @@ succeed, but the upload step fails on authentication and takes the job down with
 it, leaving a published release with no attached assets. GitHub needs no such
 setup: `softprops/action-gh-release` falls back to the built-in `GITHUB_TOKEN`,
 and the workflow already grants it `contents: write`.
+
+### Releasing through the GitHub push mirror
+
+The GitHub repository `mixeme/gosentry` is not a separate remote you push to; it
+is a push mirror driven by Gitea. Gitea mirrors with pruning, so every ref that
+exists on GitHub but not in Gitea is deleted on the next synchronisation.
+
+This is what breaks the obvious way of cutting a GitHub release. `gh release
+create v1.0.0` creates the tag on GitHub when it is missing — a tag Gitea has
+never heard of. The next mirror run prunes it, GitHub orphans the release whose
+tag disappeared and turns it into a draft, and the release looks deleted on the
+Releases page. The archives go with it. Nothing reports an error: the workflow
+ran, the assets uploaded, and the release evaporated afterwards.
+
+The order that works is therefore:
+
+1. `git push origin <tag>` — the tag enters Gitea, which owns it.
+2. Wait for the mirror, or force it with **Settings → Repository → Mirror
+   Settings → Synchronize Now** in Gitea.
+3. `git ls-remote --tags https://github.com/mixeme/gosentry.git <tag>` — confirm
+   GitHub has it.
+4. `gh release create <tag> --verify-tag …` — `--verify-tag` is the guard, not a
+   nicety: without it `gh` silently creates the doomed tag when the mirror has
+   not caught up yet.
+
+Release notes and assets are GitHub-side metadata; a mirror push cannot touch
+them, so once the release sits on a mirrored tag, later synchronisations leave
+it alone. Two consequences follow. Moving a published tag in Gitea force-pushes
+it on GitHub and leaves the release pointing at a different commit, and deleting
+a published tag in Gitea destroys the GitHub release along with its uploaded
+archives — neither is recoverable from the mirror side. Codeberg is unaffected:
+its releases live in the same forge as its tags.

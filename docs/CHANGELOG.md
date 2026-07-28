@@ -71,6 +71,13 @@ dragged.**
   authentication and takes the job with it, leaving a published release with no
   assets. The Project Layout section is gone — it duplicated ARCHITECTURE's
   package map and had drifted out of date.
+- **Cutting a GitHub release now documents the push mirror it has to survive.**
+  GitHub is a pruning push mirror of Gitea, so `gh release create` creating the
+  tag itself produces a tag Gitea does not know about, which the next
+  synchronisation deletes — orphaning the release and taking its uploaded
+  archives with it, without a single failed step to point at. The procedure is
+  push the tag to Gitea, wait for the mirror, verify the tag on GitHub, then
+  publish with `--verify-tag`.
 - **`docs/TESTS.md`** matches the suite it indexes again. It listed 130 tests
   against 170 in the tree, omitted four test files entirely, and named two tests
   that no longer exist. Every test function now appears exactly once, under the
