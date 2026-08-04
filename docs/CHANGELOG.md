@@ -58,6 +58,11 @@ dragged.**
 
 **Documentation:**
 
+- The **README Schedules** section now documents `@every` in full: supported Go
+  duration units (`ns` through `h`), combined values such as `1h30m`, the link to
+  `time.ParseDuration`, the fact that days/months/years belong in cron rather
+  than `@every`, the one-second scheduler tick floor, cron examples for monthly
+  and yearly runs, and the `@hourly`/`@daily`/… descriptors.
 - The **README** describes the application that exists. Its `gosentry.json`
   sample was three keys short of what the app writes on first run, which made
   the one file the user is invited to hand-edit the least accurate thing in the

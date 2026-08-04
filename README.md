@@ -126,21 +126,54 @@ include the run timestamp and job name:
 
 ## Schedules
 
-Interval schedules using Go duration syntax:
+GoSentry accepts two schedule forms: fixed `@every` intervals and standard
+5-field cron expressions.
+
+### `@every` intervals
+
+Write `@every` followed by a [Go duration](https://pkg.go.dev/time#ParseDuration)
+— a positive number with a unit suffix. Units can be combined in one value:
 
 ```text
-@every 10s
-@every 5m
-@every 1h30m
+@every 10s          every 10 seconds
+@every 5m           every 5 minutes
+@every 1h           every hour
+@every 1h30m        every hour and a half (same as @every 90m)
+@every 2h45m10s     hours, minutes, and seconds combined
 ```
 
-Standard 5-field cron expressions:
+Supported units:
+
+| Unit | Meaning |
+|------|---------|
+| `ns` | nanoseconds |
+| `us`, `µs` | microseconds |
+| `ms` | milliseconds |
+| `s` | seconds |
+| `m` | minutes |
+| `h` | hours |
+
+`@every` does **not** support days, weeks, months, or years — those follow a
+calendar, not a fixed interval. For “every day at 02:00”, “on the 1st of each
+month”, or “once a year”, use a cron expression (below).
+
+The scheduler checks due jobs once per second, so values shorter than `1s` are
+accepted but will not fire faster than once a second.
+
+### Cron expressions
+
+Five fields: minute, hour, day-of-month, month, day-of-week.
 
 ```text
 */5 * * * *      every five minutes
 0 2 * * *        every day at 02:00
 30 9 * * 1-5     weekdays at 09:30
+0 0 1 * *        first day of every month at midnight
+0 0 1 1 *        every year on 1 January at midnight
 ```
+
+Named descriptors are also accepted: `@hourly`, `@daily`, `@weekly`,
+`@monthly`, `@yearly` (and `@annually`, `@midnight`).
 
 ## Using The App
 
