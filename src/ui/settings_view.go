@@ -61,7 +61,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
 	notifications.OnChanged = func(bool) { updateSaveState() }
-	themeSelect := widget.NewSelect([]string{themeLabelDefault, themeLabelGoSentry}, nil)
+	themeSelect := widget.NewSelect([]string{themeLabelSystem, themeLabelGoSentry}, nil)
 	themeSelect.SetSelected(themeLabel(store.Config.Theme))
 	// Preview the theme the moment it is picked so the choice is visible before
 	// saving; Save persists it. Reverting the selection reverts the preview, and
@@ -256,15 +256,15 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 
 // Theme dropdown labels. These are the human-facing captions; themeLabel and
 // themeFromLabel translate between them and the stored domain.Theme values so the
-// select never leaks the on-disk "default"/"gosentry" strings to the user.
+// select never leaks the on-disk "system"/"gosentry" strings to the user.
 const (
-	themeLabelDefault  = "Default"
+	themeLabelSystem   = "System"
 	themeLabelGoSentry = "GoSentry"
 )
 
 func themeLabel(choice domain.Theme) string {
-	if choice == domain.ThemeDefault {
-		return themeLabelDefault
+	if choice == domain.ThemeSystem {
+		return themeLabelSystem
 	}
 	return themeLabelGoSentry
 }
@@ -273,5 +273,5 @@ func themeFromLabel(label string) domain.Theme {
 	if label == themeLabelGoSentry {
 		return domain.ThemeGoSentry
 	}
-	return domain.ThemeDefault
+	return domain.ThemeSystem
 }

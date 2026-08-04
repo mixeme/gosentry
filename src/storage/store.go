@@ -120,6 +120,9 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	if config.Theme == "" {
 		config.Theme = domain.ThemeGoSentry
 	}
+	if config.Theme == "default" {
+		config.Theme = domain.ThemeSystem
+	}
 	return config, nil
 }
 

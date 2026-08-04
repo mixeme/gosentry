@@ -483,8 +483,8 @@ func validateConfig(config domain.Config) error {
 	}
 	// Empty Theme is accepted and normalized to the branded theme on load, so
 	// older configs (and hand-built ones) stay valid without an explicit theme.
-	if config.Theme != "" && config.Theme != domain.ThemeDefault && config.Theme != domain.ThemeGoSentry {
-		return errors.New("theme must be 'default' or 'gosentry'")
+	if config.Theme != "" && config.Theme != domain.ThemeSystem && config.Theme != domain.ThemeGoSentry {
+		return errors.New("theme must be 'system' or 'gosentry'")
 	}
 	return nil
 }

@@ -55,7 +55,7 @@ func TestGoSentryThemeDelegatesUnbrandedColors(t *testing.T) {
 }
 
 // themeFor maps the stored choice to the right theme: the GoSentry choice and the
-// empty legacy value yield the branded teal primary; only the explicit default
+// empty legacy value yield the branded teal primary; only the explicit system
 // choice yields Fyne's built-in theme.
 func TestThemeForChoice(t *testing.T) {
 	for _, choice := range []domain.Theme{domain.ThemeGoSentry, ""} {
@@ -64,9 +64,9 @@ func TestThemeForChoice(t *testing.T) {
 			t.Errorf("themeFor(%q) primary = %v, want brand teal %v", choice, got, brandTeal)
 		}
 	}
-	def := themeFor(domain.ThemeDefault)
-	if got := def.Color(theme.ColorNamePrimary, theme.VariantLight); got == brandTeal {
-		t.Errorf("themeFor(default) should not use the brand teal primary")
+	sys := themeFor(domain.ThemeSystem)
+	if got := sys.Color(theme.ColorNamePrimary, theme.VariantLight); got == brandTeal {
+		t.Errorf("themeFor(system) should not use the brand teal primary")
 	}
 }
 
@@ -76,8 +76,8 @@ func TestThemeLabelRoundTrip(t *testing.T) {
 	if got := themeFromLabel(themeLabel(domain.ThemeGoSentry)); got != domain.ThemeGoSentry {
 		t.Errorf("round-trip gosentry = %q", got)
 	}
-	if got := themeFromLabel(themeLabel(domain.ThemeDefault)); got != domain.ThemeDefault {
-		t.Errorf("round-trip default = %q", got)
+	if got := themeFromLabel(themeLabel(domain.ThemeSystem)); got != domain.ThemeSystem {
+		t.Errorf("round-trip system = %q", got)
 	}
 	if got := themeLabel(""); got != themeLabelGoSentry {
 		t.Errorf("empty theme label = %q, want %q", got, themeLabelGoSentry)

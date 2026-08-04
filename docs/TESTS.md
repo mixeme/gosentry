@@ -237,6 +237,7 @@ Tests JSON round-tripping, default generation, and backward compatibility.
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
 | `TestLoadOrCreateConfigKeepsZeroTimeoutOnReload` | Verifies that `default_timeout_seconds: 0` survives a reload rather than being normalized away — 0 is a value, not a missing field. |
 | `TestLoadOrCreateConfigMigratesJobsDir` | Verifies that a pre-0.15 `jobs_dir` becomes `jobs_file` pointing at the same `jobs.json`, and that the retired key is not written back. |
+| `TestLoadOrCreateConfigMigratesLegacyThemeDefault` | Verifies that a config storing the retired `"default"` theme value is normalized to `system` on load. |
 | `TestLoadJobsFileReportsMissingWithoutCreating` | Verifies that `LoadJobsFile` reports a missing file as not-found without creating or seeding it, and normalizes the jobs it does load. |
 | `TestApplyConfigPathsDerivesJobsDir` | Verifies that the configured jobs file resolves against the program folder and that `Paths.JobsDir` is derived from it. |
 | `TestJobTimeoutRoundTripsThreeStates` | Verifies the on-disk encoding that keeps "inherit" and "no timeout" distinguishable: `nil` is omitted entirely, an explicit `0` is written and read back as set. |
@@ -514,8 +515,8 @@ Tests the branded theme and the stored theme choice.
 |------|---------|
 | `TestGoSentryThemeBrandColors` | Verifies the brand colors land on the semantically correct `ColorName`s in both the light and dark variants. |
 | `TestGoSentryThemeDelegatesUnbrandedColors` | Verifies unbranded color names fall through to the base theme rather than rendering transparent. |
-| `TestThemeForChoice` | Verifies the GoSentry choice and the empty legacy value yield the branded primary; only the explicit default choice yields Fyne's built-in theme. |
-| `TestThemeLabelRoundTrip` | Verifies the dropdown labels round-trip and that the empty value maps to the Default label rather than a blank option. |
+| `TestThemeForChoice` | Verifies the GoSentry choice and the empty legacy value yield the branded primary; only the explicit system choice yields Fyne's built-in theme. |
+| `TestThemeLabelRoundTrip` | Verifies the dropdown labels round-trip and that the empty value maps to the GoSentry label rather than a blank option. |
 
 ---
 

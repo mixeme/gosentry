@@ -183,6 +183,34 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	}
 }
 
+// TestLoadOrCreateConfigMigratesLegacyThemeDefault covers a gosentry.json that
+// still stores the retired "default" theme value: load normalizes it to system.
+func TestLoadOrCreateConfigMigratesLegacyThemeDefault(t *testing.T) {
+	dir := t.TempDir()
+	paths := Paths{
+		AppDir:     dir,
+		ConfigPath: filepath.Join(dir, ConfigFileName),
+	}
+	legacy := map[string]any{
+		"jobs_file":        "jobs.json",
+		"logs_dir":         "logs",
+		"max_log_files":    100,
+		"max_log_age_days": 30,
+		"theme":            "default",
+	}
+	if err := writeJSON(paths.ConfigPath, legacy); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadOrCreateConfig(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Theme != domain.ThemeSystem {
+		t.Errorf("migrated Theme = %q, want %q", got.Theme, domain.ThemeSystem)
+	}
+}
+
 // TestLoadOrCreateConfigKeepsZeroTimeoutOnReload guards the "0 = no timeout"
 // setting against being normalized away when an existing gosentry.json is read
 // back. Loading must not treat 0 as a missing value.

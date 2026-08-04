@@ -33,7 +33,7 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 - Desktop notifications on job failure.
 - Windows tray icon: left-click to show the window, right-click for the menu.
 - Autostart on login (Windows shortcut; Linux XDG desktop entry).
-- Detailed or compact job list, and a default or branded theme; both are remembered.
+- Detailed or compact job list, and a system or branded theme; both are remembered.
 
 ## Platforms
 
@@ -83,7 +83,7 @@ That is the file GoSentry writes on first run. `default_timeout_seconds` is the
 run timeout applied to jobs that do not set their own; `0` means no timeout, and
 it is written out even though it is zero, because a missing value and a
 deliberate "no timeout" have to stay distinguishable in a hand-edited file.
-`theme` is `default` or `gosentry` (the branded teal/amber look), and
+`theme` is `system` or `gosentry` (the branded teal/amber look), and
 `job_list_view` is `detailed` or `compact` — both are remembered from the
 choices made in the app. Keys left at their off value (`start_on_login`,
 `paused`) are omitted until they are turned on.

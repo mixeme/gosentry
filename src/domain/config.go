@@ -21,8 +21,8 @@ const (
 type Theme string
 
 const (
-	// ThemeDefault keeps Fyne's built-in theme — the original look.
-	ThemeDefault Theme = "default"
+	// ThemeSystem keeps Fyne's built-in theme, following the platform look.
+	ThemeSystem Theme = "system"
 	// ThemeGoSentry applies the branded teal/amber theme derived from the logo
 	// and app icon.
 	ThemeGoSentry Theme = "gosentry"
