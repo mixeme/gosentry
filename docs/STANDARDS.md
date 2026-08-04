@@ -66,6 +66,10 @@ change to their shape has to stay compatible on its own.
 - **History tab is session-only.** `JobRuntime.Logs` exists only in memory for the
   current process. Log files on disk feed aggregate statistics via `SeedStats`
   only. See [ARCHITECTURE.md](ARCHITECTURE.md).
+- Several tests share a coverage profile with another test on purpose, and a few
+  functions sit at 0% on purpose. Both lists live in
+  [TESTS.md](TESTS.md) — check them before reporting a test as redundant or a
+  coverage gap as an oversight.
 
 ## Out of scope
 

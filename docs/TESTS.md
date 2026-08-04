@@ -55,6 +55,17 @@ go test -coverprofile=coverage.out ./src/runner
 go tool cover -html=coverage.out
 ```
 
+Per-package coverage understates the suite, because several packages are
+exercised from another one's tests — `domain.NewRuntime`, for instance, is
+covered by the `app` tests. Measure the engine packages together instead:
+
+```bash
+go test -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
+```
+
+That figure was 84.4% at the 2026-08-04 review, which is the number to compare
+against before concluding that coverage has slipped.
+
 ---
 
 ## Test Files Overview
@@ -545,6 +556,23 @@ Tests main view construction with an injected `*app.Service`.
 
 8. **Geometry is measured, not eyeballed** — The `ui` tests that build widgets under `test.NewApp()` assert sizes and offsets, and several re-run under a scaled theme. That is what keeps [STANDARDS.md](STANDARDS.md)'s "measure at build time, never a pixel constant" rule enforceable rather than aspirational.
 
+9. **Redundancy is measured, not read** — Before deleting a test as a duplicate, run both in isolation with `-coverprofile` and compare the profiles. Identical coverage alone is *not* grounds for deletion: several kept tests hit the same statements while asserting genuinely different properties (see the table below). Deletion requires identical coverage **and** assertions that are a subset of the survivor's.
+
+---
+
+## Look-alike tests that are kept
+
+Every pair here has an identical coverage profile, so a redundancy pass will
+flag them again. They were measured under principle 9 and kept because the
+assertions differ — not because nobody looked.
+
+| Tests | Why both stay |
+|-------|---------------|
+| `TestSetGlobalPausePersistsToConfigFile` / `TestSetGlobalPauseUpdatesRuntimesAndEmits` | The first asserts the flag reaches `gosentry.json`, which is what makes the pause survive a restart; the second asserts the in-memory runtimes and the emitted event. |
+| `TestRunDueQueueDrainsMultipleOverlaps` / `TestRunDueQueueRerunsAfterFinish` | The first drains three queued occurrences rather than one, so it is the test that would catch a drain loop that fires only once. |
+| `TestCreateStartupShortcutHandlesCyrillicPath` / `TestCreateStartupShortcutHandlesSpaces` | Non-ASCII paths and paths with spaces are different real-world failure modes for the WScript.Shell COM call. |
+| `TestRunJobLogFileAllHeaders` / `TestRunJobRecordFields` / `TestRunJobWritesLogFile` | Three different subjects: the log file's headers, the returned `RunRecord`'s fields, and the log file's name and directory. The fixtures differ too — only `TestRunJobWritesLogFile` runs the `Manual` trigger. Merging them into one `RunJob` call was measured and declined: it saves ~90 ms (the three cost 0.14 s combined; the `runner` package's seconds are `TestRunJobTimesOut` and `TestRunJobZeroTimeoutMeansNoTimeout`, which wait on purpose) and would drop the `Manual` path from the header assertions. |
+
 ---
 
 ## Remaining Test Coverage Gaps
@@ -552,3 +580,13 @@ Tests main view construction with an injected `*app.Service`.
 - Full GUI E2E — tab navigation, dialog flows, and native file pickers are not exercised end-to-end; the `ui` tests assemble views and measure them, but nothing drives a real window.
 - History is session-only by design — `.log` files seed aggregate stats only, not the History table (see [STANDARDS.md](STANDARDS.md))
 - Fyne's headless driver cannot report a maximized window, which is why window-size persistence stays frozen in [ROADMAP.md](ROADMAP.md)
+
+### Functions deliberately at 0%
+
+A coverage run over the non-UI packages reports these as uncovered. All are
+intentional; none is an oversight to be "fixed" with a test.
+
+- The real `Clock` — a fake is injected everywhere it is used.
+- `storage.OpenStore`, `storage.ResolvePaths`, `app.Service.Start`, `app.Service.Open` — process entry points, exercised by running the app.
+- The autostart and desktop-icon wrappers — OS integration, driven only on a real desktop.
+- `app.Service.ShouldNotifyOnFailure` — a getter under the mutex.
