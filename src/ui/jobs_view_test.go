@@ -56,48 +56,43 @@ func TestFolderOptionsAppendsUniqueFolders(t *testing.T) {
 	}
 }
 
-func TestFilteredJobIndexesAll(t *testing.T) {
-	jobs := []domain.Job{
-		{Folder: "Maintenance"},
-		{Folder: ""},
-		{Folder: "Reports"},
-	}
-	got := filteredJobIndexes(jobs, allFolders)
-	if len(got) != 3 {
-		t.Errorf("allFolders filter: got %d indexes, want 3", len(got))
-	}
-}
-
-func TestFilteredJobIndexesByNamedFolder(t *testing.T) {
+func TestFilteredJobIndexes(t *testing.T) {
 	jobs := []domain.Job{
 		{Folder: "Maintenance"}, // index 0
-		{Folder: ""},            // index 1
+		{Folder: ""},            // index 1 — no folder
 		{Folder: "Maintenance"}, // index 2
 		{Folder: "Reports"},     // index 3
+		{Folder: "  "},          // index 4 — blank reads as no folder
 	}
-	got := filteredJobIndexes(jobs, "Maintenance")
-	if len(got) != 2 || got[0] != 0 || got[1] != 2 {
-		t.Errorf("Maintenance filter: got %v, want [0 2]", got)
+	cases := []struct {
+		name   string
+		jobs   []domain.Job
+		filter string
+		want   []int
+	}{
+		{"all folders", jobs, allFolders, []int{0, 1, 2, 3, 4}},
+		{"named folder", jobs, "Maintenance", []int{0, 2}},
+		{"no folder", jobs, noFolder, []int{1, 4}},
+		{"empty job list", nil, allFolders, nil},
+	}
+	for _, tc := range cases {
+		got := filteredJobIndexes(tc.jobs, tc.filter)
+		if !sameIndexes(got, tc.want) {
+			t.Errorf("%s: filteredJobIndexes(_, %q) = %v, want %v", tc.name, tc.filter, got, tc.want)
+		}
 	}
 }
 
-func TestFilteredJobIndexesNoFolder(t *testing.T) {
-	jobs := []domain.Job{
-		{Folder: "Maintenance"}, // index 0 — excluded
-		{Folder: ""},            // index 1 — no folder → included
-		{Folder: "  "},          // index 2 — blank → included
+func sameIndexes(got, want []int) bool {
+	if len(got) != len(want) {
+		return false
 	}
-	got := filteredJobIndexes(jobs, noFolder)
-	if len(got) != 2 || got[0] != 1 || got[1] != 2 {
-		t.Errorf("noFolder filter: got %v, want [1 2]", got)
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
 	}
-}
-
-func TestFilteredJobIndexesEmptySlice(t *testing.T) {
-	got := filteredJobIndexes(nil, allFolders)
-	if len(got) != 0 {
-		t.Errorf("empty job list should return empty indexes, got %v", got)
-	}
+	return true
 }
 
 func TestNextJobListViewFlipsBothWays(t *testing.T) {

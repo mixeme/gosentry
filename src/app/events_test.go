@@ -33,12 +33,6 @@ func TestEmitDeliversToAllObserversInOrder(t *testing.T) {
 	}
 }
 
-func TestEmitWithNoObserversIsNoop(t *testing.T) {
-	svc := newTestService(nil)
-	// Must not panic with an empty observer list.
-	svc.emit(JobChanged{})
-}
-
 // Observers may read Service state from within OnEvent without deadlocking,
 // because emit is called outside the state lock.
 func TestObserverCanReadServiceState(t *testing.T) {

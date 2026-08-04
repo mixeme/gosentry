@@ -47,11 +47,3 @@ func TestJobsReturnsCopy(t *testing.T) {
 		t.Errorf("Service state leaked through Jobs(): name = %q, want %q", again[0].Name, "Original")
 	}
 }
-
-func TestStoreReturnsWiredStore(t *testing.T) {
-	store := &storage.Store{}
-	svc := NewService(store, nil)
-	if svc.Store() != store {
-		t.Error("Store() did not return the wired store")
-	}
-}

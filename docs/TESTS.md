@@ -102,7 +102,6 @@ Tests `Service` construction and the state-accessor contract.
 |------|---------|
 | `TestNewServiceBuildsRuntimePerJob` | Verifies that `NewService` creates a `JobRuntime` entry for every loaded job. |
 | `TestJobsReturnsCopy` | Verifies that `Service.Jobs` returns a defensive copy so callers cannot mutate internal state. |
-| `TestStoreReturnsWiredStore` | Verifies that `Service.Store` returns the injected `storage.Store`. |
 
 ---
 
@@ -195,7 +194,6 @@ Tests the event-emission and observer-subscription machinery.
 | Test | Purpose |
 |------|---------|
 | `TestEmitDeliversToAllObserversInOrder` | Verifies that all registered observers receive emitted events in registration order. |
-| `TestEmitWithNoObserversIsNoop` | Verifies that emitting an event with no observers does not panic. |
 | `TestObserverCanReadServiceState` | Verifies that an observer called by `emit` can safely read Service state (jobs, runtimes). |
 
 ---
@@ -436,10 +434,7 @@ widgets are assembled.
 | `TestFilterValue` | Verifies that `filterValue` returns the correct display string for the current folder filter. |
 | `TestFolderOptionsAlwaysIncludesSentinels` | Verifies that the folder filter list always starts with "All" and "No folder" sentinel entries. |
 | `TestFolderOptionsAppendsUniqueFolders` | Verifies that folder names from the job list are appended once each, in order, without duplicates. |
-| `TestFilteredJobIndexesAll` | Verifies that the "All" filter returns indexes for every job. |
-| `TestFilteredJobIndexesByNamedFolder` | Verifies that filtering by a named folder returns only jobs in that folder. |
-| `TestFilteredJobIndexesNoFolder` | Verifies that the "No folder" filter returns only jobs with an empty folder field. |
-| `TestFilteredJobIndexesEmptySlice` | Verifies that filtering an empty job slice returns an empty index list. |
+| `TestFilteredJobIndexes` | Table: verifies the "All" filter returns every index, a named folder returns only its own jobs, "No folder" matches empty and blank folder fields, and an empty job list yields no indexes. |
 | `TestNextJobListViewFlipsBothWays` | Verifies the density toggle alternates between detailed and compact from either starting value. |
 | `TestViewToggleTextNamesTheAction` | Verifies the toggle button is labelled with the action it performs, not the state it is in. |
 | `TestJobListViewToggleShrinksRowsAndPersists` | End-to-end: one tap shrinks the row height, relabels the button, and reaches the config; tapping back undoes all three. |
@@ -528,7 +523,7 @@ Tests main view construction with an injected `*app.Service`.
 | Test | Purpose |
 |------|---------|
 | `TestMainViewFitsTheDefaultWindowSize` | Verifies the assembled content's minimum fits the window size the app asks for, so Fyne never silently widens the window past it. The store's config path is deliberately long, since it was the path label that used to grow the Settings tab. |
-| `TestMainViewBuilds` | Verifies `newMainView` assembles tabs without panic using `fyne.io/fyne/v2/test`. |
+| `TestMainViewRecordStartupAddsHistoryRow` | Verifies the `recordStartup` closure `newMainView` returns appends the startup receipt to History and redraws the table, with the windowed and tray wordings `run.go` selects between. |
 
 ---
 

@@ -84,26 +84,34 @@ go test -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/
 None of these is wrong; each is close enough to worthless that it should be
 either justified or removed. Grouped because they want one decision, not four.
 
-- [ ] `TestEmitWithNoObserversIsNoop`
+- [x] `TestEmitWithNoObserversIsNoop`
       ([events_test.go:36](../src/app/events_test.go)) — the only test in the
       suite with no assertion at all. Ranging over a nil slice cannot panic in
       Go, so it pins nothing. Delete.
-- [ ] `TestStoreReturnsWiredStore`
+- [x] `TestStoreReturnsWiredStore`
       ([service_test.go:51](../src/app/service_test.go)) — asserts that a
       one-line getter returns its own field. Delete.
-- [ ] `TestMainViewBuilds`
+- [x] `TestMainViewBuilds`
       ([mainwindow_test.go:72](../src/ui/mainwindow_test.go)) — a smoke test;
       `TestMainViewFitsTheDefaultWindowSize` builds the same view. Its only
       unique coverage is `w.SetContent(content)` and `recordStartup(0, true)`.
       Either fold those two calls into the sizing test and delete this one, or
       keep it and say in its comment that `recordStartup` is what it is for.
-- [ ] `TestFilteredJobIndexesAll` / `ByNamedFolder` / `NoFolder` / `EmptySlice`
+
+      Done as neither: folding an assertionless `recordStartup` call into the
+      sizing test would have put unrelated work inside an F1/F3 regression
+      guard. It became `TestMainViewRecordStartupAddsHistoryRow`, which calls
+      the closure for both wordings `run.go` selects between and asserts the
+      two rows arrive in the History table, read back through the table's own
+      cell callbacks so the refresh is proved too. Same unique coverage, plus
+      the previously uncovered `!windowShown` branch.
+- [x] `TestFilteredJobIndexesAll` / `ByNamedFolder` / `NoFolder` / `EmptySlice`
       ([jobs_view_test.go:59-101](../src/ui/jobs_view_test.go)) — four tests
       over one small pure function. Collapse into one table-driven test in the
       style of `TestFilterValue` directly above them; the `EmptySlice` case
       becomes one row rather than a function.
 
-## 5. Runtime cost of the runner tests (optional)
+## 5. Runtime cost of the runner tests — declined, with measurements
 
 `TestRunJobLogFileAllHeaders`, `TestRunJobRecordFields`, and
 `TestRunJobWritesLogFile` ([runner_test.go](../src/runner/runner_test.go)) have
@@ -111,9 +119,28 @@ identical coverage profiles but assert three genuinely different things — log
 headers, `RunRecord` field values, and the log file's name and directory. They
 are **not** duplicates and should not be deleted on that basis.
 
-The cost is that each spawns a real subprocess; the `runner` package takes 5.3 s.
-If suite wall time becomes a concern, merge them into one `RunJob` call with
-three assertion blocks. Until then, leave them alone.
+- [x] Decided: **do not merge them.** The premise was wrong. Per-test timings
+      from `go test -count=1 -v ./src/runner`:
+
+      | Test | Time |
+      |---|---|
+      | `TestRunJobTimesOut` | 2.10 s |
+      | `TestRunJobZeroTimeoutMeansNoTimeout` | 1.05 s |
+      | `TestRunJobWritesLogFile` | 0.05 s |
+      | `TestRunJobLogFileAllHeaders` | 0.05 s |
+      | `TestRunJobRecordFields` | 0.04 s |
+
+      The three candidates cost 0.14 s combined, so the merge buys back about
+      90 ms. The package's runtime is the two deliberate waits in the timeout
+      tests plus build time — subprocess spawn is not what makes `runner` slow.
+      Against that, the three fixtures differ in ways the assertions read:
+      `TestRunJobWritesLogFile` runs the `Manual` trigger, the other two run
+      `Schedule`, and each uses its own job ID and name. Merging forces one
+      fixture and drops the `Manual` path from the log-header assertions — the
+      exact silent loss this item warned about, for 90 ms.
+
+      If `runner` wall time ever does become a problem, the two timeout tests
+      are where the seconds are.
 
 ## Explicitly not changing
 
@@ -142,7 +169,7 @@ Recorded here so a later pass does not re-report them:
 2. Item 3 (`itoa`) — independent of everything else.
 3. Item 1 (deletions) — one commit, with the coverage re-run as evidence.
 4. Item 4 (thin tests) — needs a judgment call per test.
-5. Item 5 — only if suite wall time becomes a problem.
+5. Item 5 — measured and declined; see the item.
 
 Items 1 and 4 change the test inventory, so [TESTS.md](TESTS.md) has to be
 updated in the same commit. No [CHANGELOG.md](CHANGELOG.md) entry is needed:
