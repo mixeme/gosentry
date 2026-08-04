@@ -2,6 +2,68 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 1.0.1 - 2026-08-04
+
+**The branded theme is the default, Fyne's built-in theme is System, and the
+test suite is leaner.**
+
+**Settings:**
+
+- **The branded GoSentry theme is now the default.** Fresh installs, the
+  **Defaults** button, and configs that omit `theme` all open in the teal/amber
+  look; users who prefer Fyne's built-in theme can still pick **System** in
+  Settings.
+- The Fyne built-in theme option is labelled **System** (stored as `"system"`);
+  configs that still say `"default"` are read as System and rewritten on save.
+- The **About** repository link points at GitHub (`mixeme/gosentry`) instead of
+  the private Gitea mirror.
+
+**Jobs:**
+
+- The **Disable auto** row gained a top inset matching the gap below it, so it
+  no longer sits flush against the tab bar.
+
+**Documentation:**
+
+- The **README Schedules** section now documents `@every` in full: supported Go
+  duration units (`ns` through `h`), combined values such as `1h30m`, the link to
+  `time.ParseDuration`, the fact that days/months/years belong in cron rather
+  than `@every`, the one-second scheduler tick floor, cron examples for monthly
+  and yearly runs, and the `@hourly`/`@daily`/… descriptors.
+
+**Tests:**
+
+- Three tests with byte-identical coverage to an existing test and no unique
+  assertion are gone: `TestCleanupLogsKeepsFilesWithinAgeLimit`,
+  `TestRunDueEmptyOverlapInheritsGlobal` (its one unique setup guard moved into
+  `TestRunDueQueueRerunsAfterFinish`), and `TestSameWindowsPathHandlesSpaces`
+  (its spaces case folded into `TestSameWindowsPathIgnoresCaseAndQuotes`'s
+  fixture). So are two that carried no assertion at all:
+  `TestEmitWithNoObserversIsNoop` and `TestStoreReturnsWiredStore`.
+- The four `TestFilteredJobIndexes*` tests are one table-driven
+  `TestFilteredJobIndexes`, matching `TestFilterValue` above it.
+- `TestMainViewBuilds` is replaced by `TestMainViewRecordStartupAddsHistoryRow`,
+  which exercises the `recordStartup` closure for both wordings `run.go` selects
+  between and asserts the rows reach the History table through its cell callbacks,
+  including the `!windowShown` branch.
+- `storage.defaultJobs` — the one accidental 0%-coverage gap the review
+  found — is now exercised by
+  `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun`, which also corrects
+  `docs/TESTS.md`: `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` never
+  touched jobs, so the "and a sample job" half of its old description was
+  wrong.
+- `src/runner/seed_test.go`'s hand-rolled `itoa` — 18 lines of digit-by-digit
+  conversion in a file that already imports `strconv` — is replaced with
+  `strconv.FormatInt`.
+- **`docs/TESTS.md`** records the `-coverpkg` command and the 84.4% baseline
+  (per-package figures understate the suite), design principle 9 (redundancy is
+  judged by comparing coverage profiles, and identical coverage alone is not
+  grounds for deletion), a table of the look-alike tests that are kept with the
+  reason each survives, and the list of functions deliberately at 0%.
+- **`docs/STANDARDS.md`**'s "Intentional behavior" section points at both lists,
+  so the mechanism `docs/REVIEW.md` describes still reaches them. The spent test
+  review plan is retired.
+
 ## 1.0.0 - 2026-07-27
 
 **The window opens at the size it asks for, and the Jobs divider can be
@@ -38,12 +100,6 @@ dragged.**
 
 **Settings:**
 
-- **The branded GoSentry theme is now the default.** Fresh installs, the
-  **Defaults** button, and configs that omit `theme` all open in the teal/amber
-  look; users who prefer Fyne's built-in theme can still pick **System** in
-  Settings.
-- The Fyne built-in theme option is labelled **System** (stored as `"system"`);
-  configs that still say `"default"` are read as System and rewritten on save.
 - The **Save / Cancel / Restore defaults** row sits 4 px from the left edge, as
   its layout always intended, rather than 8.
 - The caption column is as wide as the widest caption instead of a fixed width,
@@ -57,16 +113,9 @@ dragged.**
   the rows above have to give but a dropdown — which paints its box out to the
   row's edge — does not, so the gap collapsed to about a pixel. The Theme row
   now keeps the same gap the checkbox rows have.
-- The **About** repository link points at GitHub (`mixeme/gosentry`) instead of
-  the private Gitea mirror.
 
 **Documentation:**
 
-- The **README Schedules** section now documents `@every` in full: supported Go
-  duration units (`ns` through `h`), combined values such as `1h30m`, the link to
-  `time.ParseDuration`, the fact that days/months/years belong in cron rather
-  than `@every`, the one-second scheduler tick floor, cron examples for monthly
-  and yearly runs, and the `@hourly`/`@daily`/… descriptors.
 - The **README** describes the application that exists. Its `gosentry.json`
   sample was three keys short of what the app writes on first run, which made
   the one file the user is invited to hand-edit the least accurate thing in the
@@ -103,24 +152,6 @@ dragged.**
   files currently over it recorded as a `docs/ROADMAP.md` item. They are to be
   split in one pass during the next whole-project review, since six separate
   passes would settle the same seam question six ways.
-
-**Tests:**
-
-- Three tests with byte-identical coverage to an existing test and no unique
-  assertion are gone: `TestCleanupLogsKeepsFilesWithinAgeLimit`,
-  `TestRunDueEmptyOverlapInheritsGlobal` (its one unique setup guard moved into
-  `TestRunDueQueueRerunsAfterFinish`), and `TestSameWindowsPathHandlesSpaces`
-  (its spaces case folded into `TestSameWindowsPathIgnoresCaseAndQuotes`'s
-  fixture).
-- `storage.defaultJobs` — the one accidental 0%-coverage gap the review
-  found — is now exercised by
-  `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun`, which also corrects
-  `docs/TESTS.md`: `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` never
-  touched jobs, so the "and a sample job" half of its old description was
-  wrong.
-- `src/runner/seed_test.go`'s hand-rolled `itoa` — 18 lines of digit-by-digit
-  conversion in a file that already imports `strconv` — is replaced with
-  `strconv.FormatInt`.
 
 ## 0.15.0 - 2026-07-26
 
@@ -184,8 +215,6 @@ button for the logs folder.**
 
 **Jobs sidebar:**
 
-- The **Disable auto** row gained a top inset matching the gap below it, so it
-  no longer sits flush against the tab bar.
 - The **Folder** caption moved onto the filter row itself, beside the select and
   the view toggle, instead of occupying its own line above it — the job list now
   starts a full label higher.
