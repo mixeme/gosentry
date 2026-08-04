@@ -175,11 +175,10 @@ and scheduler edge cases using injected `runJob` and `primeDue`.
 | `TestRunDueParallelStartsAllDueJobs` | Parallel mode: both due jobs enter the runner before either completes. |
 | `TestRunDueSequentialSerializes` | Sequential mode: job 2 waits until job 1 finishes. |
 | `TestRunDueSkipDropsOverlap` | Global skip: no second concurrent run, `PendingRuns` stays 0. |
-| `TestRunDueQueueRerunsAfterFinish` | Queue: one deferred run after an in-flight finish. |
+| `TestRunDueQueueRerunsAfterFinish` | Queue: one deferred run after an in-flight finish; also covers an empty per-job policy inheriting the global default. |
 | `TestRunDueQueueDrainsMultipleOverlaps` | Queue: multiple missed ticks drain as separate runs. |
 | `TestRunDuePerJobQueueOverridesGlobalSkip` | Per-job `queue` beats global `skip`. |
 | `TestRunDuePerJobSkipOverridesGlobalQueue` | Per-job `skip` beats global `queue`. |
-| `TestRunDueEmptyOverlapInheritsGlobal` | Empty per-job policy inherits the global default. |
 | `TestRunNowSequentialGuard` | Manual run refused while another job runs in sequential mode. |
 | `TestStartRunLockedRollbackOnSaveFailure` | Regression: run does not start when `SaveJobs` fails. |
 | `TestRunDueQueueDrainSkippedWhenPaused` | Queued overlaps are not drained while the scheduler is paused. |
@@ -234,7 +233,8 @@ Tests JSON round-tripping, default generation, and backward compatibility.
 | `TestJobsRoundTrip` | Verifies that jobs saved to JSON are reloaded with identical field values. |
 | `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
 | `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
-| `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults and a sample job. |
+| `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults. |
+| `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun` | Verifies that a missing jobs file is created with the sample jobs from `defaultJobs`. |
 | `TestLoadOrCreateConfigKeepsZeroTimeoutOnReload` | Verifies that `default_timeout_seconds: 0` survives a reload rather than being normalized away — 0 is a value, not a missing field. |
 | `TestLoadOrCreateConfigMigratesJobsDir` | Verifies that a pre-0.15 `jobs_dir` becomes `jobs_file` pointing at the same `jobs.json`, and that the retired key is not written back. |
 | `TestLoadOrCreateConfigMigratesLegacyThemeDefault` | Verifies that a config storing the retired `"default"` theme value is normalized to `system` on load. |
@@ -355,8 +355,7 @@ Tests log-file cleanup by age and by count.
 | Test | Purpose |
 |------|---------|
 | `TestCleanupLogsMissingDirReturnsNil` | Verifies that cleanup returns nil (not an error) when the logs directory does not exist. |
-| `TestCleanupLogsRemovesFilesPastMaxAge` | Verifies that `.log` files older than `MaxLogAgeDays` are deleted. |
-| `TestCleanupLogsKeepsFilesWithinAgeLimit` | Verifies that `.log` files within the age limit are retained. |
+| `TestCleanupLogsRemovesFilesPastMaxAge` | Verifies that `.log` files older than `MaxLogAgeDays` are deleted and files within the limit are retained. |
 | `TestCleanupLogsByCountDeletesOldest` | Verifies that when file count exceeds `MaxLogFiles`, the oldest files are removed first. |
 | `TestCleanupLogsNonLogFilesNotDeleted` | Verifies that non-`.log` files in the logs directory are never deleted by cleanup. |
 | `TestCleanupLogsSubdirsNotDeleted` | Verifies that subdirectories inside the logs directory are not deleted by cleanup. |
@@ -373,8 +372,7 @@ Tests Windows autostart via shortcuts in the Startup folder.
 
 | Test | Purpose |
 |------|---------|
-| `TestSameWindowsPathIgnoresCaseAndQuotes` | Verifies that Windows path comparison is case-insensitive and handles quote marks correctly. |
-| `TestSameWindowsPathHandlesSpaces` | Verifies that Windows path comparison matches paths with and without surrounding quotes. |
+| `TestSameWindowsPathIgnoresCaseAndQuotes` | Verifies that Windows path comparison is case-insensitive, handles quote marks, and matches paths containing spaces. |
 | `TestSameWindowsPathStripsExtendedLengthPrefix` | Verifies that `\\?\`-prefixed paths are compared correctly after stripping the prefix. |
 | `TestSameWindowsPathMatchesShortNameViaFilesystem` | Verifies that 8.3 short names are resolved to long names for comparison. |
 | `TestStartupShortcutPathUsesUserStartupFolder` | Verifies that the shortcut path resolves into `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`. |
@@ -501,6 +499,7 @@ Tests the theme-derived sizing helpers in `layout.go`.
 | Test | Purpose |
 |------|---------|
 | `TestRowOverlapMatchesInnerPadding` | Pins `rowOverlap` to `-theme.InnerPadding()` under two themes, the property that lets it follow a theme instead of drifting from a hand-tuned literal. |
+| `TestCancelRowOverlapAddsBackOneInnerPadding` | Verifies that `cancelRowOverlap` adds back exactly one inner padding on the top edge only, leaving width and the row below unaffected. |
 | `TestCaptionColumnWidth` | Covers no captions, one, and several of varying length, at two text sizes. |
 
 ---

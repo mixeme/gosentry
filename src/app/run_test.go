@@ -255,6 +255,10 @@ func TestRunDueQueueRerunsAfterFinish(t *testing.T) {
 	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
 		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
 	})
+	// Empty per-job OverlapPolicy inherits the global queue policy.
+	if svc.jobs[0].OverlapPolicy != "" {
+		t.Fatalf("test setup: job OverlapPolicy = %q, want empty (inherit)", svc.jobs[0].OverlapPolicy)
+	}
 
 	entered := make(chan int, 2)
 	release := make(chan struct{})
@@ -449,51 +453,6 @@ func TestRunDuePerJobSkipOverridesGlobalQueue(t *testing.T) {
 	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Errorf("runner called %d time(s), want 1", got)
 	}
-}
-
-// TestRunDueEmptyOverlapInheritsGlobal verifies that a job with no own policy
-// inherits the global default: with global "queue" and an empty Job.OverlapPolicy
-// the job queues a re-run.
-func TestRunDueEmptyOverlapInheritsGlobal(t *testing.T) {
-	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
-		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
-	})
-	if svc.jobs[0].OverlapPolicy != "" {
-		t.Fatalf("test setup: job OverlapPolicy = %q, want empty (inherit)", svc.jobs[0].OverlapPolicy)
-	}
-
-	entered := make(chan int, 2)
-	release := make(chan struct{})
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
-		entered <- job.ID
-		<-release
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
-	}
-	done := completions(svc)
-
-	primeDue(t, svc, 1)
-	svc.RunDue(time.Now())
-	if id := <-entered; id != 1 {
-		t.Fatalf("started job = %d, want 1", id)
-	}
-
-	primeDue(t, svc, 1)
-	svc.RunDue(time.Now())
-	expectNoEntry(t, entered)
-
-	svc.mu.Lock()
-	pending := svc.runtimes[1].PendingRuns
-	svc.mu.Unlock()
-	if pending != 1 {
-		t.Fatalf("empty per-job policy must inherit global queue, PendingRuns = %d", pending)
-	}
-
-	close(release)
-	waitRecord(t, done)
-	if id := <-entered; id != 1 {
-		t.Fatalf("inherited-queue re-run job = %d, want 1", id)
-	}
-	waitRecord(t, done)
 }
 
 // TestRunNowSequentialGuard verifies the sequential-mode guard in RunNow: a manual

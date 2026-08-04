@@ -50,22 +50,6 @@ func TestCleanupLogsRemovesFilesPastMaxAge(t *testing.T) {
 	}
 }
 
-func TestCleanupLogsKeepsFilesWithinAgeLimit(t *testing.T) {
-	dir := t.TempDir()
-	for i := 1; i <= 3; i++ {
-		path := writeLogFile(t, dir, fmt.Sprintf("job_%d.log", i))
-		setModTime(t, path, time.Duration(i)*24*time.Hour)
-	}
-
-	if err := CleanupLogs(dir, 100, 30); err != nil {
-		t.Fatal(err)
-	}
-	entries, _ := os.ReadDir(dir)
-	if len(entries) != 3 {
-		t.Errorf("expected 3 files kept within age limit, got %d", len(entries))
-	}
-}
-
 // TestCleanupLogsByCountDeletesOldest verifies the count-based policy: when more
 // than maxFiles log files exist the oldest (by modification time) are removed.
 // maxAgeDays=0 disables age-based cleanup so the test exercises count only.

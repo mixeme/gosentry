@@ -31,11 +31,11 @@ requires identical coverage **and** assertions that are a subset.
 Each of these has a byte-identical coverage profile with an existing test whose
 assertions are a superset. Roughly 30 lines total.
 
-- [ ] `TestCleanupLogsKeepsFilesWithinAgeLimit`
+- [x] `TestCleanupLogsKeepsFilesWithinAgeLimit`
       ([cleanup_test.go:53](../src/runner/cleanup_test.go)) — delete.
       `TestCleanupLogsRemovesFilesPastMaxAge` already asserts that the file
       inside the age limit survives.
-- [ ] `TestRunDueEmptyOverlapInheritsGlobal`
+- [x] `TestRunDueEmptyOverlapInheritsGlobal`
       ([run_test.go:457](../src/app/run_test.go)) — delete. It builds the same
       service as `TestRunDueQueueRerunsAfterFinish` (parallel mode, global
       `queue`, a job with an empty `OverlapPolicy`) and asserts strictly less.
@@ -43,7 +43,7 @@ assertions are a superset. Roughly 30 lines total.
       `svc.jobs[0].OverlapPolicy != ""` — into `TestRunDueQueueRerunsAfterFinish`,
       so that test still states out loud that it is exercising the inherited
       policy rather than an explicit one.
-- [ ] `TestSameWindowsPathHandlesSpaces`
+- [x] `TestSameWindowsPathHandlesSpaces`
       ([autostart_windows_test.go:20](../src/platform/autostart/autostart_windows_test.go))
       — delete. It is the same case as `TestSameWindowsPathIgnoresCaseAndQuotes`
       (quoted path, mixed case); `sameWindowsPath` does not split on spaces, so
@@ -59,21 +59,21 @@ go test -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/
 
 ## 2. Fix the documentation drift
 
-- [ ] [TESTS.md](TESTS.md) claims `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun`
+- [x] [TESTS.md](TESTS.md) claims `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun`
       verifies that a missing config file is created "with sane defaults **and a
       sample job**". The test never touches jobs, and `storage.defaultJobs` sits
       at 0% coverage. Decide which half is wrong: either drop the claim from the
       table, or add the assertion that the seeded `jobs.json` contains the
       sample jobs. Adding the assertion is the better outcome — `defaultJobs` is
       the only accidental coverage gap the review found.
-- [ ] [TESTS.md](TESTS.md) does not list
+- [x] [TESTS.md](TESTS.md) does not list
       `TestCancelRowOverlapAddsBackOneInnerPadding`
       ([layout_test.go:35](../src/ui/layout_test.go)). Add it to the
       `src/ui/layout_test.go` table.
 
 ## 3. Replace the hand-rolled helper in test code
 
-- [ ] [seed_test.go:34](../src/runner/seed_test.go) defines `itoa`: 18 lines of
+- [x] [seed_test.go:34](../src/runner/seed_test.go) defines `itoa`: 18 lines of
       digit-by-digit conversion with a fresh allocation per digit, in a file
       that already imports `strconv`. Replace the calls with
       `strconv.FormatInt` and delete the helper. Untested logic inside a test

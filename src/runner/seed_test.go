@@ -22,32 +22,13 @@ func writeTestLog(t *testing.T, dir, filename, state string, durationMS int64, j
 		content.WriteString("\n")
 	}
 	if durationMS >= 0 {
-		content.WriteString("state: " + state + "\nduration: " + itoa(durationMS) + "\n\n")
+		content.WriteString("state: " + state + "\nduration: " + strconv.FormatInt(durationMS, 10) + "\n\n")
 	} else {
 		content.WriteString("state: " + state + "\n\n")
 	}
 	if err := os.WriteFile(filepath.Join(dir, filename), []byte(content.String()), 0o644); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func itoa(n int64) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	buf := make([]byte, 0, 20)
-	for n > 0 {
-		buf = append([]byte{byte('0' + n%10)}, buf...)
-		n /= 10
-	}
-	if neg {
-		buf = append([]byte{'-'}, buf...)
-	}
-	return string(buf)
 }
 
 func TestSeedStatsBasic(t *testing.T) {

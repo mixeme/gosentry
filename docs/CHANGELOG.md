@@ -104,6 +104,24 @@ dragged.**
   split in one pass during the next whole-project review, since six separate
   passes would settle the same seam question six ways.
 
+**Tests:**
+
+- Three tests with byte-identical coverage to an existing test and no unique
+  assertion are gone: `TestCleanupLogsKeepsFilesWithinAgeLimit`,
+  `TestRunDueEmptyOverlapInheritsGlobal` (its one unique setup guard moved into
+  `TestRunDueQueueRerunsAfterFinish`), and `TestSameWindowsPathHandlesSpaces`
+  (its spaces case folded into `TestSameWindowsPathIgnoresCaseAndQuotes`'s
+  fixture).
+- `storage.defaultJobs` — the one accidental 0%-coverage gap the review
+  found — is now exercised by
+  `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun`, which also corrects
+  `docs/TESTS.md`: `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` never
+  touched jobs, so the "and a sample job" half of its old description was
+  wrong.
+- `src/runner/seed_test.go`'s hand-rolled `itoa` — 18 lines of digit-by-digit
+  conversion in a file that already imports `strconv` — is replaced with
+  `strconv.FormatInt`.
+
 ## 0.15.0 - 2026-07-26
 
 **Settings points at the jobs file itself, not the folder holding it.**

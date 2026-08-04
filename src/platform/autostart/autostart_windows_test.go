@@ -12,14 +12,8 @@ import (
 )
 
 func TestSameWindowsPathIgnoresCaseAndQuotes(t *testing.T) {
-	if !sameWindowsPath(`"D:\Apps\GoSentry\gosentry.exe"`, `d:\apps\gosentry\gosentry.exe`) {
-		t.Fatal("expected paths to match")
-	}
-}
-
-func TestSameWindowsPathHandlesSpaces(t *testing.T) {
 	if !sameWindowsPath(`"D:\Local Git\GoSentry\gosentry.exe"`, `d:\local git\gosentry\gosentry.exe`) {
-		t.Fatal("expected paths with spaces to match")
+		t.Fatal("expected paths to match")
 	}
 }
 

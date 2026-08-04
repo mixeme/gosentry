@@ -183,6 +183,41 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	}
 }
 
+// TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun verifies that a missing
+// jobs.json is created with the sample jobs from defaultJobs, so a new user
+// sees scheduled and manual execution without inventing a command.
+func TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "jobs.json")
+
+	got, err := loadOrCreateJobs(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := defaultJobs()
+	if len(got) != len(want) {
+		t.Fatalf("got %d jobs, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i].Name != want[i].Name || got[i].Schedule != want[i].Schedule || got[i].Command != want[i].Command || got[i].Enabled != want[i].Enabled {
+			t.Errorf("job %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+
+	// The function must have written the seeded jobs to jobs.json.
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("jobs.json should have been created: %v", err)
+	}
+	var file domain.JobsFile
+	if err := json.Unmarshal(data, &file); err != nil {
+		t.Fatal(err)
+	}
+	if len(file.Jobs) != len(want) {
+		t.Errorf("jobs.json has %d jobs, want %d", len(file.Jobs), len(want))
+	}
+}
+
 // TestLoadOrCreateConfigMigratesLegacyThemeDefault covers a gosentry.json that
 // still stores the retired "default" theme value: load normalizes it to system.
 func TestLoadOrCreateConfigMigratesLegacyThemeDefault(t *testing.T) {
