@@ -118,7 +118,7 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	// the setting impossible to persist. Negative values are rejected by
 	// app.validateConfig before they can be saved.
 	if config.Theme == "" {
-		config.Theme = domain.ThemeDefault
+		config.Theme = domain.ThemeGoSentry
 	}
 	return config, nil
 }

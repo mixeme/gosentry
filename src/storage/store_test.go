@@ -171,8 +171,8 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	if got.DefaultTimeoutSeconds != 0 {
 		t.Errorf("default DefaultTimeoutSeconds = %d, want 0 (no timeout)", got.DefaultTimeoutSeconds)
 	}
-	if got.Theme != domain.ThemeDefault {
-		t.Errorf("default Theme = %q, want %q", got.Theme, domain.ThemeDefault)
+	if got.Theme != domain.ThemeGoSentry {
+		t.Errorf("default Theme = %q, want %q", got.Theme, domain.ThemeGoSentry)
 	}
 	if got.JobListView != domain.JobListViewDetailed {
 		t.Errorf("default JobListView = %q, want %q", got.JobListView, domain.JobListViewDetailed)

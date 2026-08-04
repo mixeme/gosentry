@@ -103,14 +103,14 @@ func (t gosentryTheme) Font(style fyne.TextStyle) fyne.Resource { return t.base.
 func (t gosentryTheme) Icon(name fyne.ThemeIconName) fyne.Resource { return t.base.Icon(name) }
 func (t gosentryTheme) Size(name fyne.ThemeSizeName) float32 { return t.base.Size(name) }
 
-// themeFor maps a stored Theme choice to a concrete fyne.Theme. Anything other
-// than the explicit GoSentry choice (including the empty/legacy value) keeps
-// Fyne's built-in theme.
+// themeFor maps a stored Theme choice to a concrete fyne.Theme. Only the
+// explicit default choice keeps Fyne's built-in theme; everything else
+// (including the empty/legacy value) uses the branded GoSentry theme.
 func themeFor(choice domain.Theme) fyne.Theme {
-	if choice == domain.ThemeGoSentry {
-		return newGoSentryTheme()
+	if choice == domain.ThemeDefault {
+		return theme.DefaultTheme()
 	}
-	return theme.DefaultTheme()
+	return newGoSentryTheme()
 }
 
 // applyTheme installs the theme for the given choice on the running app. Fyne

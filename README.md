@@ -74,7 +74,7 @@ portable application: moving the program folder also moves its configuration.
   "execution_mode": "parallel",
   "overlap_policy": "skip",
   "default_timeout_seconds": 0,
-  "theme": "default",
+  "theme": "gosentry",
   "job_list_view": "detailed"
 }
 ```

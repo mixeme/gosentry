@@ -481,8 +481,8 @@ func validateConfig(config domain.Config) error {
 	if config.DefaultTimeoutSeconds < 0 {
 		return errors.New("default timeout must not be negative (0 means no timeout)")
 	}
-	// Empty Theme is accepted and normalized to the default on load, so older
-	// configs (and hand-built ones) stay valid without an explicit theme.
+	// Empty Theme is accepted and normalized to the branded theme on load, so
+	// older configs (and hand-built ones) stay valid without an explicit theme.
 	if config.Theme != "" && config.Theme != domain.ThemeDefault && config.Theme != domain.ThemeGoSentry {
 		return errors.New("theme must be 'default' or 'gosentry'")
 	}

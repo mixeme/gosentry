@@ -54,24 +54,24 @@ func TestGoSentryThemeDelegatesUnbrandedColors(t *testing.T) {
 	}
 }
 
-// themeFor maps the stored choice to the right theme: the GoSentry choice yields
-// the branded teal primary; every other value (including the empty legacy value)
-// yields the default theme, whose primary is not the brand teal.
+// themeFor maps the stored choice to the right theme: the GoSentry choice and the
+// empty legacy value yield the branded teal primary; only the explicit default
+// choice yields Fyne's built-in theme.
 func TestThemeForChoice(t *testing.T) {
-	gosentry := themeFor(domain.ThemeGoSentry)
-	if got := gosentry.Color(theme.ColorNamePrimary, theme.VariantLight); got != brandTeal {
-		t.Errorf("themeFor(gosentry) primary = %v, want brand teal %v", got, brandTeal)
-	}
-	for _, choice := range []domain.Theme{domain.ThemeDefault, ""} {
-		def := themeFor(choice)
-		if got := def.Color(theme.ColorNamePrimary, theme.VariantLight); got == brandTeal {
-			t.Errorf("themeFor(%q) should not use the brand teal primary", choice)
+	for _, choice := range []domain.Theme{domain.ThemeGoSentry, ""} {
+		branded := themeFor(choice)
+		if got := branded.Color(theme.ColorNamePrimary, theme.VariantLight); got != brandTeal {
+			t.Errorf("themeFor(%q) primary = %v, want brand teal %v", choice, got, brandTeal)
 		}
+	}
+	def := themeFor(domain.ThemeDefault)
+	if got := def.Color(theme.ColorNamePrimary, theme.VariantLight); got == brandTeal {
+		t.Errorf("themeFor(default) should not use the brand teal primary")
 	}
 }
 
 // The dropdown label helpers must round-trip, and the empty/legacy value must map
-// to the Default label so the select never shows a blank option.
+// to the GoSentry label so the select never shows a blank option.
 func TestThemeLabelRoundTrip(t *testing.T) {
 	if got := themeFromLabel(themeLabel(domain.ThemeGoSentry)); got != domain.ThemeGoSentry {
 		t.Errorf("round-trip gosentry = %q", got)
@@ -79,7 +79,7 @@ func TestThemeLabelRoundTrip(t *testing.T) {
 	if got := themeFromLabel(themeLabel(domain.ThemeDefault)); got != domain.ThemeDefault {
 		t.Errorf("round-trip default = %q", got)
 	}
-	if got := themeLabel(""); got != themeLabelDefault {
-		t.Errorf("empty theme label = %q, want %q", got, themeLabelDefault)
+	if got := themeLabel(""); got != themeLabelGoSentry {
+		t.Errorf("empty theme label = %q, want %q", got, themeLabelGoSentry)
 	}
 }

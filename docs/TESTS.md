@@ -514,7 +514,7 @@ Tests the branded theme and the stored theme choice.
 |------|---------|
 | `TestGoSentryThemeBrandColors` | Verifies the brand colors land on the semantically correct `ColorName`s in both the light and dark variants. |
 | `TestGoSentryThemeDelegatesUnbrandedColors` | Verifies unbranded color names fall through to the base theme rather than rendering transparent. |
-| `TestThemeForChoice` | Verifies the GoSentry choice yields the branded primary and every other value — including the empty legacy one — yields the default theme. |
+| `TestThemeForChoice` | Verifies the GoSentry choice and the empty legacy value yield the branded primary; only the explicit default choice yields Fyne's built-in theme. |
 | `TestThemeLabelRoundTrip` | Verifies the dropdown labels round-trip and that the empty value maps to the Default label rather than a blank option. |
 
 ---

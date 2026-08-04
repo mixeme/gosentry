@@ -38,6 +38,10 @@ dragged.**
 
 **Settings:**
 
+- **The branded GoSentry theme is now the default.** Fresh installs, the
+  **Defaults** button, and configs that omit `theme` all open in the teal/amber
+  look; users who prefer Fyne's built-in theme can still pick **Default** in
+  Settings.
 - The **Save / Cancel / Restore defaults** row sits 4 px from the left edge, as
   its layout always intended, rather than 8.
 - The caption column is as wide as the widest caption instead of a fixed width,

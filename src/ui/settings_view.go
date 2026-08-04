@@ -263,10 +263,10 @@ const (
 )
 
 func themeLabel(choice domain.Theme) string {
-	if choice == domain.ThemeGoSentry {
-		return themeLabelGoSentry
+	if choice == domain.ThemeDefault {
+		return themeLabelDefault
 	}
-	return themeLabelDefault
+	return themeLabelGoSentry
 }
 
 func themeFromLabel(label string) domain.Theme {

@@ -87,8 +87,8 @@ type Config struct {
 	// omitempty would hide a deliberate choice from the hand-editable config.
 	DefaultTimeoutSeconds int  `json:"default_timeout_seconds"`
 	Paused                bool `json:"paused,omitempty"`
-	// Theme selects the visual appearance. Empty is treated as ThemeDefault so
-	// configs written before this field existed keep the original look.
+	// Theme selects the visual appearance. Empty is treated as ThemeGoSentry so
+	// configs written before this field existed pick up the branded look.
 	Theme Theme `json:"theme,omitempty"`
 	// JobListView selects the Jobs list density. Empty is treated as
 	// JobListViewDetailed so configs written before this field existed keep the
@@ -110,7 +110,7 @@ func DefaultConfig() Config {
 		NotifyOnFailure:       true,
 		ExecutionMode:         ExecutionModeParallel,
 		OverlapPolicy:         OverlapPolicySkip,
-		Theme:                 ThemeDefault,
+		Theme:                 ThemeGoSentry,
 		JobListView:           JobListViewDetailed,
 		DefaultTimeoutSeconds: 0,
 	}
