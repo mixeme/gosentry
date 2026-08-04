@@ -12,7 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-const projectRepositoryURL = "https://gitea.mixdep.ru/mix/gosentry"
+const projectRepositoryURL = "https://github.com/mixeme/gosentry"
 
 // settingsCaptions lists every settingsRow caption in the tab, in no
 // particular order. settingsView measures this once with captionColumnWidth

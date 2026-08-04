@@ -55,6 +55,8 @@ dragged.**
   the rows above have to give but a dropdown — which paints its box out to the
   row's edge — does not, so the gap collapsed to about a pixel. The Theme row
   now keeps the same gap the checkbox rows have.
+- The **About** repository link points at GitHub (`mixeme/gosentry`) instead of
+  the private Gitea mirror.
 
 **Documentation:**
 
