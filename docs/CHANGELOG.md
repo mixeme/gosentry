@@ -166,6 +166,8 @@ button for the logs folder.**
 
 **Jobs sidebar:**
 
+- The **Disable auto** row gained a top inset matching the gap below it, so it
+  no longer sits flush against the tab bar.
 - The **Folder** caption moved onto the filter row itself, beside the select and
   the view toggle, instead of occupying its own line above it — the job list now
   starts a full label higher.

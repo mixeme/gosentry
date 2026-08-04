@@ -336,7 +336,13 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 	})
 
 	toolbar := container.NewHBox(addButton, editButton, runButton, pauseButton, deleteButton, layout.NewSpacer())
-	globalControls := container.NewHBox(stopAllButton, schedulerState, layout.NewSpacer())
+	// The row sits directly under the tab bar with no AppTabs inset, while the
+	// default VBox gap below it is one theme padding — add the same on top so
+	// the button is not flush against the tabs.
+	globalControls := container.New(
+		layout.NewCustomPaddedLayout(theme.Padding(), 0, 0, 0),
+		container.NewHBox(stopAllButton, schedulerState, layout.NewSpacer()),
+	)
 	// The whole filter is one row: caption on the left, view toggle on the right,
 	// select filling what is left. The border layout gives both edges their
 	// MinSize, so the header is a line shorter than a stacked caption would make it.
