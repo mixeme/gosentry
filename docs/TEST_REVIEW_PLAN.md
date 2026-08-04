@@ -147,3 +147,32 @@ Recorded here so a later pass does not re-report them:
 Items 1 and 4 change the test inventory, so [TESTS.md](TESTS.md) has to be
 updated in the same commit. No [CHANGELOG.md](CHANGELOG.md) entry is needed:
 none of this changes shipped behavior.
+
+## Which model to use
+
+For running these items in Claude Code. The deciding factor here is not task
+size — it is that **the feedback loop is slow**: the `ui` package needs the
+MSYS2 UCRT64 toolchain with CGO on, and a cold `go test ./src/ui/...` took
+**258 s** during the review. A model that gets an edit right on the first pass
+is worth more than a faster one that needs a second build to find out.
+
+| Item | Model | Why |
+|---|---|---|
+| 3 — `itoa` → `strconv.FormatInt` | **Haiku 4.5** (`claude-haiku-4-5`) | A mechanical substitution in one file, in the `runner` package, which needs no CGO and runs in ~5 s. Nothing to weigh. |
+| 2 — docs, and the `defaultJobs` assertion | **Sonnet 5** (`claude-sonnet-5`) | Two doc edits plus one new assertion in `storage`. Reading `loadOrCreateJobs` to write the assertion is real work, but the answer is not in doubt. No CGO. |
+| 1 — the three deletions | **Sonnet 5** | Deleting is easy; the judgment is narrow and already made in this document (which line to carry over from `TestRunDueEmptyOverlapInheritsGlobal`, and that identical coverage must be re-verified afterwards). One of the three is in `platform/autostart`, which is Windows-gated but CGO-free. |
+| 4 — the four thin tests | **Opus 5** (`claude-opus-5`) | This is the only item that is genuinely a judgment call rather than an execution task: whether each test should exist at all, and — for `TestMainViewBuilds` — whether to fold two calls into the sizing test or keep it with a better comment. Two of the four are in `ui`, so a wrong call costs a 4-minute rebuild to discover. |
+| 5 — merging the runner tests | **Opus 5**, if attempted | It requires holding three distinct sets of assertions and confirming none is silently dropped in the merge. It is also the item most likely to be *not worth doing* — a model that will say so is the point. |
+
+Two notes on this table:
+
+- **Sonnet 5 is the reasonable single choice** if you would rather not switch
+  models per item. It is near-Opus on coding and agentic work, and only item 4
+  really rewards the step up. The introductory pricing through **2026-08-31**
+  ($2/$10 per MTok vs $3/$15) makes it cheaper than usual relative to Opus 5's
+  $5/$25.
+- **Fast mode is available on Opus 5** (toggle with `/fast`). It is the same
+  model with higher output throughput, not a downgrade — but it bills at
+  $10/$50, so it only pays for itself when you are waiting on the output. Given
+  that the actual wait here is the Fyne build rather than token generation, it
+  is unlikely to help on this plan.
