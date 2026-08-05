@@ -2,29 +2,10 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## 1.0.1 - 2026-08-04
+## 1.0.2 - 2026-08-05
 
-**Windows failure notifications can show the app icon (experimental).**
-
-- **`ui.run`** — after `NewWindow`, register `AppMetadata.Icon` on Windows so
-  Fyne toasts pick up artwork without calling `SetIcon`, which would override
-  the PE multi-size window/taskbar icon.
-- **`ui.notify_timing`** — append app-side failure-notification timing to
-  `logs/notify-timing.log` for diagnosing toast delay (OS latency excluded).
-
-**Sample jobs include a disabled failure test for desktop notifications.**
-
-- **`storage.defaultJobs`** — new disabled example *Failure notification test*
-  (folder Examples). Run it manually to trigger a failed run and verify
-  Settings → Notifications without waiting on the scheduler.
-
-**Platform layer rationale is documented in ARCHITECTURE.md.**
-
-- **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
-  shell, and winproc are OS-specific; compile-time vs runtime branching; rules
-  for adding platform code.
-
-**KeepRunningInTray is wired to runtime; autostart respects the tray setting.**
+**KeepRunningInTray is wired to runtime; Windows failure notifications can show
+the app icon (experimental).**
 
 **Application:**
 
@@ -37,6 +18,29 @@ All notable GoSentry changes are recorded in this file.
   remove the icon mid-session).
 - A stale autostart shortcut that still passes `--start-in-tray` no longer hides
   the window when the tray setting is off — saved config wins over the CLI flag.
+- On Windows, failure toasts can show the app icon: after `NewWindow`,
+  `AppMetadata.Icon` is registered so Fyne picks up artwork without calling
+  `SetIcon`, which would override the PE multi-size window/taskbar icon.
+
+**Jobs:**
+
+- New disabled example *Failure notification test* (folder Examples). Run it
+  manually to trigger a failed run and verify Settings → Notifications without
+  waiting on the scheduler.
+
+**Documentation:**
+
+- **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
+  shell, and winproc are OS-specific; compile-time vs runtime branching; rules
+  for adding platform code.
+
+**Internal:**
+
+- App-side failure-notification timing is appended to `logs/notify-timing.log`
+  for diagnosing toast delay (OS latency excluded). `scripts/measure-windows-toast.ps1`
+  measures the PowerShell baseline on Windows.
+
+## 1.0.1 - 2026-08-04
 
 **The branded theme is the default, Fyne's built-in theme is System, and the
 test suite is leaner.**
