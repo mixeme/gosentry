@@ -13,6 +13,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
+const runRecordTimeLayout = "2006-01-02 15:04:05"
+
 // The UI package aliases domain types to keep widget callbacks short. The actual
 // durable model still lives in src/domain, so UI code does not define a second
 // copy of the scheduler data.
@@ -73,9 +75,23 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 				if r.State == "Failed" &&
 					(r.Trigger == "Manual" || r.Trigger == "Schedule") &&
 					svc.ShouldNotifyOnFailure() {
-					fyne.CurrentApp().SendNotification(&fyne.Notification{
-						Title:   "GoSentry: Job Failed",
-						Content: r.JobName + ": " + r.Detail,
+					timing := notificationTiming{
+						JobName:   r.JobName,
+						EmittedAt: time.Now(),
+					}
+					if finished, err := time.ParseInLocation(runRecordTimeLayout, r.Time, time.Local); err == nil {
+						timing.RunFinished = finished
+					}
+					fyne.Do(func() {
+						timing.UIQueuedAt = time.Now()
+						fyne.CurrentApp().SendNotification(&fyne.Notification{
+							Title:   "GoSentry: Job Failed",
+							Content: r.JobName + ": " + r.Detail,
+						})
+						timing.AfterSendAt = time.Now()
+						if err := appendNotificationTimingLog(svc.Store().Paths.LogsDir, timing); err != nil {
+							fyne.LogError("Failed to write notification timing log", err)
+						}
 					})
 				}
 			}

@@ -5,6 +5,28 @@ Completed work is recorded in [CHANGELOG.md](CHANGELOG.md), not here.
 
 ## Open Items
 
+### Faster Windows failure notifications
+
+Fyne `SendNotification` on Windows does not call WinRT directly. Each toast
+writes a short script to `%TEMP%` and runs it through a **new PowerShell
+process** (`app/app_windows.go`), which typically adds **1–3 seconds** of cold
+start before the toast appears. GoSentry's own path from run completion through
+`SendNotification` is much smaller and is logged separately.
+
+**Baseline (2026-08-05, `scripts/measure-windows-toast.ps1`, 3 runs on dev
+machine):** average **773 ms** per toast (695–874 ms), dominated by PowerShell
+cold start. Re-run the script when comparing after a native toast implementation.
+
+**App-side timing:** each failure notification appends one line to
+`logs/notify-timing.log` (`ms_after_run`, `ms_fyne_do`, `ms_send`,
+`ms_app_total`). These columns end when Fyne returns from `SendNotification`; OS
+toast latency is not included.
+
+**Direction:** add `src/platform/notify/` with a native Windows toast (WinRT or
+a maintained Go wrapper), used for failure notifications on Windows. Keep Fyne
+`SendNotification` on Linux (DBus / xdg-desktop-portal) unless profiling shows it
+needs the same treatment.
+
 ### Dynamic tray icon toggle
 
 Fyne exposes `SetSystemTrayIcon` and related APIs only at application startup.

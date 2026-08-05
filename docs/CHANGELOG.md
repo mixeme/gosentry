@@ -9,6 +9,8 @@ All notable GoSentry changes are recorded in this file.
 - **`ui.run`** — after `NewWindow`, register `AppMetadata.Icon` on Windows so
   Fyne toasts pick up artwork without calling `SetIcon`, which would override
   the PE multi-size window/taskbar icon.
+- **`ui.notify_timing`** — append app-side failure-notification timing to
+  `logs/notify-timing.log` for diagnosing toast delay (OS latency excluded).
 
 **Sample jobs include a disabled failure test for desktop notifications.**
 
