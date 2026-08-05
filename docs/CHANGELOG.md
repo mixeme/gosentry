@@ -4,6 +4,12 @@ All notable GoSentry changes are recorded in this file.
 
 ## 1.0.1 - 2026-08-04
 
+**Platform layer rationale is documented in ARCHITECTURE.md.**
+
+- **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
+  shell, and winproc are OS-specific; compile-time vs runtime branching; rules
+  for adding platform code.
+
 **KeepRunningInTray is wired to runtime; autostart respects the tray setting.**
 
 **Application:**

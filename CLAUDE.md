@@ -8,7 +8,8 @@ application service, scheduler, storage, and command runner in one binary.
 - [docs/STANDARDS.md](docs/STANDARDS.md) — **required.** Code-quality rules and
   the list of intentional behavior. Do not "fix" anything listed there as
   intentional; if a change contradicts it, update the document in the same commit.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — package contracts and event flow.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — package contracts, event flow, and
+  §Platform layer (why and where OS-specific code lives).
 - [docs/TESTS.md](docs/TESTS.md) — test layout and conventions.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — deliberately out of scope.
 

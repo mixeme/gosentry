@@ -57,6 +57,65 @@ flowchart LR
     svc -->|"Set / Status via Manager"| autostart
 ```
 
+## Platform layer
+
+GoSentry ships one binary per target OS. Platform-specific code is not a
+workaround for missing cross-platform support — it **is** the cross-platform
+strategy: shared interfaces and call sites, with OS-specific implementations
+selected at **compile time** (`*_windows.go`, `//go:build linux`, and similar).
+Runtime `runtime.GOOS` checks appear only for small UI details (see below), not
+for autostart, file-manager integration, or command invocation.
+
+Callers (`app.Service`, `ui`, `runner`) depend on the shared API; they do not
+branch on the operating system.
+
+| Package / file | Windows | Linux | Other (`!windows && !linux`) |
+| --- | --- | --- | --- |
+| `platform/autostart` | Startup-folder `.lnk` shortcut | XDG `~/.config/autostart/gosentry.desktop` | Stub — `Set` returns an error when enabled |
+| `platform/desktop` | no-op | Installs `.desktop` + icon under XDG data home | no-op |
+| `platform/filemanager` | `explorer` | `xdg-open` | Unsupported — `Open` returns an error |
+| `platform/winproc` | `CREATE_NO_WINDOW` / `HideWindow` on child processes | no-op | no-op |
+| `runner/invocation_*` | `cmd.exe /S /C` with Windows-safe quoting | `sh -c` | `sh -c` (same as Linux) |
+
+**Why separate implementations are required**
+
+- **Autostart** — each OS defines its own login startup mechanism (shortcut,
+  XDG Autostart, LaunchAgents on macOS). There is no portable API in Go, Fyne, or
+  the standard library; a third-party helper would still wrap the same per-OS
+  code behind an interface.
+- **Opening a folder** — the desktop shell exposes no shared “reveal in file
+  manager” call; each platform invokes its registered handler (`explorer`,
+  `xdg-open`, `open` on macOS).
+- **Command shell** — users expect OS-native semantics (`cmd.exe` batch files,
+  `%VAR%`, and path rules on Windows; POSIX `sh` on Linux). A single shell for
+  all platforms would break commands on one side or the other.
+- **Hidden console window** — launching a child process from a GUI app can flash
+  a console on Windows only; Linux and macOS do not need equivalent flags.
+
+**Deliberate platform choices (not OS API limits)**
+
+- **Window and tray icons** — Fyne accepts icons on every platform, but Windows
+  renders the notification area and titlebar from multi-size `.ico` resources
+  (embedded via `packaging/windows/gosentry.rc`), while Linux StatusNotifier
+  trays scale better from a larger PNG. `ui/run.go` and `ui/tray.go` branch on
+  `runtime.GOOS` for asset selection only.
+- **Sample job commands** in `storage/store.go` — demo `echo` lines differ only
+  because shell quoting rules differ; real jobs are user-authored per platform.
+
+**Adding new platform code**
+
+- Put OS integration in `src/platform/<name>/` with a small shared API, or use
+  `*_GOOS.go` files in the owning package when the surface is a single function
+  (as in `runner/invocation_*`).
+- Do not scatter `runtime.GOOS` through `app.Service` or UI business logic.
+- Unsupported platforms get an explicit stub (return an error or no-op) rather
+  than silently doing nothing — see `autostart_other.go` and
+  `filemanager_other.go`.
+
+macOS autostart and file-manager handlers are not implemented yet; see
+[ROADMAP.md](ROADMAP.md) for blocked or deferred cross-platform work (for
+example window-maximized detection, which would need per-OS native calls).
+
 ## Main Flows
 
 1. Startup:
