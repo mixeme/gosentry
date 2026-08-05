@@ -93,11 +93,12 @@ Tests schedule parsing and validation.
 
 **Package:** `domain`
 
-Tests the normalization rule shared by every consumer of the jobs-list density
-setting.
+Tests autostart argument helpers and the jobs-list density normalization rule.
 
 | Test | Purpose |
 |------|---------|
+| `TestAutostartArguments` | Verifies `AutostartArguments` returns `--start-in-tray` when the tray is enabled and an empty string when it is off. |
+| `TestResolveStartHidden` | Verifies hidden autostart requires both the CLI flag and `KeepRunningInTray`. |
 | `TestJobListViewIsCompact` | Verifies only the exact `"compact"` value selects one-line rows: empty, differently-cased, and unrecognised values all read as detailed. |
 | `TestDefaultConfigUsesDetailedJobList` | Verifies `DefaultConfig` selects the detailed job list. |
 
@@ -387,6 +388,8 @@ Tests Windows autostart via shortcuts in the Startup folder.
 | `TestStartupShortcutPathUsesUserStartupFolder` | Verifies that the shortcut path resolves into `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup`. |
 | `TestCreateStartupShortcutHandlesCyrillicPath` | Verifies that `.lnk` files are created correctly when the executable path contains Cyrillic characters. |
 | `TestCreateStartupShortcutHandlesSpaces` | Verifies that `.lnk` files are created with correct `TargetPath` and `--start-in-tray` arguments when the path contains spaces. |
+| `TestCreateStartupShortcutWithoutTrayFlag` | Verifies that autostart shortcuts omit `--start-in-tray` when the tray setting is off. |
+| `TestAutostartStatusRequiresMatchingTrayFlag` | Verifies `AutostartStatus` reports a problem when the shortcut arguments do not match `KeepRunningInTray`. |
 
 ---
 
@@ -400,6 +403,19 @@ Tests Linux autostart via XDG Desktop Entry files.
 | Test | Purpose |
 |------|---------|
 | `TestLinuxAutostartStartsInTray` | Verifies that the XDG Desktop Entry is created with `--start-in-tray` in the `Exec=` field. |
+| `TestLinuxAutostartWithoutTrayFlag` | Verifies that the desktop entry omits `--start-in-tray` when the tray setting is off. |
+
+---
+
+### src/ui/tray_test.go
+
+**Package:** `ui`
+
+Tests startup helpers for tray and autostart interaction.
+
+| Test | Purpose |
+|------|---------|
+| `TestResolveStartHiddenUsesDomainHelper` | Verifies the UI startup helper stays aligned with `domain.ResolveStartHidden`. |
 
 ---
 

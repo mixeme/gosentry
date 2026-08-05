@@ -16,18 +16,18 @@ type windowsManager struct{}
 // New returns the Windows autostart Manager.
 func New() Manager { return windowsManager{} }
 
-func (windowsManager) Set(enabled bool, executablePath, iconPath string) error {
-	return SetAutostart(enabled, executablePath, iconPath)
+func (windowsManager) Set(enabled, startInTray bool, executablePath, iconPath string) error {
+	return SetAutostart(enabled, startInTray, executablePath, iconPath)
 }
 
-func (windowsManager) Status(expectedEnabled bool, executablePath string) (bool, string) {
-	return AutostartStatus(expectedEnabled, executablePath)
+func (windowsManager) Status(expectedEnabled, startInTray bool, executablePath string) (bool, string) {
+	return AutostartStatus(expectedEnabled, startInTray, executablePath)
 }
 
 const autostartName = "GoSentry"
 const startupShortcutFile = autostartName + ".lnk"
 
-func SetAutostart(enabled bool, executablePath string, iconPath string) error {
+func SetAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
 	// Windows autostart used to write HKCU\Run values, but that approach became
 	// brittle once paths with spaces and the "--start-in-tray" argument entered
 	// the picture. A Startup-folder shortcut stores target path and arguments as
@@ -39,12 +39,12 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 	}
 
 	if enabled {
-		return createStartupShortcut(shortcutPath, executablePath, iconPath)
+		return createStartupShortcut(shortcutPath, executablePath, iconPath, domain.AutostartArguments(startInTray))
 	}
 	return removeIfExists(shortcutPath)
 }
 
-func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string) {
+func AutostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
 	shortcutPath, err := startupShortcutPath()
 	if err != nil {
 		return false, "Startup folder cannot be resolved"
@@ -74,8 +74,12 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	if !sameWindowsPath(actual, executablePath) {
 		return false, "Autostart shortcut points to another executable"
 	}
-	if strings.TrimSpace(arguments) != domain.StartInTrayArgument {
-		return false, "Autostart shortcut does not start in tray"
+	expectedArgs := domain.AutostartArguments(startInTray)
+	if strings.TrimSpace(arguments) != expectedArgs {
+		if startInTray {
+			return false, "Autostart shortcut does not start in tray"
+		}
+		return false, "Autostart shortcut starts in tray while setting is off"
 	}
 	return true, "Autostart is configured"
 }
@@ -88,7 +92,7 @@ func startupShortcutPath() (string, error) {
 	return filepath.Join(appData, "Microsoft", "Windows", "Start Menu", "Programs", "Startup", startupShortcutFile), nil
 }
 
-func createStartupShortcut(shortcutPath string, executablePath string, iconPath string) error {
+func createStartupShortcut(shortcutPath string, executablePath string, iconPath string, arguments string) error {
 	if err := os.MkdirAll(filepath.Dir(shortcutPath), 0755); err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func createStartupShortcut(shortcutPath string, executablePath string, iconPath 
 	command.Env = append(os.Environ(),
 		"GOSENTRY_SHORTCUT_PATH="+shortcutPath,
 		"GOSENTRY_TARGET_PATH="+executablePath,
-		"GOSENTRY_ARGUMENTS="+domain.StartInTrayArgument,
+		"GOSENTRY_ARGUMENTS="+arguments,
 		"GOSENTRY_WORKING_DIRECTORY="+workingDirectory,
 		"GOSENTRY_ICON_PATH="+iconPath,
 	)

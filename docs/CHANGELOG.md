@@ -4,6 +4,20 @@ All notable GoSentry changes are recorded in this file.
 
 ## 1.0.1 - 2026-08-04
 
+**KeepRunningInTray is wired to runtime; autostart respects the tray setting.**
+
+**Application:**
+
+- **Keep running in the system tray** now controls behaviour: with the tray on
+  (default), closing the window hides it and autostart uses `--start-in-tray`;
+  with the tray off, closing quits the app and autostart opens the main window.
+- Saving a tray change updates close behaviour and the autostart entry
+  immediately. The notification-area icon follows the saved value after a
+  restart; Settings shows a hint when a restart is needed (Fyne cannot add or
+  remove the icon mid-session).
+- A stale autostart shortcut that still passes `--start-in-tray` no longer hides
+  the window when the tray setting is off — saved config wins over the CLI flag.
+
 **The branded theme is the default, Fyne's built-in theme is System, and the
 test suite is leaner.**
 

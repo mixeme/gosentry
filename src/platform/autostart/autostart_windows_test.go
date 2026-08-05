@@ -82,7 +82,7 @@ func TestCreateStartupShortcutHandlesCyrillicPath(t *testing.T) {
 		t.Fatalf("create target file: %v", err)
 	}
 
-	if err := createStartupShortcut(shortcutPath, targetPath, ""); err != nil {
+	if err := createStartupShortcut(shortcutPath, targetPath, "", domain.StartInTrayArgument); err != nil {
 		t.Fatalf("create shortcut: %v", err)
 	}
 
@@ -98,6 +98,51 @@ func TestCreateStartupShortcutHandlesCyrillicPath(t *testing.T) {
 	}
 }
 
+func TestCreateStartupShortcutWithoutTrayFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	shortcutPath := filepath.Join(tempDir, "GoSentry.lnk")
+	targetPath := filepath.Join(tempDir, "gosentry.exe")
+	if err := os.WriteFile(targetPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("create target file: %v", err)
+	}
+
+	if err := createStartupShortcut(shortcutPath, targetPath, "", ""); err != nil {
+		t.Fatalf("create shortcut: %v", err)
+	}
+
+	_, arguments, err := readShortcut(shortcutPath)
+	if err != nil {
+		t.Fatalf("read shortcut: %v", err)
+	}
+	if arguments != "" {
+		t.Fatalf("shortcut arguments mismatch: got %q want empty", arguments)
+	}
+}
+
+func TestAutostartStatusRequiresMatchingTrayFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	t.Setenv("APPDATA", tempDir)
+	shortcutPath, err := startupShortcutPath()
+	if err != nil {
+		t.Fatalf("startupShortcutPath: %v", err)
+	}
+	targetPath := filepath.Join(tempDir, "gosentry.exe")
+	if err := os.WriteFile(targetPath, []byte("test"), 0644); err != nil {
+		t.Fatalf("create target: %v", err)
+	}
+	if err := createStartupShortcut(shortcutPath, targetPath, "", domain.StartInTrayArgument); err != nil {
+		t.Fatalf("create shortcut: %v", err)
+	}
+
+	ok, message := AutostartStatus(true, false, targetPath)
+	if ok {
+		t.Fatalf("expected problem when tray flag mismatches, got OK: %s", message)
+	}
+	if message != "Autostart shortcut starts in tray while setting is off" {
+		t.Fatalf("unexpected message: %q", message)
+	}
+}
+
 func TestCreateStartupShortcutHandlesSpaces(t *testing.T) {
 	tempDir := t.TempDir()
 	shortcutPath := filepath.Join(tempDir, "GoSentry test.lnk")
@@ -109,7 +154,7 @@ func TestCreateStartupShortcutHandlesSpaces(t *testing.T) {
 		t.Fatalf("create target file: %v", err)
 	}
 
-	if err := createStartupShortcut(shortcutPath, targetPath, ""); err != nil {
+	if err := createStartupShortcut(shortcutPath, targetPath, "", domain.StartInTrayArgument); err != nil {
 		t.Fatalf("create shortcut: %v", err)
 	}
 

@@ -20,6 +20,7 @@ type settingsFormFields struct {
 	startOnLogin        *widget.Check
 	autostartStatus     *widget.Label
 	minimizeToTray      *widget.Check
+	trayRestartHint     *widget.Label
 	notifications       *widget.Check
 	themeSelect         *widget.Select
 	executionModeSelect *widget.Select
@@ -59,6 +60,7 @@ func newSettingsLayout(f settingsFormFields) fyne.CanvasObject {
 			// empty caption, so the Application section fits in a half-width column.
 			settingsRow(capW, "", f.autostartStatus),
 			settingsRow(capW, "Tray", f.minimizeToTray),
+			settingsRow(capW, "", f.trayRestartHint),
 			settingsRow(capW, "Notifications", f.notifications),
 			// Theme is the one row here whose value is not text: the Select paints
 			// a box out to the row's edge, so the section's overlap would leave it

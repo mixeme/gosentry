@@ -6,6 +6,7 @@ import (
 
 	"gitea.mixdep.ru/mix/gosentry/assets"
 	"gitea.mixdep.ru/mix/gosentry/src/app"
+	"gitea.mixdep.ru/mix/gosentry/src/storage"
 
 	"fyne.io/fyne/v2"
 	fyneapp "fyne.io/fyne/v2/app"
@@ -29,7 +30,9 @@ const defaultWindowHeight = 660
 // mainwindow.go split keeps lifecycle separate from view construction.
 func Run(startInTray bool) {
 	started := time.Now()
-	instanceListener, primary := acquireSingleInstance(!startInTray)
+	keepInTray := storage.PeekKeepRunningInTray()
+	startHidden := resolveStartHidden(startInTray, keepInTray)
+	instanceListener, primary := acquireSingleInstance(!startHidden)
 	if !primary {
 		return
 	}
@@ -56,7 +59,6 @@ func Run(startInTray bool) {
 	}
 
 	w := a.NewWindow("GoSentry " + app.Version)
-	configureSystemTray(a, w)
 	prefs := a.Preferences()
 	winW := float32(prefs.FloatWithFallback("window.width", defaultWindowWidth))
 	winH := float32(prefs.FloatWithFallback("window.height", defaultWindowHeight))
@@ -67,13 +69,16 @@ func Run(startInTray bool) {
 		a.Run()
 		return
 	}
+	keepInTray = svc.Store().Config.KeepRunningInTray
+	startHidden = resolveStartHidden(startInTray, keepInTray)
+	applyTrayBehavior(a, w, keepInTray, false)
 	// Apply the persisted theme before building content so the window renders in
 	// the chosen theme from the first frame rather than flashing the default one.
 	applyTheme(a, svc.Store().Config.Theme)
 	content, recordStartup := newMainView(w, svc)
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)
-	if startInTray {
+	if startHidden {
 		// Autostart launches intentionally stay hidden, so "window shown" would be
 		// a misleading metric. Record a separate startup event for the tray path
 		// instead of forcing one timing definition onto two different UX flows.

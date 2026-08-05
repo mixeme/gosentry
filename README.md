@@ -201,8 +201,12 @@ loading a new list discards the run state of the old one.
 
 The **Start on login** checkbox shows an `OK` or `Problem` status. Saving with
 it enabled writes an autostart entry using the current executable path.
-Autostart entries include `--start-in-tray` so scheduled jobs run after sign-in
-without opening the main window.
+When **Keep running in the system tray** is also enabled, the entry includes
+`--start-in-tray` so scheduled jobs run after sign-in without opening the main
+window. With the tray option off, autostart still works but opens the main
+window normally. Changing the tray setting updates close behaviour and the
+autostart entry immediately; the tray icon itself updates only after you restart
+GoSentry (a Fyne limitation — see [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## Queue Settings
 

@@ -70,6 +70,16 @@ change to their shape has to stay compatible on its own.
   functions sit at 0% on purpose. Both lists live in
   [TESTS.md](TESTS.md) — check them before reporting a test as redundant or a
   coverage gap as an oversight.
+- **`KeepRunningInTray` controls tray and close behavior.** When enabled (the
+  default), the app registers a system tray icon at launch, closing the window
+  hides it, and autostart passes `--start-in-tray`. When disabled, no tray icon
+  is registered at launch, closing the window quits the app, and autostart opens
+  the main window. Toggling the setting in Settings updates close behavior and
+  rewrites the autostart entry immediately; the tray icon itself follows the
+  saved value only after a restart because Fyne has no API to add or remove it
+  mid-session (see [ROADMAP.md](ROADMAP.md)).
+- **`--start-in-tray` defers to config.** A stale autostart shortcut that still
+  passes the flag does not hide the window when `KeepRunningInTray` is off.
 
 ## Out of scope
 

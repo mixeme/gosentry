@@ -5,6 +5,22 @@ Completed work is recorded in [CHANGELOG.md](CHANGELOG.md), not here.
 
 ## Open Items
 
+### Dynamic tray icon toggle
+
+Fyne exposes `SetSystemTrayIcon` and related APIs only at application startup.
+There is no supported way to register or remove the notification-area icon
+after the process is running.
+
+GoSentry now honours `KeepRunningInTray` from config: close behaviour and the
+autostart entry update immediately when the user saves Settings; the tray icon
+follows the saved value on the next launch. Settings shows a restart hint when
+the tray checkbox changes.
+
+Revisit when Fyne adds a documented API for mid-session tray registration, or
+when a stable cross-platform approach exists without reaching into driver
+internals. Until then, removing the restart hint and applying the icon on save
+is blocked.
+
 ### Update check from GitHub releases
 
 Releases are published as GitHub Releases (tags like `v0.12.0`, built by

@@ -16,6 +16,21 @@ type Store struct {
 	Config domain.Config
 }
 
+// PeekKeepRunningInTray reads keep_running_in_tray from gosentry.json for startup
+// decisions that must run before app.Open(). On error it returns the built-in
+// default.
+func PeekKeepRunningInTray() bool {
+	paths, err := ResolvePaths()
+	if err != nil {
+		return domain.DefaultConfig().KeepRunningInTray
+	}
+	config, err := loadOrCreateConfig(paths)
+	if err != nil {
+		return domain.DefaultConfig().KeepRunningInTray
+	}
+	return config.KeepRunningInTray
+}
+
 func OpenStore() (*Store, []domain.Job, error) {
 	paths, err := ResolvePaths()
 	if err != nil {

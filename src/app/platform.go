@@ -16,24 +16,26 @@ func (s *Service) InstallDesktopIcon(appID string, iconBytes []byte) {
 }
 
 // AutostartStatus reports whether the platform autostart entry matches the
-// current StartOnLogin setting in the stored config.
+// current StartOnLogin and KeepRunningInTray settings in the stored config.
 func (s *Service) AutostartStatus() (ok bool, message string) {
 	s.mu.Lock()
 	enabled := s.store.Config.StartOnLogin
+	startInTray := s.store.Config.KeepRunningInTray
 	execPath := s.store.Paths.ExecutablePath
 	manager := s.manager
 	s.mu.Unlock()
 	if manager == nil {
 		return false, "autostart not available"
 	}
-	return manager.Status(enabled, execPath)
+	return manager.Status(enabled, startInTray, execPath)
 }
 
 // ApplyAutostart writes or removes the platform autostart entry to match the
-// current StartOnLogin setting in the stored config. Call after UpdateSettings.
+// current StartOnLogin and KeepRunningInTray settings. Call after UpdateSettings.
 func (s *Service) ApplyAutostart() error {
 	s.mu.Lock()
 	enabled := s.store.Config.StartOnLogin
+	startInTray := s.store.Config.KeepRunningInTray
 	execPath := s.store.Paths.ExecutablePath
 	iconPath := s.store.Paths.DesktopIcon
 	manager := s.manager
@@ -41,5 +43,5 @@ func (s *Service) ApplyAutostart() error {
 	if manager == nil {
 		return nil
 	}
-	return manager.Set(enabled, execPath, iconPath)
+	return manager.Set(enabled, startInTray, execPath, iconPath)
 }

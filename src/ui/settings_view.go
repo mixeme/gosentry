@@ -37,8 +37,16 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	var loadFields func(domain.Config)
 	startOnLogin := widget.NewCheck("Start on login", nil)
 	startOnLogin.SetChecked(store.Config.StartOnLogin)
+	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
+	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
 	autostartStatus := widget.NewLabel("")
+	trayRestartHint := widget.NewLabel("")
+	trayRestartHint.Truncation = fyne.TextTruncateClip
 	refreshAutostartStatus := func() {
+		if settingsPendingAutostart(startOnLogin, minimizeToTray, store.Config) {
+			autostartStatus.SetText("Pending: save settings to apply")
+			return
+		}
 		ok, message := svc.AutostartStatus()
 		if ok {
 			autostartStatus.SetText("OK: " + message)
@@ -46,18 +54,23 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		}
 		autostartStatus.SetText("Problem: " + message)
 	}
-	startOnLogin.OnChanged = func(bool) {
-		if startOnLogin.Checked != store.Config.StartOnLogin {
-			autostartStatus.SetText("Pending: save settings to apply")
-		} else {
-			refreshAutostartStatus()
+	refreshTrayRestartHint := func(pending bool) {
+		if pending {
+			trayRestartHint.SetText("Pending: restart GoSentry after save for the tray icon change to take effect.")
+			return
 		}
+		trayRestartHint.SetText("")
+	}
+	startOnLogin.OnChanged = func(bool) {
+		refreshAutostartStatus()
+		updateSaveState()
+	}
+	minimizeToTray.OnChanged = func(bool) {
+		refreshAutostartStatus()
+		refreshTrayRestartHint(minimizeToTray.Checked != store.Config.KeepRunningInTray)
 		updateSaveState()
 	}
 	refreshAutostartStatus()
-	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
-	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
-	minimizeToTray.OnChanged = func(bool) { updateSaveState() }
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
 	notifications.SetChecked(store.Config.NotifyOnFailure)
 	notifications.OnChanged = func(bool) { updateSaveState() }
@@ -158,6 +171,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		config.OverlapPolicy = domain.OverlapPolicy(overlapPolicySelect.Selected)
 		config.DefaultTimeoutSeconds = timeout
 		config.Theme = themeFromLabel(themeSelect.Selected)
+		previousKeepInTray := store.Config.KeepRunningInTray
 		if err := svc.UpdateSettings(config); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
@@ -168,6 +182,12 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			return
 		}
 		refreshAutostartStatus()
+		applyTrayBehavior(fyne.CurrentApp(), w, config.KeepRunningInTray, true)
+		if previousKeepInTray != config.KeepRunningInTray {
+			trayRestartHint.SetText(trayRestartHintText)
+		} else {
+			refreshTrayRestartHint(false)
+		}
 		settingsStatus.SetText("Saved")
 		// The form now matches the persisted config, so disable Save again.
 		updateSaveState()
@@ -215,11 +235,12 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		logsDir.SetText(c.LogsDir)
 		maxLogFiles.SetText(strconv.Itoa(c.MaxLogFiles))
 		maxLogAgeDays.SetText(strconv.Itoa(c.MaxLogAgeDays))
-		if startOnLogin.Checked != store.Config.StartOnLogin {
+		if settingsPendingAutostart(startOnLogin, minimizeToTray, store.Config) {
 			autostartStatus.SetText("Pending: save settings to apply")
 		} else {
 			refreshAutostartStatus()
 		}
+		refreshTrayRestartHint(minimizeToTray.Checked != store.Config.KeepRunningInTray)
 		settingsStatus.SetText("")
 		updateSaveState()
 	}
@@ -234,6 +255,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		startOnLogin:        startOnLogin,
 		autostartStatus:     autostartStatus,
 		minimizeToTray:      minimizeToTray,
+		trayRestartHint:     trayRestartHint,
 		notifications:       notifications,
 		themeSelect:         themeSelect,
 		executionModeSelect: executionModeSelect,
@@ -252,6 +274,11 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		restoreDefaults:     restoreDefaults,
 		settingsStatus:      settingsStatus,
 	})
+}
+
+func settingsPendingAutostart(startOnLogin, minimizeToTray *widget.Check, saved domain.Config) bool {
+	return startOnLogin.Checked != saved.StartOnLogin ||
+		minimizeToTray.Checked != saved.KeepRunningInTray
 }
 
 // Theme dropdown labels. These are the human-facing captions; themeLabel and

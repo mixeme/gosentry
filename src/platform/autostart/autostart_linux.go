@@ -17,17 +17,17 @@ type linuxManager struct{}
 // New returns the Linux autostart Manager.
 func New() Manager { return linuxManager{} }
 
-func (linuxManager) Set(enabled bool, executablePath, iconPath string) error {
-	return SetAutostart(enabled, executablePath, iconPath)
+func (linuxManager) Set(enabled, startInTray bool, executablePath, iconPath string) error {
+	return SetAutostart(enabled, startInTray, executablePath, iconPath)
 }
 
-func (linuxManager) Status(expectedEnabled bool, executablePath string) (bool, string) {
-	return AutostartStatus(expectedEnabled, executablePath)
+func (linuxManager) Status(expectedEnabled, startInTray bool, executablePath string) (bool, string) {
+	return AutostartStatus(expectedEnabled, startInTray, executablePath)
 }
 
 const autostartDesktopFileName = "gosentry.desktop"
 
-func SetAutostart(enabled bool, executablePath string, iconPath string) error {
+func SetAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
 	desktopPath, err := autostartDesktopPath()
 	if err != nil {
 		return err
@@ -36,15 +36,19 @@ func SetAutostart(enabled bool, executablePath string, iconPath string) error {
 		if err := os.MkdirAll(filepath.Dir(desktopPath), 0o755); err != nil {
 			return err
 		}
+		execLine := quoteDesktopExec(executablePath)
+		if args := domain.AutostartArguments(startInTray); args != "" {
+			execLine += " " + args
+		}
 		desktopFile := fmt.Sprintf(`[Desktop Entry]
 Type=Application
 Name=GoSentry
 Comment=GoSentry desktop scheduler
-Exec=%s %s
+Exec=%s
 %s
 Terminal=false
 X-GNOME-Autostart-enabled=true
-`, quoteDesktopExec(executablePath), domain.StartInTrayArgument, desktopIconLine(iconPath))
+`, execLine, desktopIconLine(iconPath))
 		return os.WriteFile(desktopPath, []byte(desktopFile), 0o644)
 	}
 
@@ -54,7 +58,7 @@ X-GNOME-Autostart-enabled=true
 	return nil
 }
 
-func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string) {
+func AutostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
 	desktopPath, err := autostartDesktopPath()
 	if err != nil {
 		return false, "Cannot resolve XDG autostart directory"
@@ -70,9 +74,15 @@ func AutostartStatus(expectedEnabled bool, executablePath string) (bool, string)
 	if readErr != nil {
 		return false, "Autostart desktop entry is missing"
 	}
-	expectedExec := "Exec=" + quoteDesktopExec(executablePath) + " " + domain.StartInTrayArgument
+	expectedExec := "Exec=" + quoteDesktopExec(executablePath)
+	if args := domain.AutostartArguments(startInTray); args != "" {
+		expectedExec += " " + args
+	}
 	if !strings.Contains(string(data), expectedExec) {
-		return false, "Autostart desktop entry points to another executable"
+		if startInTray {
+			return false, "Autostart desktop entry does not start in tray"
+		}
+		return false, "Autostart desktop entry starts in tray while setting is off"
 	}
 	return true, "Autostart is configured"
 }

@@ -113,8 +113,10 @@ flowchart LR
 7. Autostart:
    `UpdateSettings` in the Service calls `autostart.Manager.Set`. The Manager
    interface has two implementations: Windows writes a `.lnk` shortcut to the
-   user Startup folder; Linux writes an XDG Autostart `.desktop` file. Both
-   entries pass `--start-in-tray`.
+   user Startup folder; Linux writes an XDG Autostart `.desktop` file. When
+   `KeepRunningInTray` is enabled the entry passes `--start-in-tray`; when it is
+   off the entry launches the executable without that flag so the main window
+   opens after sign-in.
 
 8. Error surfacing:
    Background errors (failed JSON saves, cleanup errors) are emitted as

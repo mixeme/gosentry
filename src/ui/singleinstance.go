@@ -56,6 +56,7 @@ func serveSingleInstance(listener net.Listener, w fyne.Window) {
 			// Accept runs on its own goroutine, so focusing the window must be
 			// marshaled onto the main thread like every other widget update.
 			fyne.Do(func() {
+				mainWindowHidden = false
 				w.Show()
 				w.RequestFocus()
 			})

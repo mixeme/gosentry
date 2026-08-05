@@ -5,6 +5,23 @@ package domain
 // launches omit this flag and open the normal window.
 const StartInTrayArgument = "--start-in-tray"
 
+// AutostartArguments returns the command-line suffix written to a platform
+// autostart entry when KeepRunningInTray is enabled. An empty string means the
+// app should open its window normally after sign-in.
+func AutostartArguments(keepInTray bool) string {
+	if keepInTray {
+		return StartInTrayArgument
+	}
+	return ""
+}
+
+// ResolveStartHidden reports whether an autostart launch should skip showing
+// the main window. The CLI flag is ignored when KeepRunningInTray is off so a
+// stale shortcut cannot hide the app with no tray icon to restore it.
+func ResolveStartHidden(cliStartInTray, keepInTray bool) bool {
+	return cliStartInTray && keepInTray
+}
+
 // ExecutionMode controls whether due jobs run concurrently or one at a time.
 type ExecutionMode string
 
