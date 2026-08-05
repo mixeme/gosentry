@@ -4,6 +4,12 @@ All notable GoSentry changes are recorded in this file.
 
 ## 1.0.1 - 2026-08-04
 
+**Sample jobs include a disabled failure test for desktop notifications.**
+
+- **`storage.defaultJobs`** — new disabled example *Failure notification test*
+  (folder Examples). Run it manually to trigger a failed run and verify
+  Settings → Notifications without waiting on the scheduler.
+
 **Platform layer rationale is documented in ARCHITECTURE.md.**
 
 - **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,

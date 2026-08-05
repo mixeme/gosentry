@@ -169,8 +169,9 @@ func loadOrCreateJobs(path string) ([]domain.Job, error) {
 	if found {
 		return jobs, nil
 	}
-	// Seed harmless sample jobs so a new user can immediately see scheduled
-	// and manual execution without inventing a command.
+	// Seed sample jobs so a new user can immediately see scheduled and manual
+	// execution without inventing a command. The failure sample stays disabled
+	// so it does not spam notifications; Run now still works for testing.
 	jobs = defaultJobs()
 	normalizeJobs(jobs)
 	return jobs, writeJSON(path, domain.JobsFile{Jobs: jobs})
@@ -270,7 +271,22 @@ func defaultJobs() []domain.Job {
 			Command:  echoCommand("This paused sample should not run until enabled"),
 			Enabled:  false,
 		},
+		{
+			ID:       4,
+			Name:     "Failure notification test",
+			Folder:   "Examples",
+			Schedule: "@every 1m",
+			Command:  failCommand(),
+			Enabled:  false,
+		},
 	}
+}
+
+func failCommand() string {
+	if runtime.GOOS == "windows" {
+		return "exit /b 1"
+	}
+	return "exit 1"
 }
 
 func echoCommand(message string) string {
