@@ -59,6 +59,7 @@ func Run(startInTray bool) {
 	}
 
 	w := a.NewWindow("GoSentry " + app.Version)
+	setWindowsNotificationIcon()
 	prefs := a.Preferences()
 	winW := float32(prefs.FloatWithFallback("window.width", defaultWindowWidth))
 	winH := float32(prefs.FloatWithFallback("window.height", defaultWindowHeight))
@@ -93,4 +94,21 @@ func Run(startInTray bool) {
 	w.Show()
 	recordStartup(time.Since(started), true)
 	a.Run()
+}
+
+// setWindowsNotificationIcon supplies App.Icon for Fyne desktop notifications
+// without touching the window or taskbar icon. On Windows those come from the PE
+// gosentry.ico resource, so run.go must not call SetIcon. Fyne's NewWindow ends
+// with SetIcon(nil), which adopts App.Icon when it is already set — metadata
+// must therefore be registered only after the window is created. The tray icon
+// is set separately in tray.go via SetSystemTrayIcon.
+func setWindowsNotificationIcon() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	fyneapp.SetMetadata(fyne.AppMetadata{
+		ID:   appID,
+		Name: "GoSentry",
+		Icon: assets.Icon(),
+	})
 }

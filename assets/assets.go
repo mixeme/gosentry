@@ -44,6 +44,8 @@ import (
 //   - Tray: SetSystemTrayIcon(IconSmallICO()). The notification area is ICO-native
 //     and renders at 16-24px; a single-frame 16x16 .ico pins the hand-tuned glyph
 //     (a multi-size .ico made the tray pick and downscale a larger frame).
+//   - Desktop toasts: AppMetadata.Icon (set after NewWindow in run.go) feeds
+//     SendNotification without calling SetIcon, which would override GLFW_ICON.
 //
 // Linux / other non-Windows (no PE icon resource exists):
 //   - Window titlebar: a.SetIcon(IconSmall()) in run.go feeds the resource to

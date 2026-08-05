@@ -4,6 +4,12 @@ All notable GoSentry changes are recorded in this file.
 
 ## 1.0.1 - 2026-08-04
 
+**Windows failure notifications can show the app icon (experimental).**
+
+- **`ui.run`** — after `NewWindow`, register `AppMetadata.Icon` on Windows so
+  Fyne toasts pick up artwork without calling `SetIcon`, which would override
+  the PE multi-size window/taskbar icon.
+
 **Sample jobs include a disabled failure test for desktop notifications.**
 
 - **`storage.defaultJobs`** — new disabled example *Failure notification test*
