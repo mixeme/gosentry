@@ -79,6 +79,15 @@ change to their shape has to stay compatible on its own.
   mid-session (see [ROADMAP.md](ROADMAP.md)).
 - **`--start-in-tray` defers to config.** A stale autostart shortcut that still
   passes the flag does not hide the window when `KeepRunningInTray` is off.
+- **`JobRuntime.PendingRuns` (the "queue" overlap policy's backlog) is capped at
+  `maxPendingRuns` (10) and cleared on pause or disable.** A job whose runs take
+  longer than its interval stops accumulating backlog once the cap is hit —
+  further overlaps are dropped like the "skip" policy until the backlog drains
+  below the cap. `SetGlobalPause(true)` and `SetEnabled(id, false)` both zero
+  the counter, so resuming or re-enabling a job never replays a deferred run for
+  an occurrence that fired before the pause/disable. The details pane appends
+  ", N queued" to the statistics line via `DisplayStats` whenever the count is
+  non-zero.
 
 ## Out of scope
 

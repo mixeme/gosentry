@@ -136,6 +136,7 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | `TestDeleteJobNotFound` | Verifies that `DeleteJob` returns an error for an unknown job ID. |
 | `TestSetEnabledNotFound` | Verifies that `SetEnabled` returns an error for an unknown job ID. |
 | `TestSetEnabledToggles` | Verifies that `SetEnabled` flips the enabled flag and persists the change. |
+| `TestSetEnabledClearsPendingRuns` | Verifies that disabling a job zeroes a `PendingRuns` backlog it was carrying, so re-enabling it later does not replay a stale deferred run. |
 
 #### Global pause / run-now / run-due
 
@@ -187,11 +188,11 @@ and scheduler edge cases using injected `runJob` and `primeDue`.
 | `TestRunDueSkipDropsOverlap` | Global skip: no second concurrent run, `PendingRuns` stays 0. |
 | `TestRunDueQueueRerunsAfterFinish` | Queue: one deferred run after an in-flight finish; also covers an empty per-job policy inheriting the global default. |
 | `TestRunDueQueueDrainsMultipleOverlaps` | Queue: multiple missed ticks drain as separate runs. |
+| `TestRunDueQueueCapsPendingRuns` | Regression: `PendingRuns` stops growing at `maxPendingRuns` instead of accumulating without bound for a job that never keeps up with its schedule. |
 | `TestRunDuePerJobQueueOverridesGlobalSkip` | Per-job `queue` beats global `skip`. |
 | `TestRunDuePerJobSkipOverridesGlobalQueue` | Per-job `skip` beats global `queue`. |
 | `TestRunNowSequentialGuard` | Manual run refused while another job runs in sequential mode. |
-| `TestStartRunLockedRollbackOnSaveFailure` | Regression: run does not start when `SaveJobs` fails. |
-| `TestRunDueQueueDrainSkippedWhenPaused` | Queued overlaps are not drained while the scheduler is paused. |
+| `TestRunDueQueueDrainSkippedWhenPaused` | Queued overlaps are not drained while the scheduler is paused, and pausing clears the backlog rather than leaving it to fire a stale deferred run on resume. |
 | `TestEffectiveTimeout` | Verifies the three-state resolution: `nil` inherits the global default, a positive value overrides it, and an explicit `0` means no timeout without inheriting. |
 
 ---

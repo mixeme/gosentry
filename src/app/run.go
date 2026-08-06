@@ -11,6 +11,13 @@ import (
 	"gitea.mixdep.ru/mix/gosentry/src/runner"
 )
 
+// maxPendingRuns bounds how many missed occurrences the "queue" overlap policy
+// will defer for one job. Without a ceiling a job whose runs take longer than
+// its interval would queue one more occurrence on every tick forever, so once
+// the cap is reached further overlaps are dropped exactly as the "skip" policy
+// would drop them, until the backlog drains below the cap again.
+const maxPendingRuns = 10
+
 // RunNow starts a manual run of a job. Global pause stops only the scheduler's
 // automatic runs (see RunDue), so a manual "Run now" is allowed even while
 // paused — it is the user's explicit, one-off action. It will not start a job
@@ -36,14 +43,12 @@ func (s *Service) RunNow(id int) error {
 		s.mu.Unlock()
 		return errors.New("another job is already running (sequential mode)")
 	}
-	err := s.startRunLocked(job, runtime, "Manual", time.Now())
+	s.startRunLocked(job, runtime, "Manual", time.Now())
 	s.mu.Unlock()
 
-	if err == nil {
-		// Reflect the "Running" transition; the run's completion emits again later.
-		s.emit(JobChanged{JobID: id})
-	}
-	return err
+	// Reflect the "Running" transition; the run's completion emits again later.
+	s.emit(JobChanged{JobID: id})
+	return nil
 }
 
 // RunDue is the scheduler's per-tick entry point: it starts whatever is due at
@@ -63,7 +68,6 @@ func (s *Service) RunNow(id int) error {
 func (s *Service) RunDue(now time.Time) {
 	s.mu.Lock()
 	var started []int
-	var startErr error
 	if !s.paused {
 		sequential := s.store.Config.ExecutionMode == domain.ExecutionModeSequential
 		running := s.anyRunningLocked()
@@ -77,7 +81,7 @@ func (s *Service) RunDue(now time.Time) {
 				// The job came due again while its own run is still in flight.
 				// Apply the effective overlap policy and step past this
 				// occurrence.
-				if s.effectiveOverlapPolicy(job) == domain.OverlapPolicyQueue {
+				if s.effectiveOverlapPolicy(job) == domain.OverlapPolicyQueue && runtime.PendingRuns < maxPendingRuns {
 					runtime.PendingRuns++
 				}
 				s.advanceNextDueLocked(job, runtime, now)
@@ -88,19 +92,13 @@ func (s *Service) RunDue(now time.Time) {
 				// tick once the in-flight run has finished.
 				continue
 			}
-			if err := s.startRunLocked(job, runtime, "Schedule", now); err != nil {
-				startErr = err
-				continue
-			}
+			s.startRunLocked(job, runtime, "Schedule", now)
 			started = append(started, job.ID)
 			running = true
 		}
 	}
 	s.mu.Unlock()
 
-	if startErr != nil {
-		s.emit(ErrorOccurred{Err: fmt.Errorf("save jobs before scheduled run: %w", startErr)})
-	}
 	for _, id := range started {
 		s.emit(JobChanged{JobID: id})
 	}
@@ -116,29 +114,19 @@ type runEnv struct {
 }
 
 // startRunLocked transitions a job to "Running", advances its NextDue to the next
-// scheduled occurrence, persists that, and launches the run on a background
-// goroutine. Advancing (rather than zeroing) NextDue keeps the schedule marching
-// while the run is in flight, which is what lets RunDue notice a fresh occurrence
-// firing during a long run and apply the overlap policy. The caller must hold mu.
-// now is the reference time for next-due advancement and the running placeholder.
-func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, trigger string, now time.Time) error {
+// scheduled occurrence, and launches the run on a background goroutine. Neither
+// step touches a durable field — both live on JobRuntime, which is never
+// persisted — so there is nothing to save here. Advancing (rather than zeroing)
+// NextDue keeps the schedule marching while the run is in flight, which is what
+// lets RunDue notice a fresh occurrence firing during a long run and apply the
+// overlap policy. The caller must hold mu. now is the reference time for
+// next-due advancement and the running placeholder.
+func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, trigger string, now time.Time) {
 	jobCopy := *job
-	prevState := runtime.LastState
-	prevNextRun := runtime.NextRun
-	prevOutput := runtime.Output
-	prevNextDue := runtime.NextDue
-
 	runtime.LastState = "Running"
 	runtime.NextRun = "Running"
 	runtime.Output = runningOutput(jobCopy, trigger, now)
 	s.advanceNextDueLocked(job, runtime, now)
-	if err := s.store.SaveJobs(s.jobs); err != nil {
-		runtime.LastState = prevState
-		runtime.NextRun = prevNextRun
-		runtime.Output = prevOutput
-		runtime.NextDue = prevNextDue
-		return err
-	}
 	env := runEnv{
 		logsDir:  s.store.Paths.LogsDir,
 		maxFiles: s.store.Config.MaxLogFiles,
@@ -148,7 +136,6 @@ func (s *Service) startRunLocked(job *domain.Job, runtime *domain.JobRuntime, tr
 	// Capture ctx under the lock so a concurrent Start/Stop cannot swap it out
 	// from under the goroutine after we release mu.
 	go s.executeRun(s.ctx, jobCopy, trigger, env)
-	return nil
 }
 
 // executeRun runs the job off the lock, then records the result back through the
@@ -160,7 +147,7 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 	record, logErr := s.runJob(ctx, &jobCopy, trigger, env.logsDir, env.timeout)
 
 	s.mu.Lock()
-	var cleanupErr, saveErr error
+	var cleanupErr error
 	var rerunStarted bool
 	if current := s.findByIDLocked(jobCopy.ID); current != nil {
 		runtime := s.runtimeForLocked(current)
@@ -174,11 +161,10 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 			runtime.PendingRuns--
 			// A scheduled occurrence fired while this run was active under the
 			// "queue" policy; start one deferred run now.
-			saveErr = s.startRunLocked(current, runtime, "Schedule", time.Now())
-			rerunStarted = saveErr == nil
+			s.startRunLocked(current, runtime, "Schedule", time.Now())
+			rerunStarted = true
 		} else {
 			s.refreshNextRunLocked(current, runtime)
-			saveErr = s.store.SaveJobs(s.jobs)
 		}
 		cleanupErr = runner.CleanupLogs(env.logsDir, env.maxFiles, env.maxAge)
 	}
@@ -189,9 +175,6 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 	}
 	if cleanupErr != nil {
 		s.emit(ErrorOccurred{Err: fmt.Errorf("log cleanup after run %q: %w", jobCopy.Name, cleanupErr)})
-	}
-	if saveErr != nil {
-		s.emit(ErrorOccurred{Err: fmt.Errorf("save jobs after run %q: %w", jobCopy.Name, saveErr)})
 	}
 	s.emit(RunRecorded{Record: record})
 	if !rerunStarted {

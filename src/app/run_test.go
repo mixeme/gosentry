@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"os"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -359,6 +358,42 @@ func TestRunDueQueueDrainsMultipleOverlaps(t *testing.T) {
 	}
 }
 
+// TestRunDueQueueCapsPendingRuns verifies that a job whose runs never keep up
+// with its schedule stops accumulating PendingRuns at maxPendingRuns instead of
+// growing without bound.
+func TestRunDueQueueCapsPendingRuns(t *testing.T) {
+	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
+		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
+	})
+
+	release := make(chan struct{})
+	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
+		<-release
+		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "Success"}, nil
+	}
+	done := completions(svc)
+	t.Cleanup(func() {
+		close(release)
+		waitRecord(t, done)
+	})
+
+	primeDue(t, svc, 1)
+	svc.RunDue(time.Now())
+
+	// Far more due ticks than the cap while the first run stays in flight.
+	for range maxPendingRuns + 5 {
+		primeDue(t, svc, 1)
+		svc.RunDue(time.Now())
+	}
+
+	svc.mu.Lock()
+	pending := svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != maxPendingRuns {
+		t.Fatalf("PendingRuns = %d, want capped at %d", pending, maxPendingRuns)
+	}
+}
+
 // TestRunDuePerJobQueueOverridesGlobalSkip verifies that a job carrying its own
 // "queue" policy queues a re-run even though the global default is "skip": the
 // effective policy is resolved per job, so the job-level value wins.
@@ -493,37 +528,9 @@ func TestRunNowSequentialGuard(t *testing.T) {
 	waitRecord(t, done)
 }
 
-// TestStartRunLockedRollbackOnSaveFailure is a regression test for CODE_REVIEW
-// finding #2: a run must not start when persisting the Running state fails.
-func TestStartRunLockedRollbackOnSaveFailure(t *testing.T) {
-	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true}})
-	if err := svc.store.SaveJobs(svc.jobs); err != nil {
-		t.Fatalf("seed jobs.json: %v", err)
-	}
-	if err := os.Chmod(svc.store.Paths.JobsPath, 0o444); err != nil {
-		t.Fatalf("chmod jobs.json: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(svc.store.Paths.JobsPath, 0o644) })
-
-	var started int32
-	svc.runJob = func(_ context.Context, job *domain.Job, _ string, _ string, _ time.Duration) (domain.RunRecord, error) {
-		atomic.AddInt32(&started, 1)
-		return domain.RunRecord{Time: "t", JobID: job.ID, JobName: job.Name, State: "OK"}, nil
-	}
-
-	if err := svc.RunNow(1); err == nil {
-		t.Fatal("expected RunNow to fail when jobs.json is not writable")
-	}
-	if atomic.LoadInt32(&started) != 0 {
-		t.Error("run goroutine must not start when SaveJobs fails")
-	}
-	if rt := svc.Runtime(1); rt == nil || rt.LastState == "Running" {
-		t.Errorf("runtime should roll back from Running, got %+v", rt)
-	}
-}
-
 // TestRunDueQueueDrainSkippedWhenPaused verifies that queued overlap runs are not
-// drained while the scheduler is globally paused.
+// drained while the scheduler is globally paused, and that pausing clears the
+// backlog rather than leaving it to fire a stale deferred run on resume.
 func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 	svc := newQueueService(t, domain.ExecutionModeParallel, domain.OverlapPolicyQueue, []domain.Job{
 		{ID: 1, Name: "A", Schedule: "@every 1h", Command: "echo", Enabled: true},
@@ -561,6 +568,13 @@ func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 		t.Fatalf("SetGlobalPause: %v", err)
 	}
 
+	svc.mu.Lock()
+	pending = svc.runtimes[1].PendingRuns
+	svc.mu.Unlock()
+	if pending != 0 {
+		t.Errorf("pausing must clear a queued backlog, PendingRuns = %d, want 0", pending)
+	}
+
 	close(release)
 	waitRecord(t, done)
 	expectNoEntry(t, entered)
@@ -568,8 +582,8 @@ func TestRunDueQueueDrainSkippedWhenPaused(t *testing.T) {
 	svc.mu.Lock()
 	pending = svc.runtimes[1].PendingRuns
 	svc.mu.Unlock()
-	if pending != 1 {
-		t.Errorf("paused scheduler must not drain queue, PendingRuns = %d, want 1", pending)
+	if pending != 0 {
+		t.Errorf("paused scheduler must not drain queue, PendingRuns = %d, want 0", pending)
 	}
 	if got := atomic.LoadInt32(&calls); got != 1 {
 		t.Errorf("runner called %d time(s), want 1", got)

@@ -82,14 +82,29 @@ func DisplayInvocation(job domain.Job) string {
 	return job.Command + "    " + strings.ReplaceAll(strings.TrimSpace(job.Arguments), "\n", " ")
 }
 
-// DisplayStats returns a one-line execution-time summary for a job runtime.
-// Returns "No runs recorded" when no runs have been counted yet.
+// DisplayStats returns a one-line execution-time summary for a job runtime,
+// with the queued-run depth appended whenever the "queue" overlap policy has
+// deferred runs waiting (see maxPendingRuns). Returns "No runs recorded" when
+// no runs have been counted yet, still showing the queue depth if one exists.
 func DisplayStats(rt *domain.JobRuntime) string {
 	if rt == nil || rt.RunCount == 0 {
+		if rt != nil && rt.PendingRuns > 0 {
+			return "No runs recorded" + pendingRunsSuffix(rt.PendingRuns)
+		}
 		return "No runs recorded"
 	}
 	return fmt.Sprintf("%d runs, %d failed, last %d ms, avg %d ms, max %d ms",
-		rt.RunCount, rt.FailCount, rt.LastDurationMS, rt.AvgDurationMS, rt.MaxDurationMS)
+		rt.RunCount, rt.FailCount, rt.LastDurationMS, rt.AvgDurationMS, rt.MaxDurationMS) +
+		pendingRunsSuffix(rt.PendingRuns)
+}
+
+// pendingRunsSuffix formats the queued-run depth for DisplayStats, empty when
+// nothing is queued.
+func pendingRunsSuffix(pending int) string {
+	if pending <= 0 {
+		return ""
+	}
+	return fmt.Sprintf(", %d queued", pending)
 }
 
 // DisplayOverlapPolicy formats a job's effective overlap policy for the details

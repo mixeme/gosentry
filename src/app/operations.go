@@ -148,6 +148,10 @@ func (s *Service) SetEnabled(id int, enabled bool) error {
 		runtime.LastState = "Paused"
 		runtime.NextRun = "Paused"
 		runtime.NextDue = time.Time{}
+		// A disabled job's own occurrences stop firing, so a "queue" backlog it was
+		// carrying no longer corresponds to anything: clear it rather than replaying
+		// stale deferred runs if the job is re-enabled later.
+		runtime.PendingRuns = 0
 		record = uiRecord(id, job.Name, "Paused", "Job was disabled")
 	}
 	prependLog(runtime, record)
@@ -175,12 +179,16 @@ func (s *Service) SetGlobalPause(paused bool) error {
 	for index := range s.jobs {
 		job := &s.jobs[index]
 		runtime := s.runtimeForLocked(job)
+		if paused {
+			// A "queue" backlog counts occurrences missed *while paused is off*; once
+			// paused, none of those correspond to anything the user would expect
+			// replayed on resume, so drop it rather than letting a stale counter fire
+			// a deferred run for an occurrence from before the pause.
+			runtime.PendingRuns = 0
+		}
 		s.refreshNextRunFromLocked(job, runtime, now)
 	}
 	err := s.store.SaveConfig()
-	if err == nil {
-		err = s.store.SaveJobs(s.jobs)
-	}
 	s.mu.Unlock()
 
 	if err != nil {

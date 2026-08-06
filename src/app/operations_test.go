@@ -217,6 +217,23 @@ func TestSetEnabledToggles(t *testing.T) {
 	}
 }
 
+// TestSetEnabledClearsPendingRuns verifies that disabling a job drops any
+// "queue" overlap backlog it was carrying, so re-enabling it later does not
+// replay a deferred run for an occurrence that fired before the disable.
+func TestSetEnabledClearsPendingRuns(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "A", Schedule: "@every 1m", Command: "echo", Enabled: true}})
+	svc.mu.Lock()
+	svc.runtimes[1].PendingRuns = 2
+	svc.mu.Unlock()
+
+	if err := svc.SetEnabled(1, false); err != nil {
+		t.Fatalf("SetEnabled false: %v", err)
+	}
+	if rt := svc.Runtime(1); rt.PendingRuns != 0 {
+		t.Errorf("PendingRuns after disable = %d, want 0", rt.PendingRuns)
+	}
+}
+
 func TestSetGlobalPauseUpdatesRuntimesAndEmits(t *testing.T) {
 	svc := newTempService(t, []domain.Job{
 		{ID: 1, Name: "On", Schedule: "@every 1m", Command: "echo", Enabled: true},

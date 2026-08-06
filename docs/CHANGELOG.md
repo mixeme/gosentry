@@ -32,6 +32,13 @@ the app icon (experimental).**
   loss mid-write can no longer leave a truncated or empty file. `Service.Stop()`
   is now called when the app quits, which also makes the run context
   cancellation reach in-flight runs on shutdown.
+- Fixed the "queue" overlap policy's backlog (`PendingRuns`): it no longer
+  survives a global pause or a job being disabled, so resuming or re-enabling a
+  job can no longer replay a deferred run left over from before the pause/
+  disable. It is also capped at 10 queued occurrences, so a job whose runs take
+  longer than its own interval no longer accumulates an unbounded backlog that
+  then runs back-to-back indefinitely. The job details pane now shows the
+  queued-run count (", N queued") whenever it is non-zero.
 
 **Jobs:**
 

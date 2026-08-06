@@ -126,6 +126,17 @@ func TestDisplayStats(t *testing.T) {
 	if got := DisplayStats(rtNoFail); got != wantNoFail {
 		t.Errorf("DisplayStats no-fail = %q, want %q", got, wantNoFail)
 	}
+
+	// A "queue" overlap backlog is appended to whichever form applies, so it stays
+	// visible even before the first run has completed.
+	if got, want := DisplayStats(&domain.JobRuntime{PendingRuns: 2}), "No runs recorded, 2 queued"; got != want {
+		t.Errorf("DisplayStats pending, no runs = %q, want %q", got, want)
+	}
+	rtPending := &domain.JobRuntime{RunCount: 5, FailCount: 2, LastDurationMS: 450, AvgDurationMS: 380, MaxDurationMS: 520, PendingRuns: 3}
+	wantPending := "5 runs, 2 failed, last 450 ms, avg 380 ms, max 520 ms, 3 queued"
+	if got := DisplayStats(rtPending); got != wantPending {
+		t.Errorf("DisplayStats pending = %q, want %q", got, wantPending)
+	}
 }
 
 func TestEventLine(t *testing.T) {
