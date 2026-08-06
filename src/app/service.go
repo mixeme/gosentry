@@ -26,7 +26,10 @@ import (
 // it; unexported helpers ending in "Locked" assume the caller already holds it.
 // The Service must never call back into the UI (or any code that might re-enter
 // the Service) while holding mu — in particular emit() is always called after
-// mu is released.
+// mu is released. Blocking file I/O follows the same rule: mu is the lock the
+// Fyne main thread takes on every Jobs() and Runtime() call, so a JSON write, a
+// log-directory scan, or a pass over every log header must not happen inside it
+// (see deferSaveLocked, executeRun, and applySeededStatsLocked).
 type Service struct {
 	mu       sync.Mutex
 	store    *storage.Store
@@ -56,11 +59,38 @@ type Service struct {
 	// do not exercise autostart; Open() wires it via autostart.New().
 	manager autostart.Manager
 
+	// saveMu serializes the store writes that operations prepare under mu and run
+	// after releasing it. It is taken while mu is still held and released once the
+	// write is done, so writes reach the file in the same order their snapshots
+	// were taken and an older snapshot can never land on top of a newer one.
+	// Nothing may take mu while holding saveMu.
+	saveMu sync.Mutex
+
 	// observers and their guard live in events.go. dispatchMu is separate from mu
 	// so that emitting an event never requires (or is held under) the state lock:
 	// the Service must release mu before dispatching, per the locking contract.
 	dispatchMu sync.Mutex
 	observers  []Observer
+}
+
+// deferSaveLocked prepares the store writes for the caller to run after mu is
+// released, and takes saveMu now so a later operation's write cannot overtake
+// this one. The caller must hold mu, must unlock it before calling the returned
+// function, and must call that function exactly once. Keeping the marshal, the
+// fsync, and the rename out of the critical section is what stops a settings
+// change or a job edit from blocking a scheduler tick or a finishing run. The
+// writes run in the order given and stop at the first error.
+func (s *Service) deferSaveLocked(writes ...func() error) func() error {
+	s.saveMu.Lock()
+	return func() error {
+		defer s.saveMu.Unlock()
+		for _, write := range writes {
+			if err := write(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 // NewService wires the Service to a loaded store and its jobs. It builds the
@@ -77,18 +107,19 @@ func NewService(store *storage.Store, jobs []domain.Job) *Service {
 	// No lock is needed here: construction is single-threaded, before Start
 	// launches the timing loop.
 	s.adoptJobsLocked(jobs)
+	s.applySeededStatsLocked(runner.SeedStats(store.Paths.LogsDir, s.jobs, store.Config.MaxLogFiles))
 	return s
 }
 
 // adoptJobsLocked makes jobs the Service's durable state and rebuilds everything
-// derived from it: the runtime map, the parsed-schedule cache, each job's first
-// next-run — so the Service is ready to schedule the moment it exists, mirroring
-// the old scheduler's reset-on-construction — and the statistics seeded from
-// existing log files, so the details panel shows accumulated run history
-// immediately rather than only runs since this process started.
+// derived from it: the runtime map, the parsed-schedule cache, and each job's
+// first next-run — so the Service is ready to schedule the moment it exists,
+// mirroring the old scheduler's reset-on-construction.
 //
 // It backs both construction and a Settings change that points at a different
-// jobs file. The caller must hold mu.
+// jobs file. Statistics seeded from existing log files are applied separately by
+// applySeededStatsLocked, because reconstructing them is file I/O. The caller
+// must hold mu.
 func (s *Service) adoptJobsLocked(jobs []domain.Job) {
 	s.jobs = jobs
 	s.runtimes = domain.NewRuntimes(jobs)
@@ -100,7 +131,16 @@ func (s *Service) adoptJobsLocked(jobs []domain.Job) {
 		s.parseScheduleLocked(job)
 		s.refreshNextRunFromLocked(job, s.runtimes[job.ID], now)
 	}
-	for id, seed := range runner.SeedStats(s.store.Paths.LogsDir, s.jobs, s.store.Config.MaxLogFiles) {
+}
+
+// applySeededStatsLocked folds statistics reconstructed from existing log files
+// into the runtime map, so the details panel shows accumulated run history
+// immediately rather than only runs since this process started. It is separate
+// from adoptJobsLocked because producing the seeds opens every log file in the
+// directory, which must not happen under mu: callers compute the map first and
+// apply it here. The caller must hold mu.
+func (s *Service) applySeededStatsLocked(seeds map[int]runner.SeededStats) {
+	for id, seed := range seeds {
 		runtime := s.runtimes[id]
 		if runtime == nil {
 			continue

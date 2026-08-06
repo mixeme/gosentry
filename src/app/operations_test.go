@@ -3,8 +3,10 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -723,6 +725,102 @@ func TestUpdateSettingsRefusesJobsFileSwitchWhileRunning(t *testing.T) {
 
 	close(release)
 	waitRecord(t, done)
+}
+
+// Adoption reconstructs the adopted jobs' aggregate statistics from the log
+// files the new configuration points at. That scan opens every log in the
+// directory, so UpdateSettings runs it before taking the state lock; this pins
+// that its result still reaches the runtime map.
+func TestUpdateSettingsSeedsAdoptedJobsFromLogs(t *testing.T) {
+	svc := newTempService(t, []domain.Job{{ID: 1, Name: "Local", Schedule: "@every 1m", Command: "echo local", Enabled: true}})
+
+	logsDir := svc.store.Paths.LogsDir
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	log := "time: 2026-08-05 10:00:00\njob_id: 7\njob_name: Adopted\ntrigger: Schedule\nstate: Failed\ndetail: boom\nduration: 1500\n\nstdout:\n<empty>\n"
+	if err := os.WriteFile(filepath.Join(logsDir, "20260805-100000_Adopted.log"), []byte(log), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	shared := filepath.Join(svc.store.Paths.AppDir, "shared.json")
+	data, err := json.Marshal(domain.JobsFile{Jobs: []domain.Job{
+		{ID: 7, Name: "Adopted", Schedule: "@every 5m", Command: "echo adopted", Enabled: true},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shared, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	config := svc.store.Config
+	config.JobsFile = shared
+	if err := svc.UpdateSettings(config); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+
+	runtime := svc.Runtime(7)
+	if runtime == nil {
+		t.Fatal("the adopted job has no runtime")
+	}
+	if runtime.RunCount != 1 || runtime.FailCount != 1 || runtime.LastDurationMS != 1500 {
+		t.Errorf("seeded stats: RunCount=%d FailCount=%d LastDurationMS=%d, want 1/1/1500",
+			runtime.RunCount, runtime.FailCount, runtime.LastDurationMS)
+	}
+}
+
+// Job saves run after mu is released, so one operation can be writing while
+// another mutates state. deferSaveLocked takes its own lock while mu is still
+// held, which is what keeps writes in mutation order: whatever changed the list
+// last also wrote it last, so the file ends up matching memory instead of
+// holding an older snapshot.
+func TestConcurrentJobOperationsLeaveTheFileMatchingMemory(t *testing.T) {
+	svc := newTempService(t, nil)
+
+	const workers = 8
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			job, err := svc.CreateJob(domain.Job{Name: fmt.Sprintf("Job %d", i), Schedule: "@every 1m", Command: "echo hi", Enabled: true})
+			if err != nil {
+				t.Errorf("CreateJob %d: %v", i, err)
+				return
+			}
+			if err := svc.SetEnabled(job.ID, false); err != nil {
+				t.Errorf("SetEnabled %d: %v", job.ID, err)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	memory := svc.Jobs()
+	if len(memory) != workers {
+		t.Fatalf("jobs in memory = %d, want %d", len(memory), workers)
+	}
+	saved, found, err := storage.LoadJobsFile(svc.store.Paths.JobsPath)
+	if err != nil || !found {
+		t.Fatalf("read jobs file: found=%v err=%v", found, err)
+	}
+	if len(saved) != len(memory) {
+		t.Fatalf("jobs on disk = %d, want %d: the last write must be the last mutation", len(saved), len(memory))
+	}
+	onDisk := make(map[int]domain.Job, len(saved))
+	for _, job := range saved {
+		onDisk[job.ID] = job
+	}
+	for _, job := range memory {
+		got, ok := onDisk[job.ID]
+		if !ok {
+			t.Errorf("job %d (%q) is in memory but missing from the file", job.ID, job.Name)
+			continue
+		}
+		if got.Name != job.Name || got.Enabled != job.Enabled {
+			t.Errorf("job %d on disk = %q/%v, want %q/%v", job.ID, got.Name, got.Enabled, job.Name, job.Enabled)
+		}
+	}
 }
 
 func TestPrependLogCapsActivityList(t *testing.T) {

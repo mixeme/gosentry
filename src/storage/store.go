@@ -65,19 +65,47 @@ func OpenStore() (*Store, []domain.Job, error) {
 	return store, jobs, nil
 }
 
-func (s *Store) SaveConfig() error {
+// PrepareSaveConfig re-resolves the derived paths from the current config and
+// snapshots everything the write needs, returning the write itself as a closure.
+// It exists so a caller that guards the Store with its own lock can do the file
+// I/O — a marshal, an fsync, and a rename — after releasing that lock: the
+// snapshot cannot change under the closure, so running it unlocked is safe.
+// Prepared writes must be run in the order they were prepared, or an older
+// snapshot can land on top of a newer one.
+func (s *Store) PrepareSaveConfig() func() error {
 	s.applyConfigPaths()
-	if err := os.MkdirAll(s.Paths.AppDir, 0o755); err != nil {
-		return err
+	dir := s.Paths.AppDir
+	path := s.Paths.ConfigPath
+	config := s.Config
+	return func() error {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		return writeJSON(path, config)
 	}
-	return writeJSON(s.Paths.ConfigPath, s.Config)
+}
+
+// PrepareSaveJobs is PrepareSaveConfig for the jobs file. The jobs slice is
+// copied, so the caller may keep mutating its own slice as soon as this returns.
+func (s *Store) PrepareSaveJobs(jobs []domain.Job) func() error {
+	dir := s.Paths.JobsDir
+	path := s.Paths.JobsPath
+	snapshot := make([]domain.Job, len(jobs))
+	copy(snapshot, jobs)
+	return func() error {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return err
+		}
+		return writeJSON(path, domain.JobsFile{Jobs: snapshot})
+	}
+}
+
+func (s *Store) SaveConfig() error {
+	return s.PrepareSaveConfig()()
 }
 
 func (s *Store) SaveJobs(jobs []domain.Job) error {
-	if err := os.MkdirAll(s.Paths.JobsDir, 0o755); err != nil {
-		return err
-	}
-	return writeJSON(s.Paths.JobsPath, domain.JobsFile{Jobs: jobs})
+	return s.PrepareSaveJobs(jobs)()
 }
 
 func loadOrCreateConfig(paths Paths) (domain.Config, error) {

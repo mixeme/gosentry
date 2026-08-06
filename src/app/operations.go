@@ -43,15 +43,23 @@ func (s *Service) CreateJob(job domain.Job) (domain.Job, error) {
 	s.parseScheduleLocked(&job)
 	record := uiRecord(job.ID, job.Name, "Created", "Job was added")
 	prependLog(runtime, record)
-	err := s.store.SaveJobs(s.jobs)
-	if err != nil {
-		s.jobs = s.jobs[:len(s.jobs)-1]
+	save := s.deferSaveLocked(s.store.PrepareSaveJobs(s.jobs))
+	s.mu.Unlock()
+
+	if err := save(); err != nil {
+		// The write is atomic, so a failure left the file holding the previous
+		// list: take the job back out so memory matches what is on disk. Another
+		// operation may have run in between, so it is removed by ID rather than by
+		// truncating the slice.
+		s.mu.Lock()
+		if index := s.indexByIDLocked(job.ID); index >= 0 {
+			s.jobs = append(s.jobs[:index], s.jobs[index+1:]...)
+		}
 		delete(s.runtimes, job.ID)
 		delete(s.schedules, job.ID)
 		s.mu.Unlock()
 		return domain.Job{}, err
 	}
-	s.mu.Unlock()
 	s.emit(RunRecorded{Record: record})
 	s.emit(JobChanged{JobID: job.ID})
 	return job, nil
@@ -87,10 +95,10 @@ func (s *Service) UpdateJob(job domain.Job) error {
 	s.refreshNextRunLocked(existing, runtime)
 	record := uiRecord(job.ID, job.Name, "Updated", "Job settings changed")
 	prependLog(runtime, record)
-	err := s.store.SaveJobs(s.jobs)
+	save := s.deferSaveLocked(s.store.PrepareSaveJobs(s.jobs))
 	s.mu.Unlock()
 
-	if err != nil {
+	if err := save(); err != nil {
 		return err
 	}
 	s.emit(RunRecorded{Record: record})
@@ -113,10 +121,10 @@ func (s *Service) DeleteJob(id int) error {
 	delete(s.runtimes, id)
 	delete(s.schedules, id)
 	record := uiRecord(id, deleted.Name, "Deleted", "Job was removed")
-	err := s.store.SaveJobs(s.jobs)
+	save := s.deferSaveLocked(s.store.PrepareSaveJobs(s.jobs))
 	s.mu.Unlock()
 
-	if err != nil {
+	if err := save(); err != nil {
 		return err
 	}
 	s.emit(RunRecorded{Record: record})
@@ -155,10 +163,10 @@ func (s *Service) SetEnabled(id int, enabled bool) error {
 		record = uiRecord(id, job.Name, "Paused", "Job was disabled")
 	}
 	prependLog(runtime, record)
-	err := s.store.SaveJobs(s.jobs)
+	save := s.deferSaveLocked(s.store.PrepareSaveJobs(s.jobs))
 	s.mu.Unlock()
 
-	if err != nil {
+	if err := save(); err != nil {
 		return err
 	}
 	s.emit(RunRecorded{Record: record})
@@ -188,10 +196,10 @@ func (s *Service) SetGlobalPause(paused bool) error {
 		}
 		s.refreshNextRunFromLocked(job, runtime, now)
 	}
-	err := s.store.SaveConfig()
+	save := s.deferSaveLocked(s.store.PrepareSaveConfig())
 	s.mu.Unlock()
 
-	if err != nil {
+	if err := save(); err != nil {
 		return err
 	}
 	state, detail := "Resumed", "All job execution resumed"
@@ -219,9 +227,9 @@ func (s *Service) SetJobListView(view domain.JobListView) error {
 		return nil
 	}
 	s.store.Config.JobListView = view
-	err := s.store.SaveConfig()
+	save := s.deferSaveLocked(s.store.PrepareSaveConfig())
 	s.mu.Unlock()
-	return err
+	return save()
 }
 
 // ShouldNotifyOnFailure reports whether the user has enabled desktop
@@ -251,53 +259,74 @@ func (s *Service) UpdateSettings(config domain.Config) error {
 	config.JobsFile = strings.TrimSpace(config.JobsFile)
 
 	s.mu.Lock()
-	jobsPath := storage.ResolveConfiguredPath(s.store.Paths.AppDir, config.JobsFile)
+	// AppDir is fixed for the process and only UpdateSettings itself — a UI
+	// action — can move JobsPath, so this snapshot stays valid across the reads
+	// below.
+	appDir := s.store.Paths.AppDir
+	jobsPath := storage.ResolveConfiguredPath(appDir, config.JobsFile)
 	switching := jobsPath != s.store.Paths.JobsPath
-	if switching && s.anyRunningLocked() {
-		s.mu.Unlock()
+	running := s.anyRunningLocked()
+	s.mu.Unlock()
+
+	if switching && running {
 		return errors.New("cannot change the jobs file while a job is running")
 	}
-	// Read the new file before anything is written, so a file that cannot be
-	// parsed leaves both the config and the current jobs untouched.
+	// Read the new file, and reconstruct its jobs' statistics from the logs the
+	// new config points at, before anything is written and while no lock is held:
+	// both are file I/O, and SeedStats opens every log in the directory. A file
+	// that cannot be parsed leaves both the config and the current jobs untouched.
 	var adopted []domain.Job
+	var seeds map[int]runner.SeededStats
 	if switching {
 		jobs, found, err := storage.LoadJobsFile(jobsPath)
 		if err != nil {
-			s.mu.Unlock()
 			return fmt.Errorf("read jobs file %s: %w", jobsPath, err)
 		}
 		if found {
 			adopted = jobs
+			seeds = runner.SeedStats(storage.ResolveConfiguredPath(appDir, config.LogsDir), jobs, config.MaxLogFiles)
 		}
 	}
 
-	s.store.Config = config
-	if err := s.store.SaveConfig(); err != nil {
+	s.mu.Lock()
+	// The guard above was evaluated before the reads, off the lock, so re-check
+	// it: a scheduled run may have started in the meantime, and adoption drops
+	// every runtime.
+	if switching && s.anyRunningLocked() {
 		s.mu.Unlock()
-		return err
+		return errors.New("cannot change the jobs file while a job is running")
 	}
+	s.store.Config = config
+	saveConfig := s.store.PrepareSaveConfig()
 	if adopted != nil {
 		s.adoptJobsLocked(adopted)
+		s.applySeededStatsLocked(seeds)
 	}
-	// SaveConfig re-resolved the paths from the new config, so SaveJobs writes to
-	// the (possibly new) jobs file and cleanup targets the new logs dir. Adopted
-	// jobs are written back too, which persists the IDs and defaults that
-	// normalization filled in, exactly as loading them at startup would.
-	if err := s.store.SaveJobs(s.jobs); err != nil {
-		s.mu.Unlock()
-		return err
-	}
+	// PrepareSaveConfig re-resolved the paths from the new config, so the jobs
+	// write targets the (possibly new) jobs file and cleanup targets the new logs
+	// dir. Adopted jobs are written back too, which persists the IDs and defaults
+	// that normalization filled in, exactly as loading them at startup would. The
+	// jobs write is skipped when the config write fails, because both writes run
+	// in the order prepared and stop at the first error.
+	save := s.deferSaveLocked(saveConfig, s.store.PrepareSaveJobs(s.jobs))
 	loaded := len(s.jobs)
 	logsDir := s.store.Paths.LogsDir
 	maxFiles := s.store.Config.MaxLogFiles
 	maxAge := s.store.Config.MaxLogAgeDays
 	s.mu.Unlock()
 
+	saveErr := save()
 	if adopted != nil {
 		// A broad JobChanged redraws the job list; JobsLoaded tells the user in
-		// History which file those jobs came from, since nothing was asked.
+		// History which file those jobs came from, since nothing was asked. Both
+		// are emitted even when the write failed: the adopted jobs are already the
+		// in-memory list, and a job list the user cannot see would be worse than
+		// the error they are about to be shown.
 		s.emit(JobsLoaded{Path: jobsPath, Count: loaded})
 		s.emit(JobChanged{})
+	}
+	if saveErr != nil {
+		return saveErr
 	}
 	return runner.CleanupLogs(logsDir, maxFiles, maxAge)
 }

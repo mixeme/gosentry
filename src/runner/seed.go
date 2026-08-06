@@ -45,8 +45,8 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		return result
 	}
 
-	byID := make(map[int][]string)
-	byName := make(map[string][]string)
+	byID := make(map[int][]logSummary)
+	byName := make(map[string][]logSummary)
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -55,9 +55,10 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		if !strings.HasSuffix(strings.ToLower(name), ".log") {
 			continue
 		}
-		path := filepath.Join(logsDir, name)
-		if jobID, ok := readLogJobID(path); ok {
-			byID[jobID] = append(byID[jobID], name)
+		summary := readLogSummary(filepath.Join(logsDir, name))
+		summary.name = name
+		if summary.hasJobID {
+			byID[summary.jobID] = append(byID[summary.jobID], summary)
 			continue
 		}
 		base := name[:len(name)-len(".log")]
@@ -65,7 +66,7 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		if idx < 0 {
 			continue
 		}
-		byName[base[idx+1:]] = append(byName[base[idx+1:]], name)
+		byName[base[idx+1:]] = append(byName[base[idx+1:]], summary)
 	}
 
 	for _, job := range jobs {
@@ -76,37 +77,37 @@ func SeedStats(logsDir string, jobs []domain.Job, maxFiles int) map[int]SeededSt
 		if len(files) == 0 {
 			continue
 		}
-		// The timestamp prefix sorts chronologically, so a lexical sort puts the
-		// oldest first; keep the newest maxFiles to honor the retention bound.
-		sort.Strings(files)
+		// The timestamp prefix sorts chronologically, so a lexical sort by file
+		// name puts the oldest first; keep the newest maxFiles to honor the
+		// retention bound.
+		sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
 		if maxFiles > 0 && len(files) > maxFiles {
 			files = files[len(files)-maxFiles:]
 		}
-		result[job.ID] = aggregateLogStats(logsDir, files)
+		result[job.ID] = aggregateLogStats(files)
 	}
 	return result
 }
 
-// aggregateLogStats folds the header of each log file (oldest first) into one
-// SeededStats. Files lacking a duration line contribute to the run/fail counts
-// but not to the duration aggregates.
-func aggregateLogStats(logsDir string, files []string) SeededStats {
+// aggregateLogStats folds the already-read header of each log file (oldest
+// first) into one SeededStats. Files lacking a duration line contribute to the
+// run/fail counts but not to the duration aggregates.
+func aggregateLogStats(files []logSummary) SeededStats {
 	var stats SeededStats
 	var durationSum int64
 	var durationCount int
 	for _, file := range files {
-		state, durationMS, hasDuration := readLogHeader(filepath.Join(logsDir, file))
 		stats.RunCount++
-		if state == "Failed" {
+		if file.state == "Failed" {
 			stats.FailCount++
 		}
-		if hasDuration {
+		if file.hasDuration {
 			// Files are oldest first, so the last assignment is the newest run.
-			stats.LastDurationMS = durationMS
-			if durationMS > stats.MaxDurationMS {
-				stats.MaxDurationMS = durationMS
+			stats.LastDurationMS = file.durationMS
+			if file.durationMS > stats.MaxDurationMS {
+				stats.MaxDurationMS = file.durationMS
 			}
-			durationSum += durationMS
+			durationSum += file.durationMS
 			durationCount++
 		}
 	}
@@ -117,39 +118,29 @@ func aggregateLogStats(logsDir string, files []string) SeededStats {
 	return stats
 }
 
-// readLogJobID reads the job_id field from a log file header.
-func readLogJobID(path string) (int, bool) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, false
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			break
-		}
-		if rest, ok := strings.CutPrefix(line, "job_id: "); ok {
-			id, err := strconv.Atoi(strings.TrimSpace(rest))
-			if err != nil {
-				return 0, false
-			}
-			return id, true
-		}
-	}
-	return 0, false
+// logSummary is everything SeedStats needs from one run log: the file name it
+// sorts by, which job wrote it, how the run ended, and how long it took.
+type logSummary struct {
+	name        string
+	jobID       int
+	hasJobID    bool
+	state       string
+	durationMS  int64
+	hasDuration bool
 }
 
-// readLogHeader reads the "state" and "duration" fields from a log file's
-// header (the lines before the first blank line). hasDuration reports whether a
-// well-formed duration line was present, distinguishing a legacy duration-less
-// log from one that genuinely recorded a zero-millisecond run.
-func readLogHeader(path string) (state string, durationMS int64, hasDuration bool) {
+// readLogSummary reads the job_id, state, and duration fields from a log file's
+// header (the lines before the first blank line) in a single pass, so seeding
+// opens each log once rather than once to find its job and again to read its
+// result. The has* flags report whether a well-formed line was present,
+// distinguishing a legacy log written before the field existed from one that
+// genuinely recorded a zero value. An unreadable file yields a zero summary,
+// which falls back to matching by the job name in the file name.
+func readLogSummary(path string) logSummary {
+	var summary logSummary
 	file, err := os.Open(path)
 	if err != nil {
-		return "", 0, false
+		return summary
 	}
 	defer file.Close()
 
@@ -159,14 +150,19 @@ func readLogHeader(path string) (state string, durationMS int64, hasDuration boo
 		if line == "" {
 			break // end of header
 		}
-		if rest, ok := strings.CutPrefix(line, "state: "); ok {
-			state = strings.TrimSpace(rest)
+		if rest, ok := strings.CutPrefix(line, "job_id: "); ok {
+			if id, err := strconv.Atoi(strings.TrimSpace(rest)); err == nil {
+				summary.jobID = id
+				summary.hasJobID = true
+			}
+		} else if rest, ok := strings.CutPrefix(line, "state: "); ok {
+			summary.state = strings.TrimSpace(rest)
 		} else if rest, ok := strings.CutPrefix(line, "duration: "); ok {
 			if value, err := strconv.ParseInt(strings.TrimSpace(rest), 10, 64); err == nil {
-				durationMS = value
-				hasDuration = true
+				summary.durationMS = value
+				summary.hasDuration = true
 			}
 		}
 	}
-	return state, durationMS, hasDuration
+	return summary
 }

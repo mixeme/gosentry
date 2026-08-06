@@ -401,6 +401,58 @@ func TestRunJobZeroTimeoutMeansNoTimeout(t *testing.T) {
 	}
 }
 
+// A StartOnly run must not leave a watcher goroutine behind. exec.CommandContext
+// keeps one alive until Wait returns or the context is done, and StartOnly never
+// waits, so binding it to the caller's cancelable context would leak one
+// goroutine per run for the lifetime of the app — and then, on shutdown, kill a
+// process whose handle startJobOnly has already released.
+func TestRunJobStartOnlyLeavesNoContextWatcher(t *testing.T) {
+	command := "sh"
+	arguments := "-c\nexit 0"
+	if runtime.GOOS == "windows" {
+		command = `C:\Windows\System32\cmd.exe`
+		arguments = "/C\nexit /b 0"
+	}
+	job := domain.Job{
+		ID:        53,
+		Name:      "Start Only Goroutines",
+		Command:   command,
+		Arguments: arguments,
+		StartOnly: true,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const runs = 5
+	before := settledGoroutines()
+	for i := 0; i < runs; i++ {
+		if _, err := RunJob(ctx, &job, "Manual", t.TempDir(), 30*time.Second); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Counted before cancel on purpose: a watcher would still be parked on
+	// ctx.Done() at this point, and cancelling first would release it.
+	if leaked := settledGoroutines() - before; leaked > 1 {
+		t.Errorf("%d goroutines left after %d StartOnly runs, want none tied to the run context", leaked, runs)
+	}
+}
+
+// settledGoroutines returns the goroutine count once it has stopped falling, so
+// a goroutine that is still on its way out is not mistaken for a leak.
+func settledGoroutines() int {
+	lowest := runtime.NumGoroutine()
+	for stable, i := 0, 0; stable < 3 && i < 100; i++ {
+		time.Sleep(10 * time.Millisecond)
+		if count := runtime.NumGoroutine(); count < lowest {
+			lowest, stable = count, 0
+			continue
+		}
+		stable++
+	}
+	return lowest
+}
+
 func TestRunJobStartOnlyIgnoresTimeout(t *testing.T) {
 	command := "sh"
 	arguments := "-c\nsleep 5"

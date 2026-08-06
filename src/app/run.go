@@ -147,7 +147,6 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 	record, logErr := s.runJob(ctx, &jobCopy, trigger, env.logsDir, env.timeout)
 
 	s.mu.Lock()
-	var cleanupErr error
 	var rerunStarted bool
 	if current := s.findByIDLocked(jobCopy.ID); current != nil {
 		runtime := s.runtimeForLocked(current)
@@ -166,9 +165,14 @@ func (s *Service) executeRun(ctx context.Context, jobCopy domain.Job, trigger st
 		} else {
 			s.refreshNextRunLocked(current, runtime)
 		}
-		cleanupErr = runner.CleanupLogs(env.logsDir, env.maxFiles, env.maxAge)
 	}
 	s.mu.Unlock()
+
+	// Cleanup is a directory scan plus up to MaxLogFiles unlinks. It needs only
+	// the values already snapshotted into runEnv, so it runs after mu is released
+	// rather than making every UI refresh wait behind it. It runs even when the
+	// job is gone, because the run still wrote a log file that retention covers.
+	cleanupErr := runner.CleanupLogs(env.logsDir, env.maxFiles, env.maxAge)
 
 	if logErr != nil {
 		s.emit(ErrorOccurred{Err: fmt.Errorf("write run log for %q: %w", jobCopy.Name, logErr)})

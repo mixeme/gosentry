@@ -39,6 +39,11 @@ the app icon (experimental).**
   longer than its own interval no longer accumulates an unbounded backlog that
   then runs back-to-back indefinitely. The job details pane now shows the
   queued-run count (", N queued") whenever it is non-zero.
+- **Start-only jobs are no longer tied to the application's lifetime.** A job
+  with *Start only* checked is launched on an uncancelable context, so quitting
+  GoSentry (or a run context being cancelled) can no longer try to kill a
+  process it deliberately stopped waiting for. This also removes a goroutine
+  that leaked on every start-only run and lived until the app exited.
 - The History tab no longer grows without bound: it keeps the newest 1000
   records and drops the oldest, the way a job's own activity list is capped.
   Column widths are also folded in one record at a time instead of being
@@ -64,6 +69,13 @@ the app icon (experimental).**
 - App-side failure-notification timing is appended to `logs/notify-timing.log`
   for diagnosing toast delay (OS latency excluded). `scripts/measure-windows-toast.ps1`
   measures the PowerShell baseline on Windows.
+- File I/O no longer happens while `Service.mu` is held — that is the lock the
+  UI thread takes on every job and runtime read, so a JSON write, the
+  post-run log cleanup, or the startup log scan used to make a UI refresh wait
+  on the disk. Saves are now prepared under the lock and written after it is
+  released, in preparation order, so `jobs.json` still ends up matching the
+  in-memory list. Seeding statistics from logs also opens each log file once
+  instead of twice.
 
 ## 1.0.1 - 2026-08-04
 

@@ -166,6 +166,8 @@ Tests all mutating operations on the Service, scheduler integration, and setting
 | `TestUpdateSettingsAdoptsExistingJobsFile` | Verifies that selecting a jobs file that already exists replaces the job list with its contents, rebuilds runtimes, and emits `JobsLoaded`. |
 | `TestUpdateSettingsKeepsJobsWhenTheNewFileIsMissing` | Verifies that a path with no file behind it receives the current jobs instead (the rename/relocate case). |
 | `TestUpdateSettingsRefusesJobsFileSwitchWhileRunning` | Verifies that switching the jobs file is refused (and not persisted) while a job runs, while unrelated settings still save. |
+| `TestUpdateSettingsSeedsAdoptedJobsFromLogs` | Verifies that statistics reconstructed from the new logs directory still reach the runtime map, now that the log scan happens before `UpdateSettings` takes `mu`. |
+| `TestConcurrentJobOperationsLeaveTheFileMatchingMemory` | Verifies that saves prepared under `mu` and run after it is released still land in mutation order, so `jobs.json` matches the in-memory list after concurrent create/disable operations. |
 | `TestSetJobListViewPersistsToConfigFile` | Verifies the Jobs-list density preference reaches `gosentry.json`, so the chosen view reopens after a restart. |
 | `TestSetJobListViewNormalizesUnknownValue` | Verifies anything but `"compact"` is stored as `"detailed"`, so the config never gains a value no reader understands. |
 | `TestPrependLogCapsActivityList` | Verifies that the activity log never grows beyond its maximum cap. |
@@ -319,6 +321,7 @@ Tests command execution, exit code handling, output capture, and the run timeout
 |------|---------|
 | `TestRunJobStartOnlyDoesNotWaitForExitCode` | Verifies that `StartOnly: true` jobs launch and return "OK" immediately without waiting for the process to exit. |
 | `TestRunJobStartOnlyReportsStartFailure` | Verifies that `StartOnly: true` jobs still report "Failed" if the process cannot be started. |
+| `TestRunJobStartOnlyLeavesNoContextWatcher` | Verifies that a start-only run leaves no `os/exec` context-watcher goroutine behind, since it never calls `Wait` and the started process is meant to outlive the app. |
 
 ---
 

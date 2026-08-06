@@ -136,10 +136,13 @@ example window-maximized detection, which would need per-OS native calls).
    `UpdateSettings` has one extra step: when the configured jobs file changes
    and a file already exists at the new path, that file is authoritative. The
    Service loads it, calls `adoptJobsLocked` to rebuild the jobs slice, runtime
-   map, schedule cache, next-run times, and log-seeded statistics around it, and
-   emits `JobsLoaded` plus a broad `JobChanged`. A path with no file behind it
-   receives the current jobs instead. Adoption drops all runtime state, so it is
-   refused while a job is running.
+   map, schedule cache, and next-run times around it, applies the statistics
+   seeded from the new logs directory, and emits `JobsLoaded` plus a broad
+   `JobChanged`. A path with no file behind it receives the current jobs instead.
+   Adoption drops all runtime state, so it is refused while a job is running.
+   Reading the new file and seeding its statistics both happen before `mu` is
+   taken (the no-I/O-under-`mu` rule in [STANDARDS.md](STANDARDS.md)), so the
+   running-job check is re-evaluated under the lock before anything is replaced.
 
 3. Scheduled run:
    `scheduler.Scheduler` fires a tick every second. On each tick it calls
@@ -163,8 +166,9 @@ example window-maximized detection, which would need per-OS native calls).
 
 6. History update:
    When a run goroutine completes, `Service` updates the job's runtime
-   (including the statistics aggregate), saves JSON, triggers log cleanup, and
-   emits `RunRecorded`. The UI observer appends the record to the History tab.
+   (including the statistics aggregate) under `mu`, then — after releasing it —
+   runs log cleanup and emits `RunRecorded`. Nothing is saved: a run changes only
+   `JobRuntime`, which is never persisted. The UI observer appends the record to the History tab.
    History rows exist only for the current process session; restarting the app
    clears the table (aggregate stats in the details panel are still seeded from
    log files).
@@ -220,9 +224,9 @@ resolves the effective duration under `mu` and `startRunLocked` snapshots it int
 resolved duration as an argument, so the runner stays ignorant of the global
 config: a positive duration applies the timeout via `context.WithTimeout` and
 reports `Timed out after <timeout>` on expiry; a non-positive duration runs
-without a deadline, bounded only by `ctx` (app shutdown). `StartOnly` jobs run on
-the untimed context and so measure launch latency only, unaffected by the run
-timeout.
+without a deadline, bounded only by `ctx` (app shutdown). `StartOnly` jobs are
+built on `context.Background()` instead — neither the timeout nor app shutdown
+applies to them — and so measure launch latency only.
 
 ### Run-time statistics
 

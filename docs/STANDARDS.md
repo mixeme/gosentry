@@ -11,6 +11,15 @@ in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
 - Fixes with severity ≥ medium → regression test.
 - Documented intentional behavior → section below, not a backlog bug.
 - UI view constructors accept `*app.Service`; call `app.Open()` only from `run.go`.
+- **No blocking file I/O under `Service.mu`.** It is the lock the Fyne main
+  thread takes on every `Jobs()` and `Runtime()` call, so a JSON write, a
+  log-directory scan, or a pass over every log header inside it makes a UI
+  refresh wait on the disk. Mutate state under the lock, snapshot what the I/O
+  needs, and run the I/O after `mu.Unlock()` — the way `emit()` already is.
+  Store writes go through `Service.deferSaveLocked` and `Store.PrepareSaveJobs` /
+  `Store.PrepareSaveConfig`, which take `saveMu` while `mu` is still held so
+  writes still reach the file in the order their snapshots were taken; log
+  cleanup and `runner.SeedStats` run from plain snapshots.
 - A size that must follow the theme is **measured at build time, not written as
   a pixel constant.** `theme.Padding()` and text metrics depend on the running
   app's theme, text size, and DPI, so a hand-tuned number is only correct for
@@ -62,6 +71,14 @@ change to their shape has to stay compatible on its own.
   = 0) and is overridable per job (`Job.TimeoutSeconds *int`: unset = inherit the
   global default, 0 = no timeout, positive = seconds). Neither zero may be
   normalized away on load — 0 is a value, not a missing field.
+- **A `StartOnly` process is expected to outlive GoSentry.** The option exists to
+  launch something and let go of it, so the runner builds that invocation on
+  `context.Background()`, not on the application's lifecycle context: quitting
+  GoSentry (or cancelling a run) does not stop a process it started this way, and
+  `Service.Stop()` reaches only jobs the runner is still waiting on. The
+  uncancelable context is also what keeps `os/exec` from leaving a watcher
+  goroutine per run — it only starts one when the context can be done, and
+  `StartOnly` never calls `Wait` to end it.
 - **History tab is session-only.** `JobRuntime.Logs` exists only in memory for the
   current process. Log files on disk feed aggregate statistics via `SeedStats`
   only. See [ARCHITECTURE.md](ARCHITECTURE.md).

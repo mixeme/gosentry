@@ -36,7 +36,15 @@ func RunJob(ctx context.Context, job *domain.Job, trigger string, logsDir string
 	var detail string
 	var durationMS int64
 	if job.StartOnly {
-		invocation := jobInvocation(ctx, *job)
+		// A StartOnly process is deliberately never waited for, so it must not be
+		// tied to any cancelable context: exec.CommandContext leaves a watcher
+		// goroutine alive until Wait returns or the context is done, and since
+		// StartOnly never calls Wait that goroutine would live for the rest of the
+		// process — one per run — and then try to kill a process whose handle
+		// startJobOnly has already released. context.Background() has a nil Done
+		// channel, so os/exec starts no watcher at all and the started process is
+		// left to outlive GoSentry, which is the point of the option.
+		invocation := jobInvocation(context.Background(), *job)
 		// StartOnly jobs don't wait for process exit, so the duration measures
 		// launch latency (time to spawn the process) rather than run time.
 		state, detail, output, durationMS = startJobOnly(invocation, *job, started)
