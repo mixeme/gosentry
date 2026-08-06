@@ -17,17 +17,17 @@ type windowsManager struct{}
 func New() Manager { return windowsManager{} }
 
 func (windowsManager) Set(enabled, startInTray bool, executablePath, iconPath string) error {
-	return SetAutostart(enabled, startInTray, executablePath, iconPath)
+	return setAutostart(enabled, startInTray, executablePath, iconPath)
 }
 
 func (windowsManager) Status(expectedEnabled, startInTray bool, executablePath string) (bool, string) {
-	return AutostartStatus(expectedEnabled, startInTray, executablePath)
+	return autostartStatus(expectedEnabled, startInTray, executablePath)
 }
 
 const autostartName = "GoSentry"
 const startupShortcutFile = autostartName + ".lnk"
 
-func SetAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
+func setAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
 	// Windows autostart used to write HKCU\Run values, but that approach became
 	// brittle once paths with spaces and the "--start-in-tray" argument entered
 	// the picture. A Startup-folder shortcut stores target path and arguments as
@@ -44,7 +44,7 @@ func SetAutostart(enabled bool, startInTray bool, executablePath string, iconPat
 	return removeIfExists(shortcutPath)
 }
 
-func AutostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
+func autostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
 	shortcutPath, err := startupShortcutPath()
 	if err != nil {
 		return false, "Startup folder cannot be resolved"
@@ -126,7 +126,7 @@ func readShortcut(shortcutPath string) (string, string, error) {
 	// OEM code page (e.g. CP866 on Russian Windows). Without this override,
 	// [Console]::Out.Write encodes Cyrillic and other non-ASCII characters as
 	// OEM bytes; Go then reads them as UTF-8 and gets a different string from
-	// os.Executable, causing AutostartStatus to report "shortcut points to
+	// os.Executable, causing autostartStatus to report "shortcut points to
 	// another executable" for any install path that contains non-ASCII chars.
 	// New-Object System.Text.UTF8Encoding($false) is UTF-8 without BOM.
 	script := `[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($env:GOSENTRY_SHORTCUT_PATH); [Console]::Out.Write($shortcut.TargetPath + [Environment]::NewLine + $shortcut.Arguments)`

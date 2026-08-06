@@ -18,16 +18,16 @@ type linuxManager struct{}
 func New() Manager { return linuxManager{} }
 
 func (linuxManager) Set(enabled, startInTray bool, executablePath, iconPath string) error {
-	return SetAutostart(enabled, startInTray, executablePath, iconPath)
+	return setAutostart(enabled, startInTray, executablePath, iconPath)
 }
 
 func (linuxManager) Status(expectedEnabled, startInTray bool, executablePath string) (bool, string) {
-	return AutostartStatus(expectedEnabled, startInTray, executablePath)
+	return autostartStatus(expectedEnabled, startInTray, executablePath)
 }
 
 const autostartDesktopFileName = "gosentry.desktop"
 
-func SetAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
+func setAutostart(enabled bool, startInTray bool, executablePath string, iconPath string) error {
 	desktopPath, err := autostartDesktopPath()
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ X-GNOME-Autostart-enabled=true
 	return nil
 }
 
-func AutostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
+func autostartStatus(expectedEnabled bool, startInTray bool, executablePath string) (bool, string) {
 	desktopPath, err := autostartDesktopPath()
 	if err != nil {
 		return false, "Cannot resolve XDG autostart directory"

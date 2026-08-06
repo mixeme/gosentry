@@ -65,43 +65,42 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 	// the main thread in both cases, so the engine never mutates Fyne state off
 	// the UI thread. This is the sole place events touch widgets. (Resolves #4.)
 	svc.Subscribe(app.ObserverFunc(func(ev app.Event) {
-		recorded, isRecorded := ev.(app.RunRecorded)
-		errOccurred, isError := ev.(app.ErrorOccurred)
-		jobsLoaded, isJobsLoaded := ev.(app.JobsLoaded)
 		fyne.Do(func() {
-			if isRecorded {
-				events.add(recorded.Record)
-				r := recorded.Record
-				if r.State == "Failed" &&
-					(r.Trigger == "Manual" || r.Trigger == "Schedule") &&
+			// A type switch does not get compiler-enforced exhaustiveness (see
+			// app.Event's doc comment) — JobChanged and SchedulerStateChanged
+			// intentionally fall through to the unconditional refresh() below
+			// without their own case, since a broad state re-read is all they need.
+			switch e := ev.(type) {
+			case app.RunRecorded:
+				events.add(e.Record)
+				if e.Record.State == "Failed" &&
+					(e.Record.Trigger == "Manual" || e.Record.Trigger == "Schedule") &&
 					svc.ShouldNotifyOnFailure() {
 					timing := notificationTiming{
-						JobName:   r.JobName,
+						JobName:   e.Record.JobName,
 						EmittedAt: time.Now(),
 					}
-					if finished, err := time.ParseInLocation(runRecordTimeLayout, r.Time, time.Local); err == nil {
+					if finished, err := time.ParseInLocation(runRecordTimeLayout, e.Record.Time, time.Local); err == nil {
 						timing.RunFinished = finished
 					}
 					fyne.Do(func() {
 						timing.UIQueuedAt = time.Now()
 						fyne.CurrentApp().SendNotification(&fyne.Notification{
 							Title:   "GoSentry: Job Failed",
-							Content: r.JobName + ": " + r.Detail,
+							Content: e.Record.JobName + ": " + e.Record.Detail,
 						})
 						timing.AfterSendAt = time.Now()
-						if err := appendNotificationTimingLog(svc.Store().Paths.LogsDir, timing); err != nil {
+						if err := appendNotificationTimingLog(svc.Paths().LogsDir, timing); err != nil {
 							fyne.LogError("Failed to write notification timing log", err)
 						}
 					})
 				}
-			}
-			if isError {
-				events.add(newEvent(0, "Service", "Error", errOccurred.Err.Error()))
-			}
-			if isJobsLoaded {
+			case app.ErrorOccurred:
+				events.add(newEvent(0, "Service", "Error", e.Err.Error()))
+			case app.JobsLoaded:
 				// Selecting an existing jobs file replaces the job list without a
 				// prompt, so History carries the receipt: how many jobs, from where.
-				detail := strconv.Itoa(jobsLoaded.Count) + " jobs from " + jobsLoaded.Path
+				detail := strconv.Itoa(e.Count) + " jobs from " + e.Path
 				events.add(newEvent(0, "Service", "Jobs loaded", detail))
 			}
 			refresh()

@@ -14,7 +14,7 @@ func TestLinuxAutostartStartsInTray(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	executablePath := "/opt/Go Sentry/gosentry"
-	if err := SetAutostart(true, true, executablePath, "/opt/Go Sentry/gosentry.png"); err != nil {
+	if err := setAutostart(true, true, executablePath, "/opt/Go Sentry/gosentry.png"); err != nil {
 		t.Fatalf("enable autostart: %v", err)
 	}
 
@@ -37,7 +37,7 @@ func TestLinuxAutostartWithoutTrayFlag(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	executablePath := "/opt/Go Sentry/gosentry"
-	if err := SetAutostart(true, false, executablePath, ""); err != nil {
+	if err := setAutostart(true, false, executablePath, ""); err != nil {
 		t.Fatalf("enable autostart: %v", err)
 	}
 

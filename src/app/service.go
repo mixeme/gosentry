@@ -204,11 +204,27 @@ func Open() (*Service, error) {
 	return svc, nil
 }
 
-// Store returns the underlying store. It is exposed so callers that still need
-// resolved paths and config (the GUI, during the transition) can reach them;
-// later phases narrow this surface.
-func (s *Service) Store() *storage.Store {
-	return s.store
+// Config returns a copy of the current application configuration, safe to
+// call from any goroutine. UpdateSettings, SetGlobalPause, and SetJobListView
+// are the only writers and all mutate store.Config under mu; copying under the
+// same lock is what keeps a UI read from racing them, instead of holding onto
+// the *storage.Store this used to hand out (see STANDARDS: the UI reads
+// Service state through typed events and accessors, never shared mutable
+// state).
+func (s *Service) Config() domain.Config {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.store.Config
+}
+
+// Paths returns a copy of the store's resolved filesystem paths. AppDir and
+// ConfigPath are fixed for the process; JobsPath, JobsDir, and LogsDir are
+// re-derived under mu on every settings save (storage.Store.applyConfigPaths),
+// so this copies under the same lock as Config for the same reason.
+func (s *Service) Paths() storage.Paths {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.store.Paths
 }
 
 // Jobs returns a copy of the durable jobs slice. Returning a copy keeps callers

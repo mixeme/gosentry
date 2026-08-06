@@ -57,13 +57,14 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		selected = -1
 	}
 	selectedFolder := allFolders
-	schedulerPaused := svc.Store().Config.Paused
-	listView := svc.Store().Config.JobListView
+	initialConfig := svc.Config()
+	schedulerPaused := initialConfig.Paused
+	listView := initialConfig.JobListView
 	filteredJobs := filteredJobIndexes(jobs, selectedFolder)
 
-	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
+	dp := newDetailsPanel(job{}, &domain.JobRuntime{}, initialConfig.OverlapPolicy, initialConfig.DefaultTimeoutSeconds)
 	if selected >= 0 {
-		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
+		dp.update(jobs[selected], runtimeFor(selected), initialConfig.OverlapPolicy, initialConfig.DefaultTimeoutSeconds)
 	} else {
 		dp.clear()
 	}
@@ -76,16 +77,28 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			return
 		}
 		selected = index
-		dp.update(jobs[selected], runtimeFor(selected), svc.Store().Config.OverlapPolicy, svc.Store().Config.DefaultTimeoutSeconds)
+		// Overlap policy and the default timeout are global settings that can
+		// change from the Settings tab while this view is open, so they are
+		// re-read on every update rather than captured once at construction.
+		config := svc.Config()
+		dp.update(jobs[selected], runtimeFor(selected), config.OverlapPolicy, config.DefaultTimeoutSeconds)
 	}
 
-	// list and folderSelect are declared early so closures below can reference
-	// them before the widget.NewList / widget.NewSelect calls assign the values.
+	// list, folderSelect, and applySchedulerState are declared early so closures
+	// below can reference them before the widgets that assign the values exist.
 	var list *widget.List
 	var folderSelect *widget.Select
+	var applySchedulerState func(bool)
 
 	refreshView := func() {
 		syncFromService()
+		if applySchedulerState != nil {
+			// The pause state is Service-owned and can change from outside this
+			// view (Settings has no such control today, but the event that
+			// reports it — SchedulerStateChanged — is consumed here rather than
+			// relying solely on the tap handler's own mirror).
+			applySchedulerState(svc.Config().Paused)
+		}
 		filteredJobs = filteredJobIndexes(jobs, selectedFolder)
 		updateDetails(selected)
 		dp.logs.Refresh()
@@ -258,26 +271,15 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 		refreshView()
 	})
 
-	stopAllText, stopAllIcon := "Disable auto", theme.MediaPauseIcon()
-	if schedulerPaused {
-		stopAllText, stopAllIcon = "Enable auto", theme.MediaPlayIcon()
-	}
-	schedulerStateText := "Scheduler running"
-	if schedulerPaused {
-		schedulerStateText = "Scheduler paused"
-	}
-	schedulerState := widget.NewLabel(schedulerStateText)
-	stopAllButton := widget.NewButtonWithIcon(stopAllText, stopAllIcon, nil)
-	stopAllButton.OnTapped = func() {
-		// SetGlobalPause flips the pause flag, updates every job's next-run text,
-		// and emits the activity record the observer logs. Revert if the save fails.
-		schedulerPaused = !schedulerPaused
-		if err := svc.SetGlobalPause(schedulerPaused); err != nil {
-			schedulerPaused = !schedulerPaused
-			dialog.ShowError(err, w)
-			return
-		}
-		if schedulerPaused {
+	schedulerState := widget.NewLabel("")
+	stopAllButton := widget.NewButtonWithIcon("", nil, nil)
+	// applySchedulerState is the one place that draws the pause control and its
+	// status text from a pause value, so refreshView can drive it from whatever
+	// the Service reports (including a SchedulerStateChanged the general refresh
+	// picks up) instead of only the tap handler mirroring its own toggle.
+	applySchedulerState = func(paused bool) {
+		schedulerPaused = paused
+		if paused {
 			schedulerState.SetText("Scheduler paused")
 			stopAllButton.SetText("Enable auto")
 			stopAllButton.SetIcon(theme.MediaPlayIcon())
@@ -286,6 +288,17 @@ func newJobsView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func()) {
 			stopAllButton.SetText("Disable auto")
 			stopAllButton.SetIcon(theme.MediaPauseIcon())
 		}
+	}
+	applySchedulerState(schedulerPaused)
+	stopAllButton.OnTapped = func() {
+		// SetGlobalPause flips the pause flag, updates every job's next-run text,
+		// and emits the activity record the observer logs. Revert if the save fails.
+		if err := svc.SetGlobalPause(!schedulerPaused); err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		// refreshView re-derives the pause state from the Service (see
+		// applySchedulerState above), so it is the single place that draws it.
 		refreshView()
 	}
 	pauseButton := widget.NewButtonWithIcon("Pause", theme.MediaPauseIcon(), func() {

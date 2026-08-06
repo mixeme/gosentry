@@ -27,7 +27,14 @@ var settingsCaptions = []string{
 }
 
 func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
-	store := svc.Store()
+	// saved mirrors the config as last persisted (or freshly loaded at
+	// construction); it is a local copy the closures below compare the form
+	// against and reassign after a successful save, rather than holding onto
+	// the live *storage.Store the Service owns (see app.Service.Config).
+	// paths never changes after construction of this view — AppDir and
+	// ConfigPath are fixed for the process — so it is read once, not refreshed.
+	saved := svc.Config()
+	paths := svc.Paths()
 	// updateSaveState compares the form to the saved config and enables Save only
 	// when something differs. It is defined below (once Save and every field
 	// exist) but declared here so the field change handlers can reference it.
@@ -36,14 +43,14 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// both the initial load and the Cancel/Defaults buttons below.
 	var loadFields func(domain.Config)
 	startOnLogin := widget.NewCheck("Start on login", nil)
-	startOnLogin.SetChecked(store.Config.StartOnLogin)
+	startOnLogin.SetChecked(saved.StartOnLogin)
 	minimizeToTray := widget.NewCheck("Keep running in the system tray", nil)
-	minimizeToTray.SetChecked(store.Config.KeepRunningInTray)
+	minimizeToTray.SetChecked(saved.KeepRunningInTray)
 	autostartStatus := widget.NewLabel("")
 	trayRestartHint := widget.NewLabel("")
 	trayRestartHint.Truncation = fyne.TextTruncateClip
 	refreshAutostartStatus := func() {
-		if settingsPendingAutostart(startOnLogin, minimizeToTray, store.Config) {
+		if settingsPendingAutostart(startOnLogin, minimizeToTray, saved) {
 			autostartStatus.SetText("Pending: save settings to apply")
 			return
 		}
@@ -67,15 +74,15 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	}
 	minimizeToTray.OnChanged = func(bool) {
 		refreshAutostartStatus()
-		refreshTrayRestartHint(minimizeToTray.Checked != store.Config.KeepRunningInTray)
+		refreshTrayRestartHint(minimizeToTray.Checked != saved.KeepRunningInTray)
 		updateSaveState()
 	}
 	refreshAutostartStatus()
 	notifications := widget.NewCheck("Show desktop notifications for failed jobs", nil)
-	notifications.SetChecked(store.Config.NotifyOnFailure)
+	notifications.SetChecked(saved.NotifyOnFailure)
 	notifications.OnChanged = func(bool) { updateSaveState() }
 	themeSelect := widget.NewSelect([]string{themeLabelSystem, themeLabelGoSentry}, nil)
-	themeSelect.SetSelected(themeLabel(store.Config.Theme))
+	themeSelect.SetSelected(themeLabel(saved.Theme))
 	// Preview the theme the moment it is picked so the choice is visible before
 	// saving; Save persists it. Reverting the selection reverts the preview, and
 	// closing without saving falls back to the stored theme on next launch.
@@ -87,20 +94,20 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		[]string{string(domain.ExecutionModeParallel), string(domain.ExecutionModeSequential)},
 		nil,
 	)
-	executionModeSelect.SetSelected(string(store.Config.ExecutionMode))
+	executionModeSelect.SetSelected(string(saved.ExecutionMode))
 	executionModeSelect.OnChanged = func(string) { updateSaveState() }
 	overlapPolicySelect := widget.NewSelect(
 		[]string{string(domain.OverlapPolicySkip), string(domain.OverlapPolicyQueue)},
 		nil,
 	)
-	overlapPolicySelect.SetSelected(string(store.Config.OverlapPolicy))
+	overlapPolicySelect.SetSelected(string(saved.OverlapPolicy))
 	overlapPolicySelect.OnChanged = func(string) { updateSaveState() }
 	defaultTimeout := widget.NewEntry()
 	defaultTimeout.SetPlaceHolder("0 = no timeout")
-	defaultTimeout.SetText(strconv.Itoa(store.Config.DefaultTimeoutSeconds))
+	defaultTimeout.SetText(strconv.Itoa(saved.DefaultTimeoutSeconds))
 	defaultTimeout.OnChanged = func(string) { updateSaveState() }
 	jobsFile := widget.NewEntry()
-	jobsFile.SetText(store.Config.JobsFile)
+	jobsFile.SetText(saved.JobsFile)
 	jobsFile.OnChanged = func(string) { updateSaveState() }
 	// The picker only offers existing files; a jobs file that does not exist yet
 	// is entered by typing its path, which Save then creates.
@@ -108,7 +115,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		chooseJSONFile(w, jobsFile)
 	})
 	logsDir := widget.NewEntry()
-	logsDir.SetText(store.Config.LogsDir)
+	logsDir.SetText(saved.LogsDir)
 	logsDir.OnChanged = func(string) { updateSaveState() }
 	logsDirBrowse := widget.NewButtonWithIcon("Browse", theme.FolderOpenIcon(), func() {
 		chooseFolder(w, logsDir)
@@ -118,13 +125,15 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// manager. It reveals whatever the field currently holds, so an edit can be
 	// checked before Save.
 	logsDirOpen := widget.NewButtonWithIcon("Open", theme.FolderIcon(), func() {
-		openFolder(w, settingsFolderPath(store.Paths.AppDir, logsDir.Text))
+		openFolder(w, settingsFolderPath(paths.AppDir, logsDir.Text))
 	})
 	maxLogFiles := widget.NewEntry()
-	maxLogFiles.SetText(strconv.Itoa(store.Config.MaxLogFiles))
+	maxLogFiles.SetPlaceHolder("0 = unlimited")
+	maxLogFiles.SetText(strconv.Itoa(saved.MaxLogFiles))
 	maxLogFiles.OnChanged = func(string) { updateSaveState() }
 	maxLogAgeDays := widget.NewEntry()
-	maxLogAgeDays.SetText(strconv.Itoa(store.Config.MaxLogAgeDays))
+	maxLogAgeDays.SetPlaceHolder("0 = unlimited")
+	maxLogAgeDays.SetText(strconv.Itoa(saved.MaxLogAgeDays))
 	maxLogAgeDays.OnChanged = func(string) { updateSaveState() }
 	// Autostart status sits on its own row beneath the checkbox (rather than
 	// beside it) so the Application section fits within a half-width column.
@@ -134,13 +143,13 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 
 	saveSettings := widget.NewButtonWithIcon("Save settings", theme.DocumentSaveIcon(), func() {
 		files, err := strconv.Atoi(strings.TrimSpace(maxLogFiles.Text))
-		if err != nil || files <= 0 {
-			settingsStatus.SetText("Max log files must be a positive number")
+		if err != nil || files < 0 {
+			settingsStatus.SetText("Max log files must be zero (unlimited) or a positive number")
 			return
 		}
 		days, err := strconv.Atoi(strings.TrimSpace(maxLogAgeDays.Text))
-		if err != nil || days <= 0 {
-			settingsStatus.SetText("Max log age days must be a positive number")
+		if err != nil || days < 0 {
+			settingsStatus.SetText("Max log age days must be zero (unlimited) or a positive number")
 			return
 		}
 		if strings.TrimSpace(jobsFile.Text) == "" {
@@ -159,7 +168,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		// Build the new config from the form and hand it to the Service, which
 		// validates it, persists config and jobs to the (possibly new) directory,
 		// and runs log cleanup so tightened retention limits take effect at once.
-		config := store.Config
+		config := saved
 		config.JobsFile = strings.TrimSpace(jobsFile.Text)
 		config.LogsDir = strings.TrimSpace(logsDir.Text)
 		config.MaxLogFiles = files
@@ -171,11 +180,16 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		config.OverlapPolicy = domain.OverlapPolicy(overlapPolicySelect.Selected)
 		config.DefaultTimeoutSeconds = timeout
 		config.Theme = themeFromLabel(themeSelect.Selected)
-		previousKeepInTray := store.Config.KeepRunningInTray
+		previousKeepInTray := saved.KeepRunningInTray
 		if err := svc.UpdateSettings(config); err != nil {
 			settingsStatus.SetText("Save failed: " + err.Error())
 			return
 		}
+		// UpdateSettings may re-resolve paths (a jobs-file switch adopts a
+		// different directory), so pick up the fresh copy rather than assuming
+		// config is exactly what landed.
+		saved = svc.Config()
+		paths = svc.Paths()
 		if err := svc.ApplyAutostart(); err != nil {
 			refreshAutostartStatus()
 			settingsStatus.SetText("Saved, autostart failed: " + err.Error())
@@ -198,7 +212,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	// fields compare against their canonical string form; any unparsable text
 	// counts as a change so the user can click Save and see the validation error.
 	updateSaveState = func() {
-		c := store.Config
+		c := saved
 		changed := startOnLogin.Checked != c.StartOnLogin ||
 			minimizeToTray.Checked != c.KeepRunningInTray ||
 			notifications.Checked != c.NotifyOnFailure ||
@@ -235,17 +249,17 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		logsDir.SetText(c.LogsDir)
 		maxLogFiles.SetText(strconv.Itoa(c.MaxLogFiles))
 		maxLogAgeDays.SetText(strconv.Itoa(c.MaxLogAgeDays))
-		if settingsPendingAutostart(startOnLogin, minimizeToTray, store.Config) {
+		if settingsPendingAutostart(startOnLogin, minimizeToTray, saved) {
 			autostartStatus.SetText("Pending: save settings to apply")
 		} else {
 			refreshAutostartStatus()
 		}
-		refreshTrayRestartHint(minimizeToTray.Checked != store.Config.KeepRunningInTray)
+		refreshTrayRestartHint(minimizeToTray.Checked != saved.KeepRunningInTray)
 		settingsStatus.SetText("")
 		updateSaveState()
 	}
 	cancelSettings := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
-		loadFields(store.Config)
+		loadFields(saved)
 	})
 	restoreDefaults := widget.NewButtonWithIcon("Defaults", theme.MediaReplayIcon(), func() {
 		loadFields(domain.DefaultConfig())
@@ -261,7 +275,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 		executionModeSelect: executionModeSelect,
 		overlapPolicySelect: overlapPolicySelect,
 		defaultTimeout:      defaultTimeout,
-		configPath:          store.Paths.ConfigPath,
+		configPath:          paths.ConfigPath,
 		jobsFile:            jobsFile,
 		jobsFileBrowse:      jobsFileBrowse,
 		logsDir:             logsDir,

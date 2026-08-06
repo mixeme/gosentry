@@ -4,9 +4,12 @@ import "gitea.mixdep.ru/mix/gosentry/src/domain"
 
 // Event is something the Service did to its state that observers may want to
 // react to. It is a sealed interface: the concrete types in this file are the
-// only implementations (enforced by the unexported isEvent marker), so a UI
-// listener can exhaustively type-switch over them and the compiler will flag a
-// new event type that a switch forgot to handle.
+// only implementations (enforced by the unexported isEvent marker), so an
+// Event handed to an Observer is always one of the types declared here — a
+// caller outside this package cannot manufacture a new one. Go's type switch
+// has no exhaustiveness check, so sealing buys that guarantee, not a
+// compile-time warning when a new event type is added and a listener forgets
+// to handle it; the listener still has to be updated by hand.
 //
 // Events replace the old single onChange callback. Instead of the scheduler
 // reaching into the GUI, the Service emits typed events and the UI subscribes —

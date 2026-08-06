@@ -144,12 +144,12 @@ func loadOrCreateConfig(paths Paths) (domain.Config, error) {
 	if strings.TrimSpace(config.LogsDir) == "" {
 		config.LogsDir = "logs"
 	}
-	if config.MaxLogFiles <= 0 {
-		config.MaxLogFiles = 100
-	}
-	if config.MaxLogAgeDays <= 0 {
-		config.MaxLogAgeDays = 30
-	}
+	// MaxLogFiles and MaxLogAgeDays are deliberately not normalized: 0 means
+	// "keep everything" (see runner.CleanupLogs), not a missing value, so
+	// backfilling it here would make that choice impossible to persist. A config
+	// written before either field existed already carries 0 from json.Unmarshal
+	// leaving the DefaultConfig() value in config untouched, so old files still
+	// pick up 100 / 30 without an explicit backfill.
 	if config.ExecutionMode == "" {
 		config.ExecutionMode = domain.ExecutionModeParallel
 	}

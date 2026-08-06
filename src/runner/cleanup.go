@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// CleanupLogs enforces the count and age retention policies on the .log files
+// in logsDir. maxFiles <= 0 disables the count policy and maxAgeDays <= 0
+// disables the age policy, independently — "keep everything" is a value the
+// user can choose in Settings, not just an internal default (STANDARDS
+// §Intentional behavior).
 func CleanupLogs(logsDir string, maxFiles int, maxAgeDays int) error {
 	entries, err := os.ReadDir(logsDir)
 	if err != nil {

@@ -51,6 +51,11 @@ the app icon (experimental).**
   gets slower the longer the app has been running. Measured on 5000 accumulated
   records, one History redraw went from **15.8 ms to 0.9 ms**; at the new cap
   the width rescan alone accounted for 1.5 ms of every redraw.
+- **Max log files and max log age days now accept 0, meaning "keep
+  everything."** Log cleanup already supported disabling either policy; the
+  Settings form and the Service validator rejected the value that would have
+  turned it on. A config that already set either to 0 is no longer silently
+  rewritten back to the 100/30 defaults on load.
 
 **Jobs:**
 

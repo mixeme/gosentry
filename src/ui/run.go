@@ -70,12 +70,13 @@ func Run(startInTray bool) {
 		a.Run()
 		return
 	}
-	keepInTray = svc.Store().Config.KeepRunningInTray
+	config := svc.Config()
+	keepInTray = config.KeepRunningInTray
 	startHidden = resolveStartHidden(startInTray, keepInTray)
 	applyTrayBehavior(a, w, keepInTray, false)
 	// Apply the persisted theme before building content so the window renders in
 	// the chosen theme from the first frame rather than flashing the default one.
-	applyTheme(a, svc.Store().Config.Theme)
+	applyTheme(a, config.Theme)
 	content, recordStartup := newMainView(w, svc)
 	w.SetContent(content)
 	serveSingleInstance(instanceListener, w)

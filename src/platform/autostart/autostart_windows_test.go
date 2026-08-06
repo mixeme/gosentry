@@ -134,7 +134,7 @@ func TestAutostartStatusRequiresMatchingTrayFlag(t *testing.T) {
 		t.Fatalf("create shortcut: %v", err)
 	}
 
-	ok, message := AutostartStatus(true, false, targetPath)
+	ok, message := autostartStatus(true, false, targetPath)
 	if ok {
 		t.Fatalf("expected problem when tray flag mismatches, got OK: %s", message)
 	}

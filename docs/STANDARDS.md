@@ -71,6 +71,14 @@ change to their shape has to stay compatible on its own.
   = 0) and is overridable per job (`Job.TimeoutSeconds *int`: unset = inherit the
   global default, 0 = no timeout, positive = seconds). Neither zero may be
   normalized away on load — 0 is a value, not a missing field.
+- **`Config.MaxLogFiles` and `Config.MaxLogAgeDays` of 0 mean "keep everything",
+  not "unset".** `runner.CleanupLogs` already treated `<= 0` as "policy
+  disabled"; `app.validateConfig` and the Settings form now accept 0 (only a
+  negative count is rejected), and `storage.loadOrCreateConfig` no longer
+  backfills 0 to 100 / 30 — a config written before either field existed still
+  picks up the default because `json.Unmarshal` leaves an absent key holding
+  whatever `DefaultConfig()` set, the same mechanism `DefaultTimeoutSeconds`
+  relies on.
 - **A `StartOnly` process is expected to outlive GoSentry.** The option exists to
   launch something and let go of it, so the runner builds that invocation on
   `context.Background()`, not on the application's lifecycle context: quitting

@@ -503,11 +503,13 @@ func validateConfig(config domain.Config) error {
 	if strings.TrimSpace(config.LogsDir) == "" {
 		return errors.New("logs directory is required")
 	}
-	if config.MaxLogFiles <= 0 {
-		return errors.New("max log files must be a positive number")
+	// 0 means "keep everything" (see runner.CleanupLogs); only a negative count
+	// is rejected, the same three-state shape as DefaultTimeoutSeconds below.
+	if config.MaxLogFiles < 0 {
+		return errors.New("max log files must be zero (unlimited) or a positive number")
 	}
-	if config.MaxLogAgeDays <= 0 {
-		return errors.New("max log age days must be a positive number")
+	if config.MaxLogAgeDays < 0 {
+		return errors.New("max log age days must be zero (unlimited) or a positive number")
 	}
 	if config.ExecutionMode != domain.ExecutionModeParallel && config.ExecutionMode != domain.ExecutionModeSequential {
 		return errors.New("execution mode must be 'parallel' or 'sequential'")

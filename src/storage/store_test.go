@@ -183,6 +183,35 @@ func TestLoadOrCreateConfigCreatesDefaultsOnFirstRun(t *testing.T) {
 	}
 }
 
+// TestLoadOrCreateConfigPreservesZeroRetentionLimits verifies that 0 in
+// max_log_files / max_log_age_days is read back as 0 ("keep everything"), not
+// backfilled to the 100 / 30 defaults, since a config that already has the
+// field set is not the "field is missing" case loadOrCreateConfig backfills.
+func TestLoadOrCreateConfigPreservesZeroRetentionLimits(t *testing.T) {
+	dir := t.TempDir()
+	paths := Paths{
+		AppDir:     dir,
+		ConfigPath: filepath.Join(dir, ConfigFileName),
+	}
+	want := domain.DefaultConfig()
+	want.MaxLogFiles = 0
+	want.MaxLogAgeDays = 0
+	if err := writeJSON(paths.ConfigPath, want); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := loadOrCreateConfig(paths)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.MaxLogFiles != 0 {
+		t.Errorf("MaxLogFiles: got %d, want 0 (unlimited)", got.MaxLogFiles)
+	}
+	if got.MaxLogAgeDays != 0 {
+		t.Errorf("MaxLogAgeDays: got %d, want 0 (unlimited)", got.MaxLogAgeDays)
+	}
+}
+
 // TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun verifies that a missing
 // jobs.json is created with the sample jobs from defaultJobs, so a new user
 // sees scheduled and manual execution without inventing a command.

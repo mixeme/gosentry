@@ -522,9 +522,9 @@ func TestUpdateSettingsPersistsAndValidates(t *testing.T) {
 	svc := newTempService(t, nil)
 
 	bad := svc.store.Config
-	bad.MaxLogFiles = 0
+	bad.MaxLogFiles = -1
 	if err := svc.UpdateSettings(bad); err == nil {
-		t.Error("expected validation error for non-positive max log files")
+		t.Error("expected validation error for negative max log files")
 	}
 
 	good := svc.store.Config
@@ -533,8 +533,21 @@ func TestUpdateSettingsPersistsAndValidates(t *testing.T) {
 	if err := svc.UpdateSettings(good); err != nil {
 		t.Fatalf("UpdateSettings: %v", err)
 	}
-	if svc.Store().Config.MaxLogAgeDays != 7 || svc.Store().Config.NotifyOnFailure {
-		t.Errorf("config not applied: %+v", svc.Store().Config)
+	if svc.store.Config.MaxLogAgeDays != 7 || svc.store.Config.NotifyOnFailure {
+		t.Errorf("config not applied: %+v", svc.store.Config)
+	}
+
+	// 0 means "keep everything" (see STANDARDS §Intentional behavior), not an
+	// invalid value, so it must be accepted and persisted rather than rejected
+	// or silently backfilled.
+	unlimited := svc.store.Config
+	unlimited.MaxLogFiles = 0
+	unlimited.MaxLogAgeDays = 0
+	if err := svc.UpdateSettings(unlimited); err != nil {
+		t.Fatalf("UpdateSettings with zero retention limits: %v", err)
+	}
+	if svc.store.Config.MaxLogFiles != 0 || svc.store.Config.MaxLogAgeDays != 0 {
+		t.Errorf("zero retention limits not preserved: %+v", svc.store.Config)
 	}
 }
 
@@ -549,8 +562,8 @@ func TestUpdateSettingsRejectsInvalidConfigs(t *testing.T) {
 		{"missing jobs file", func(c *domain.Config) { c.JobsFile = "  " }},
 		{"jobs file without a file name", func(c *domain.Config) { c.JobsFile = "jobs" + string(filepath.Separator) }},
 		{"missing logs dir", func(c *domain.Config) { c.LogsDir = "" }},
-		{"non-positive max files", func(c *domain.Config) { c.MaxLogFiles = 0 }},
-		{"non-positive max age", func(c *domain.Config) { c.MaxLogAgeDays = -1 }},
+		{"negative max files", func(c *domain.Config) { c.MaxLogFiles = -1 }},
+		{"negative max age", func(c *domain.Config) { c.MaxLogAgeDays = -1 }},
 		{"negative default timeout", func(c *domain.Config) { c.DefaultTimeoutSeconds = -1 }},
 	}
 	for _, tc := range tests {
@@ -712,12 +725,12 @@ func TestUpdateSettingsRefusesJobsFileSwitchWhileRunning(t *testing.T) {
 	if err := svc.UpdateSettings(config); err == nil {
 		t.Error("expected the jobs-file switch to be refused while a job is running")
 	}
-	if svc.Store().Config.JobsFile == config.JobsFile {
+	if svc.store.Config.JobsFile == config.JobsFile {
 		t.Error("the refused switch must not have been persisted")
 	}
 
 	// A setting that does not touch the jobs file still saves during a run.
-	unrelated := svc.Store().Config
+	unrelated := svc.store.Config
 	unrelated.NotifyOnFailure = !unrelated.NotifyOnFailure
 	if err := svc.UpdateSettings(unrelated); err != nil {
 		t.Errorf("unrelated setting should still save during a run: %v", err)
