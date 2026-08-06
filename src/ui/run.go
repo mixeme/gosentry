@@ -85,6 +85,7 @@ func Run(startInTray bool) {
 		// instead of forcing one timing definition onto two different UX flows.
 		recordStartup(time.Since(started), false)
 		a.Run()
+		svc.Stop()
 		return
 	}
 	// Show the window before recording startup time. Measuring earlier, during
@@ -94,6 +95,11 @@ func Run(startInTray bool) {
 	w.Show()
 	recordStartup(time.Since(started), true)
 	a.Run()
+	// a.Run() blocks until the tray's Quit item or a window close calls a.Quit().
+	// Stopping here — rather than not at all — cancels the run context so an
+	// in-flight run's os/exec call sees ctx.Done() instead of being orphaned, and
+	// stops the scheduler goroutine before the process exits.
+	svc.Stop()
 }
 
 // setWindowsNotificationIcon supplies App.Icon for Fyne desktop notifications

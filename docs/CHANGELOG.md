@@ -21,6 +21,17 @@ the app icon (experimental).**
 - On Windows, failure toasts can show the app icon: after `NewWindow`,
   `AppMetadata.Icon` is registered so Fyne picks up artwork without calling
   `SetIcon`, which would override the PE multi-size window/taskbar icon.
+- Fixed a Windows quoting bug where a job whose **Command** field held a whole
+  command line (a `.bat`/`.cmd` wrapper followed by an argument that itself
+  ended in `.exe`) had its entire command line mistaken for the program path,
+  so the run failed with an unmappable shell error. The program path is now
+  found by the earliest file-extension match at a word boundary, not the first
+  extension in list order.
+- `gosentry.json` and `jobs.json` (and run log files) are now written
+  atomically — to a temp file, then renamed into place — so a crash or power
+  loss mid-write can no longer leave a truncated or empty file. `Service.Stop()`
+  is now called when the app quits, which also makes the run context
+  cancellation reach in-flight runs on shutdown.
 
 **Jobs:**
 

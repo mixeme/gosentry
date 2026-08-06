@@ -230,7 +230,8 @@ func (s *Store) applyConfigPaths() {
 }
 
 func writeJSON(path string, value any) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(value, "", "  ")
@@ -240,10 +241,47 @@ func writeJSON(path string, value any) error {
 	// A trailing newline keeps the file friendly to editors and diff tools that
 	// expect text files to end with one.
 	data = append(data, '\n')
-	// WriteFile replaces the full file instead of patching it in place. For small
-	// JSON files this is simpler and prevents stale keys from older versions from
-	// lingering after the schema changes.
-	return os.WriteFile(path, data, 0o644)
+	return writeFileAtomic(dir, path, data, 0o644)
+}
+
+// writeFileAtomic writes data to a temp file in dir, syncs it, then renames it
+// over path. Rename is atomic within a volume on both supported platforms, so
+// a crash, a power loss, or the process being killed mid-write can never leave
+// path holding a truncated or empty file the way a direct os.WriteFile could.
+func writeFileAtomic(dir, path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	// Any failure past this point must remove the temp file rather than leave
+	// it behind for the next write to trip over.
+	success := false
+	defer func() {
+		if !success {
+			os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	success = true
+	return nil
 }
 
 func defaultJobs() []domain.Job {

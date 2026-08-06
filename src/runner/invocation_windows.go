@@ -6,6 +6,7 @@ import (
 	"strings"
 	"syscall"
 	"unicode"
+	"unicode/utf8"
 )
 
 func shellCommand(ctx context.Context, command string) *exec.Cmd {
@@ -32,19 +33,45 @@ func quoteLeadingWindowsProgramPath(command string) string {
 	}
 
 	lower := strings.ToLower(trimmed)
+	pathEnd := -1
 	for _, extension := range []string{".exe", ".cmd", ".bat", ".com"} {
-		index := strings.Index(lower, extension)
-		if index < 0 {
-			continue
+		end := earliestBoundedExtensionEnd(lower, extension)
+		if end >= 0 && (pathEnd < 0 || end < pathEnd) {
+			pathEnd = end
 		}
-		pathEnd := index + len(extension)
-		programPath := trimmed[:pathEnd]
-		if !strings.ContainsFunc(programPath, unicode.IsSpace) {
-			return command
-		}
-		return leadingWhitespace + `"` + programPath + `"` + trimmed[pathEnd:]
 	}
-	return command
+	if pathEnd < 0 {
+		return command
+	}
+	programPath := trimmed[:pathEnd]
+	if !strings.ContainsFunc(programPath, unicode.IsSpace) {
+		return command
+	}
+	return leadingWhitespace + `"` + programPath + `"` + trimmed[pathEnd:]
+}
+
+// earliestBoundedExtensionEnd returns the offset just past the first
+// occurrence of extension in s that ends at a token boundary (end of string
+// or whitespace), or -1 if none does. Scanning left to right and rejecting
+// unbounded matches keeps a trailing "...\App.exe" inside an argument, such
+// as "run.bat C:\tool.exe", from being mistaken for the program path.
+func earliestBoundedExtensionEnd(s, extension string) int {
+	offset := 0
+	for {
+		index := strings.Index(s[offset:], extension)
+		if index < 0 {
+			return -1
+		}
+		end := offset + index + len(extension)
+		if end == len(s) {
+			return end
+		}
+		r, _ := utf8.DecodeRuneInString(s[end:])
+		if unicode.IsSpace(r) {
+			return end
+		}
+		offset += index + 1
+	}
 }
 
 func startsWithWindowsRootedPath(command string) bool {

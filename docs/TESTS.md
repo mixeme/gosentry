@@ -100,7 +100,6 @@ Tests autostart argument helpers and the jobs-list density normalization rule.
 | `TestAutostartArguments` | Verifies `AutostartArguments` returns `--start-in-tray` when the tray is enabled and an empty string when it is off. |
 | `TestResolveStartHidden` | Verifies hidden autostart requires both the CLI flag and `KeepRunningInTray`. |
 | `TestJobListViewIsCompact` | Verifies only the exact `"compact"` value selects one-line rows: empty, differently-cased, and unrecognised values all read as detailed. |
-| `TestDefaultConfigUsesDetailedJobList` | Verifies `DefaultConfig` selects the detailed job list. |
 
 ---
 
@@ -554,6 +553,19 @@ Tests main view construction with an injected `*app.Service`.
 
 ---
 
+### src/ui/notify_timing_test.go
+
+**Package:** `ui`
+
+Tests the failure-notification timing diagnostics added in 1.0.2.
+
+| Test | Purpose |
+|------|---------|
+| `TestNotificationTimingFormatLine` | Verifies `notificationTiming.formatLine` renders the job name and the three millisecond deltas (`ms_after_run`, `ms_fyne_do`, `ms_send`) plus their sum (`ms_app_total`). |
+| `TestAppendNotificationTimingLogWritesHeaderAndRow` | Verifies `appendNotificationTimingLog` creates `notify-timing.log` with its header on first write and appends a row containing the job name. |
+
+---
+
 ## Test Design Principles
 
 1. **Isolation** — Tests use `t.TempDir()` for file operations and `t.Setenv()` for environment variables to avoid affecting system state.
@@ -603,6 +615,6 @@ A coverage run over the non-UI packages reports these as uncovered. All are
 intentional; none is an oversight to be "fixed" with a test.
 
 - The real `Clock` — a fake is injected everywhere it is used.
-- `storage.OpenStore`, `storage.ResolvePaths`, `app.Service.Start`, `app.Service.Open` — process entry points, exercised by running the app.
+- `storage.OpenStore`, `storage.ResolvePaths`, `storage.PeekKeepRunningInTray`, `app.Service.Start`, `app.Service.Open` — process entry points, exercised by running the app.
 - The autostart and desktop-icon wrappers — OS integration, driven only on a real desktop.
 - `app.Service.ShouldNotifyOnFailure` — a getter under the mutex.

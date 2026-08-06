@@ -26,10 +26,48 @@ func writeRunLog(logsDir string, job domain.Job, trigger string, state string, d
 	path := filepath.Join(logsDir, fileName)
 	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\nduration: %d\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
 		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, durationMS, job.Command, logArguments(job.Arguments), job.StartOnly, output)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := writeFileAtomic(logsDir, path, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("write log file: %w", err)
 	}
 	return path, nil
+}
+
+// writeFileAtomic writes data to a temp file in dir, then renames it over
+// path. Rename is atomic within a volume on both supported platforms, so a
+// crash or a killed process mid-write can never leave path holding a
+// truncated log file the way a direct os.WriteFile could.
+func writeFileAtomic(dir, path string, data []byte, perm os.FileMode) error {
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".tmp*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	success := false
+	defer func() {
+		if !success {
+			os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, perm); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	success = true
+	return nil
 }
 
 func sanitizeFileName(name string) string {

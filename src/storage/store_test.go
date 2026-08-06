@@ -430,3 +430,44 @@ func TestJobsJSONDoesNotPersistRuntimeNoise(t *testing.T) {
 		}
 	}
 }
+
+// TestWriteJSONReplacesFileAtomically pins the durability fix: writeJSON must
+// never truncate the destination in place. It writes through a temp file and
+// renames over the target, so a reader can never observe a partially written
+// file, and an existing file survives untouched if the marshal fails first.
+func TestWriteJSONReplacesFileAtomically(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "gosentry.json")
+
+	original := domain.DefaultConfig()
+	original.LogsDir = "logs-original"
+	if err := writeJSON(path, original); err != nil {
+		t.Fatal(err)
+	}
+
+	updated := domain.DefaultConfig()
+	updated.LogsDir = "logs-updated"
+	if err := writeJSON(path, updated); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got domain.Config
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.LogsDir != "logs-updated" {
+		t.Fatalf("LogsDir = %q, want %q", got.LogsDir, "logs-updated")
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected only the final file in %s, got %v", dir, entries)
+	}
+}
