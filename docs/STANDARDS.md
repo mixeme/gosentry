@@ -1,8 +1,7 @@
 # GoSentry — Standards
 
 Quality rules and intentional behavior for contributors. Package contracts live
-in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md);
-what a whole-project review looks at, in [REVIEW.md](REVIEW.md).
+in [ARCHITECTURE.md](ARCHITECTURE.md); test conventions in [TESTS.md](TESTS.md).
 
 ## Code quality
 

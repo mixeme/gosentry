@@ -136,7 +136,7 @@ were already split once:
 | `src/storage/store.go` | 265 |
 
 This is deliberately deferred to the next whole-project review rather than done
-piecemeal: [REVIEW.md](REVIEW.md) already asks item 2 to look for exactly this,
+piecemeal: a future review already asks item 2 to look for exactly this,
 a split touches every reader of the file, and doing all six in one pass keeps
 the seams consistent instead of settling them six different ways. Splitting is
 also the kind of change that reads as pure movement while quietly dropping a

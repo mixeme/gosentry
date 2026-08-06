@@ -13,12 +13,6 @@ application service, scheduler, storage, and command runner in one binary.
 - [docs/TESTS.md](docs/TESTS.md) — test layout and conventions.
 - [docs/ROADMAP.md](docs/ROADMAP.md) — deliberately out of scope.
 
-## Reviewing the project
-
-When the user asks for a review of the project (rather than of a specific
-diff), follow [docs/REVIEW.md](docs/REVIEW.md) — it is the agenda, and the
-`/review-project` command runs the same thing. Do not improvise a checklist.
-
 ## Key rules (full list in STANDARDS.md)
 
 - `src/app.Service` is the sole owner of job and runtime state; the UI reads it

@@ -1,9 +1,9 @@
 # Whole-project review — action plan
 
-Working document for the findings of the 2026-08-05 whole-project review, run
-against the agenda in [REVIEW.md](REVIEW.md). It is not part of the permanent
-doc set: delete it once every item below is either done or moved to
-[ROADMAP.md](ROADMAP.md), the way `TEST_REVIEW_PLAN.md` was retired.
+Working document for the findings of the 2026-08-05 whole-project review. It is
+not part of the permanent doc set: delete it once every item below is either
+done or moved to [ROADMAP.md](ROADMAP.md), the way `TEST_REVIEW_PLAN.md` was
+retired.
 
 The rules the findings are judged against live in [STANDARDS.md](STANDARDS.md)
 and [ARCHITECTURE.md](ARCHITECTURE.md). Anything listed under "Intentional
@@ -41,8 +41,8 @@ The findings below are therefore mostly about **the paths that only show up
 after the app has been running for a while** (§3.1, §6.3), **durability of the
 JSON files** (§6.2), and **one confirmed Windows quoting bug** (§6.1).
 
-Severity is used as REVIEW.md uses it: *medium* means it gets a regression test
-with the fix.
+Severity follows the whole-project review convention: *medium* means it gets a
+regression test with the fix.
 
 ---
 
@@ -717,7 +717,7 @@ entries. These four are not.
 ## Suggested order
 
 Grouped so that each commit is independently reviewable and each medium finding
-lands with its regression test, per REVIEW.md's "What happens to the findings".
+lands with its regression test.
 
 1. **4.1 — restore `TestJobListViewIsCompact`, retire the other row.** Smallest,
    and it restores an enforcement STANDARDS calls mandatory. Do it first so the
