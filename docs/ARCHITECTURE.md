@@ -270,15 +270,27 @@ the moment the window opens.
 ### `jobs_view.go` file structure
 
 The size guideline for a file in this project is ~250 lines.
-`src/ui/jobs_view.go` is split across three files along these seams; the view
-file itself has grown back over the guideline since — see the split item in
-[ROADMAP.md](ROADMAP.md), which tracks every file currently over it:
+`src/ui/jobs_view.go` is split across five files along these seams:
 
 | File | Contents |
 |------|----------|
-| `jobs_view.go` | `newJobsView` — list, toolbar, button wiring, and layout |
+| `jobs_view.go` | `jobsView` struct — construction, `refresh`, `updateDetails`, the pause control, and layout assembly |
+| `jobs_view_state.go` | `jobsViewState` — the jobs/runtime snapshot, the folder filter, and the selection |
+| `jobs_view_list.go` | The sidebar list: row template, row rendering, row mode, and the compact/detailed toggle |
+| `jobs_view_toolbar.go` | The per-job button row — new, edit, run, pause, delete |
 | `jobs_view_details.go` | `detailsPanel` struct — widget creation, `update`, `clear`, `container` |
 | `jobs_view_helpers.go` | Pure helpers — `filteredJobIndexes`, `folderOptions`, `filterValue`, `indexOfID`, `lastJobLogs`, `nextJobListView`, `viewToggleText` |
+
+The widgets hold no job state of their own: they read `jobsViewState`, which is
+the only thing that reads the Service. The **selection is a job ID, not a row
+index.** Every path that changes the job list replaces the state's snapshot —
+create, delete, and edit from this view's own handlers, adopting a different
+jobs file from the Service, which the view only learns about through the refresh
+`JobsLoaded` triggers. An index that outlives its snapshot points at whichever
+job now sits there, so the details pane would describe one job while the list
+highlighted another. Rows are derived from the ID at render time
+(`selectedIndex`, `displayRow`), and `jobsView.refresh` ends by pointing the
+list's highlight at the selected job.
 
 ### `settings_view.go` file structure
 

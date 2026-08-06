@@ -123,24 +123,24 @@ Design notes / open questions:
 
 [ARCHITECTURE.md](ARCHITECTURE.md) sets a ~250-line guideline per source file
 and records the `jobs_view.go` and `settings_view.go` splits as the worked
-examples. Six non-test files are over it at 1.0.0, including both files that
-were already split once:
+examples. `jobs_view.go` was split again in 1.0.2 — into view, state, list, and
+toolbar — because the selection defect it carried was a symptom of the size
+(one 330-line constructor over seven shared locals). Five non-test files are
+over the guideline as of that pass:
 
 | File | Lines |
 |------|-------|
-| `src/app/operations.go` | 490 |
-| `src/ui/jobs_view.go` | 355 |
-| `src/app/run.go` | 287 |
-| `src/ui/history_view.go` | 282 |
-| `src/ui/settings_view.go` | 277 |
-| `src/storage/store.go` | 265 |
+| `src/app/operations.go` | 529 |
+| `src/ui/history_view.go` | 373 |
+| `src/storage/store.go` | 365 |
+| `src/ui/settings_view.go` | 318 |
+| `src/app/run.go` | 274 |
 
-This is deliberately deferred to the next whole-project review rather than done
-piecemeal: a future review already asks item 2 to look for exactly this,
-a split touches every reader of the file, and doing all six in one pass keeps
-the seams consistent instead of settling them six different ways. Splitting is
+The remaining five are deliberately deferred rather than done piecemeal: a
+split touches every reader of the file, and doing them in one pass keeps the
+seams consistent instead of settling them five different ways. Splitting is
 also the kind of change that reads as pure movement while quietly dropping a
-function, so it wants one careful pass, not six hurried ones.
+function, so it wants one careful pass, not five hurried ones.
 
 Seams visible today, as a starting point rather than a decision:
 
@@ -152,13 +152,15 @@ Seams visible today, as a starting point rather than a decision:
 - **`history_view.go`** — the column-measuring helpers (`textWidth` through
   `historyColumnWidths`) are pure, already unit-tested, and independent of the
   table they size.
-- **`jobs_view.go`** — nearly all of it is one `newJobsView` constructor, so the
-  split has to break that function up (list template, toolbar handlers,
-  assembly) rather than move whole functions. Larger judgement call than the
-  others.
-- **`run.go`**, **`settings_view.go`**, **`store.go`** — barely over. Worth
-  re-measuring at the time; if a pass elsewhere has shrunk them, leave them
-  alone rather than splitting for the sake of the number.
+- **`store.go`** — path resolution, the config load/normalize path, and the jobs
+  load/normalize path are three separate concerns in one file.
+- **`run.go`**, **`settings_view.go`** — barely over. Worth re-measuring at the
+  time; if a pass elsewhere has shrunk them, leave them alone rather than
+  splitting for the sake of the number.
+
+The `jobs_view.go` pass is the worked example for the rest: the constructor was
+broken up along the state it shared, not along line count, and the split landed
+with the selection fix rather than promising it separately.
 
 Scope note: the guideline is about source files. Test files are much larger and
 that is fine — a table-driven test file grows with the cases it covers.

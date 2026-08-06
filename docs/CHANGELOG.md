@@ -51,6 +51,12 @@ the app icon (experimental).**
   gets slower the longer the app has been running. Measured on 5000 accumulated
   records, one History redraw went from **15.8 ms to 0.9 ms**; at the new cap
   the width rescan alone accounted for 1.5 ms of every redraw.
+- **The Jobs tab keeps its selection on the job, not on the row.** Selecting a
+  different jobs file in Settings replaces the whole job list; the details pane
+  then described whichever job happened to land on the previously selected row —
+  or went blank if the new list was shorter — while the highlight in the list
+  stayed where it was. The selection now follows the job itself, and the
+  highlight and the details pane always describe the same one.
 - **Max log files and max log age days now accept 0, meaning "keep
   everything."** Log cleanup already supported disabling either policy; the
   Settings form and the Service validator rejected the value that would have
@@ -81,6 +87,12 @@ the app icon (experimental).**
   released, in preparation order, so `jobs.json` still ends up matching the
   in-memory list. Seeding statistics from logs also opens each log file once
   instead of twice.
+- The Jobs tab was split into `jobs_view.go` (construction, refresh, layout),
+  `jobs_view_state.go` (the job/runtime snapshot, folder filter, and selection),
+  `jobs_view_list.go`, and `jobs_view_toolbar.go`. What used to be one 330-line
+  constructor whose dozen closures shared seven mutable locals is now widgets
+  reading one named state object — which is what made the selection fix above a
+  change in one place instead of five.
 
 ## 1.0.1 - 2026-08-04
 

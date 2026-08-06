@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gitea.mixdep.ru/mix/gosentry/src/app"
@@ -378,7 +381,7 @@ func TestJobsSplitOpensAtTheSidebarWidth(t *testing.T) {
 
 // TestToolbarButtonRedrawsRowAndDetails is the regression guard for F12: the
 // toolbar handlers no longer re-read the service or refresh the list
-// themselves, so refreshView alone has to re-snapshot the jobs and repopulate
+// themselves, so jobsView.refresh alone has to re-snapshot the jobs and repopulate
 // the details pane. If it ever stops doing either, the row renders a stale
 // status and the details lose the selection — neither is a compile error.
 func TestToolbarButtonRedrawsRowAndDetails(t *testing.T) {
@@ -438,6 +441,78 @@ func TestToolbarButtonRedrawsRowAndDetails(t *testing.T) {
 	// the snapshot it held before the tap.
 	if got := activity.Length(); got != 1 {
 		t.Errorf("activity rows after the tap = %d, want the pause record", got)
+	}
+}
+
+// TestJobsViewSelectionSurvivesAJobsFileSwitch is the view-level regression
+// guard for the selection defect. Adopting a different jobs file replaces the
+// whole list from the Service; the view only hears about it through the refresh
+// that JobsLoaded triggers, which is exactly what this test calls. With the
+// selection held as a row index, that refresh redrew the details pane from the
+// old index — describing whichever job now sat there, or clearing the pane when
+// the new list was shorter — while the list's highlight stayed where it was.
+func TestJobsViewSelectionSurvivesAJobsFileSwitch(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+	w := testApp.NewWindow("test")
+	defer w.Close()
+
+	store := newTestStore(t)
+	svc := app.NewService(store, []domain.Job{
+		{ID: 1, Name: "First", Schedule: "@every 1m", Command: "echo one", Enabled: true},
+		{ID: 2, Name: "Second", Schedule: "@every 2m", Command: "echo two", Enabled: true},
+		{ID: 3, Name: "Third", Schedule: "@every 3m", Command: "echo three", Enabled: true},
+	})
+	defer svc.Stop()
+
+	content, refresh := newJobsView(w, svc)
+	w.SetContent(content)
+
+	list := jobsList(t, content)
+	list.Select(2)
+	if got := jobsDetailsTitle(t, content); got != "Third" {
+		t.Fatalf("details title after selecting row 2 = %q, want %q", got, "Third")
+	}
+
+	// A second jobs file with different jobs and different IDs, so nothing about
+	// the old selection can resolve into the new list.
+	other := []domain.Job{
+		{ID: 10, Name: "Alpha", Schedule: "@every 1m", Command: "echo alpha", Enabled: true},
+		{ID: 11, Name: "Beta", Schedule: "@every 2m", Command: "echo beta", Enabled: true},
+	}
+	payload, err := json.Marshal(domain.JobsFile{Jobs: other})
+	if err != nil {
+		t.Fatalf("marshal jobs: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(store.Paths.AppDir, "other.json"), payload, 0o644); err != nil {
+		t.Fatalf("write jobs file: %v", err)
+	}
+	config := svc.Config()
+	config.JobsFile = "other.json"
+	if err := svc.UpdateSettings(config); err != nil {
+		t.Fatalf("UpdateSettings: %v", err)
+	}
+	refresh()
+
+	if got := jobsDetailsTitle(t, content); got != "Alpha" {
+		t.Errorf("details title after the switch = %q, want the first job of the new file %q", got, "Alpha")
+	}
+	if got := list.Length(); got != len(other) {
+		t.Fatalf("list length after the switch = %d, want %d", got, len(other))
+	}
+	// widget.List.Select returns without calling OnSelected when the row is
+	// already highlighted, so a silent Select(0) is what proves the highlight and
+	// the details pane are describing the same job.
+	reselected := false
+	inner := list.OnSelected
+	list.OnSelected = func(id widget.ListItemID) {
+		reselected = true
+		inner(id)
+	}
+	defer func() { list.OnSelected = inner }()
+	list.Select(0)
+	if reselected {
+		t.Error("row 0 was not the highlighted row after the switch, so the highlight and the details pane disagree")
 	}
 }
 

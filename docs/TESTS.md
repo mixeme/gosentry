@@ -471,8 +471,31 @@ widgets are assembled.
 | `TestJobListViewCompactConfigOpensCompact` | Verifies the persisted density is honoured at build time, not only after a tap. |
 | `TestJobsSidebarWidthIsItsContent` | Regression guard: nothing but the sidebar's own toolbar row imposes a width floor on it. |
 | `TestJobsSplitOpensAtTheSidebarWidth` | Verifies the derived split offset opens the divider at the sidebar's own width at the default window size — enough that the toolbar is never born clipped, and no more. |
-| `TestToolbarButtonRedrawsRowAndDetails` | Regression guard: with the duplicate refreshes removed from the handlers, `refreshView` alone must re-snapshot the jobs and repopulate the details pane. |
+| `TestToolbarButtonRedrawsRowAndDetails` | Regression guard: with the duplicate refreshes removed from the handlers, `jobsView.refresh` alone must re-snapshot the jobs and repopulate the details pane. |
+| `TestJobsViewSelectionSurvivesAJobsFileSwitch` | Regression guard: adopting a different jobs file replaces the whole list from the Service, and the refresh that follows must leave the details pane and the list highlight describing the same job — not redraw the pane from a row index that belonged to the previous list. |
 | `TestDetailCaptionWidthCoversEveryCaption` | Verifies every caption `metadataRows` returns fits the measured caption column, which is what makes the single row list self-enforcing. |
+
+---
+
+### src/ui/jobs_view_state_test.go
+
+**Package:** `ui`
+
+Tests `jobsViewState`, the Jobs tab's model: the job/runtime snapshot, the
+folder filter, and the ID-based selection. No Fyne app is built — the state
+touches no widgets, so these run in milliseconds.
+
+| Test | Purpose |
+|------|---------|
+| `TestJobsViewStateSelectsTheFirstJob` | Verifies the opening state selects the first row, so the details pane is never blank when there is something to show. |
+| `TestJobsViewStateEmptyListSelectsNothing` | Verifies an empty job list leaves nothing selected and no row to highlight (`displayRow` = -1). |
+| `TestJobsViewStateSelectionFollowsTheJobNotTheRow` | Regression guard: a job removed above the selected one (through the Service, the way an external change reaches the view) must not slide the selection onto its neighbour — the selection is a job ID, and only its row moves. |
+| `TestJobsViewStateDropsSelectionWhenItsJobIsGone` | Verifies a selection whose job no longer exists falls back to the first visible row instead of describing whichever job inherited its position. |
+| `TestJobsViewStateApplyFilter` | Verifies the folder filter keeps a selection it still shows, moves it to the folder's first row when it does not, and that "No folder" matches the job without one. |
+| `TestJobsViewStateEmptyFilterSelectsNothing` | Verifies a filter matching no job is a filter choice, not an error state: nothing selected, nothing highlighted, and the selection returns when the filter is cleared. |
+| `TestJobsViewStateHiddenSelectionIsNotHighlighted` | Verifies a selected job the filter hides reports no display row rather than falling back to row 0, which would highlight an unrelated job. |
+| `TestJobsViewStateRuntimeIsNeverNil` | Verifies `runtime` returns an empty `JobRuntime` for a job the Service has none for, so callers need no nil check. |
+| `TestJobsViewStateJobAtRejectsRowsOutsideTheFilter` | Verifies row lookups are bounded by the filtered rows, which is what the list widget draws from. |
 
 ---
 
