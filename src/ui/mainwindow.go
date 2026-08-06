@@ -34,11 +34,11 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 			initialRuntimes[j.ID] = rt
 		}
 	}
-	events := collectActivity(initialJobs, initialRuntimes)
+	events := newHistoryLog(collectActivity(initialJobs, initialRuntimes))
 
 	jobsPanel, refreshJobsView := newJobsView(w, svc)
 
-	history, refreshHistory := newHistoryView(&events)
+	history, refreshHistory := newHistoryView(events)
 	recordStartup := func(duration time.Duration, windowShown bool) {
 		// Startup is recorded as an in-memory History event instead of being
 		// persisted into jobs.json. It is session diagnostics, not durable job
@@ -48,7 +48,7 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 		if !windowShown {
 			detail = "Started in tray in " + duration.Round(time.Millisecond).String()
 		}
-		events = append(events, newEvent(0, "Application", "Started", detail))
+		events.add(newEvent(0, "Application", "Started", detail))
 		refreshHistory()
 	}
 
@@ -70,7 +70,7 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 		jobsLoaded, isJobsLoaded := ev.(app.JobsLoaded)
 		fyne.Do(func() {
 			if isRecorded {
-				events = append(events, recorded.Record)
+				events.add(recorded.Record)
 				r := recorded.Record
 				if r.State == "Failed" &&
 					(r.Trigger == "Manual" || r.Trigger == "Schedule") &&
@@ -96,13 +96,13 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 				}
 			}
 			if isError {
-				events = append(events, newEvent(0, "Service", "Error", errOccurred.Err.Error()))
+				events.add(newEvent(0, "Service", "Error", errOccurred.Err.Error()))
 			}
 			if isJobsLoaded {
 				// Selecting an existing jobs file replaces the job list without a
 				// prompt, so History carries the receipt: how many jobs, from where.
 				detail := strconv.Itoa(jobsLoaded.Count) + " jobs from " + jobsLoaded.Path
-				events = append(events, newEvent(0, "Service", "Jobs loaded", detail))
+				events.add(newEvent(0, "Service", "Jobs loaded", detail))
 			}
 			refresh()
 		})

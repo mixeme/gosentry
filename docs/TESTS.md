@@ -494,6 +494,10 @@ column-width behaviour of the assembled table.
 | `TestHistoryCellTemplateIsPlainText` | Verifies the cell template already carries the zero `TextStyle`, since the per-cell assignment that used to reset it is gone. |
 | `TestTextColumnWidthClamps` | Covers the three shapes of `textColumnWidth`: below the minimum, in range, and capped at the maximum. |
 | `TestHistoryColumnsFitTheirContent` | Verifies every column is at least as wide as its widest known or present value, at the default text size and at a scaled theme. |
+| `TestHistoryLogCapsRecords` | Regression guard for the unbounded History list: the log keeps the newest `maxHistoryRows` records, drops the oldest from the front, and trims a list handed in already over the cap. |
+| `TestHistoryLogWidthsMatchAFullScan` | Verifies the incremental column widths equal a full rescan while every measured record is still present — the cheaper path must not clip what the old one showed. |
+| `TestHistoryLogWidthsDoNotShrinkWhenRecordsAgeOut` | Verifies a column keeps its width after the record that set it is dropped by the cap, since the rows on screen were laid out against it. |
+| `TestHistoryLogRescansOnThemeChange` | Verifies a theme change falls back to a full rescan, the one case the incremental fold cannot handle because every stored width was measured at the old text size. |
 
 ---
 

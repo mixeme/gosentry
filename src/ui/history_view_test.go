@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -144,7 +145,8 @@ func TestHistorySortToggleKeepsRowsInSync(t *testing.T) {
 		{Time: "2026-06-01 11:00:00", JobName: "B"},
 		{Time: "2026-06-01 12:00:00", JobName: "C"},
 	}
-	content, refresh := newHistoryView(&events)
+	log := newHistoryLog(events)
+	content, refresh := newHistoryView(log)
 	table, ok := content.Objects[0].(*widget.Table)
 	if !ok {
 		t.Fatal("history view does not wrap a table")
@@ -192,7 +194,7 @@ func TestHistorySortToggleKeepsRowsInSync(t *testing.T) {
 
 	// A new run arrives while the table is sorted newest-first: it must be
 	// counted and placed in the order currently on screen, not the build-time one.
-	events = append(events, event{Time: "2026-06-01 13:00:00", JobName: "D"})
+	log.add(event{Time: "2026-06-01 13:00:00", JobName: "D"})
 	refresh()
 	assertOrder("descending after refresh", "D", "C", "B", "A")
 
@@ -207,8 +209,7 @@ func TestHistoryCellTemplateIsPlainText(t *testing.T) {
 	testApp := test.NewApp()
 	defer testApp.Quit()
 
-	var events []event
-	content, _ := newHistoryView(&events)
+	content, _ := newHistoryView(newHistoryLog(nil))
 	table := content.Objects[0].(*widget.Table)
 	label, ok := table.CreateCell().(*widget.Label)
 	if !ok {
@@ -290,6 +291,96 @@ func TestHistoryColumnsFitTheirContent(t *testing.T) {
 	check("default theme")
 	testApp.Settings().SetTheme(test.NewTheme())
 	check("scaled theme")
+}
+
+// TestHistoryLogCapsRecords is the regression guard for the unbounded History
+// list: an app left in the tray records thousands of runs a day, each carrying
+// the run's whole captured output, so the list must drop the oldest instead of
+// growing forever.
+func TestHistoryLogCapsRecords(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	log := newHistoryLog(nil)
+	for i := 0; i < maxHistoryRows+25; i++ {
+		log.add(event{Time: "t", JobName: "Job " + strconv.Itoa(i)})
+	}
+	if len(log.records) != maxHistoryRows {
+		t.Fatalf("record count = %d, want capped at %d", len(log.records), maxHistoryRows)
+	}
+	if got, want := log.records[0].JobName, "Job 25"; got != want {
+		t.Errorf("oldest kept record = %q, want %q — the cap must drop from the front", got, want)
+	}
+	last := log.records[len(log.records)-1].JobName
+	if want := "Job " + strconv.Itoa(maxHistoryRows+24); last != want {
+		t.Errorf("newest record = %q, want %q", last, want)
+	}
+	// A list handed in above the cap is trimmed too, not only one grown into it.
+	oversized := make([]event, maxHistoryRows+10)
+	if got := len(newHistoryLog(oversized).records); got != maxHistoryRows {
+		t.Errorf("pre-filled log length = %d, want %d", got, maxHistoryRows)
+	}
+}
+
+// TestHistoryLogWidthsMatchAFullScan pins the incremental column widths: while
+// every measured record is still in the list, folding each one in as it
+// arrives must give exactly what rescanning every row would, or the cheaper
+// path would clip values the old one showed.
+func TestHistoryLogWidthsMatchAFullScan(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	log := newHistoryLog(nil)
+	for _, record := range []event{
+		{Time: "1", JobName: "A", Detail: "short", LogFile: `/logs/a.log`},
+		{Time: "2", JobName: "A moderately long job name", Detail: "a longer detail message", LogFile: `/logs/20260601-120000_SomeJobName.log`},
+		{Time: "3", JobName: "B", Detail: "s", LogFile: `/logs/b.log`},
+	} {
+		log.add(record)
+	}
+	if got, want := log.columnWidths(), historyColumnWidths(log.records); got != want {
+		t.Errorf("incremental widths = %v, want the full-scan widths %v", got, want)
+	}
+}
+
+// TestHistoryLogWidthsDoNotShrinkWhenRecordsAgeOut covers the other half of the
+// rule: widths only grow. Dropping the record that set a column's width must
+// not narrow the column, because the rows on screen were laid out against it.
+func TestHistoryLogWidthsDoNotShrinkWhenRecordsAgeOut(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	log := newHistoryLog(nil)
+	log.add(event{Time: "1", JobName: "A job name long enough to widen its column"})
+	widest := log.columnWidths()[2]
+	for i := 0; i < maxHistoryRows; i++ {
+		log.add(event{Time: "t", JobName: "x"})
+	}
+	if got := log.columnWidths()[2]; got != widest {
+		t.Errorf("Job column width = %v after the wide record aged out, want it held at %v", got, widest)
+	}
+}
+
+// TestHistoryLogRescansOnThemeChange guards the one case the incremental fold
+// cannot handle: every stored width was measured at the old text size, so a
+// theme change has to fall back to a full rescan.
+func TestHistoryLogRescansOnThemeChange(t *testing.T) {
+	testApp := test.NewApp()
+	defer testApp.Quit()
+
+	log := newHistoryLog([]event{
+		{Time: "1", JobName: "A moderately long job name", Detail: "a longer detail message"},
+	})
+	before := log.columnWidths()
+
+	testApp.Settings().SetTheme(test.NewTheme())
+	after := log.columnWidths()
+	if after == before {
+		t.Fatal("widths unchanged after a theme change; the fixture theme must alter text metrics")
+	}
+	if want := historyColumnWidths(log.records); after != want {
+		t.Errorf("widths after theme change = %v, want the rescanned %v", after, want)
+	}
 }
 
 func TestNewEventUsesConsistentTimestampShape(t *testing.T) {

@@ -102,23 +102,113 @@ const historyTimeSample = "2026-01-02 15:04:05"
 // Detail and Log are free text, so their width tracks the values actually
 // present, bounded the same way the Log column always was.
 func historyColumnWidths(rows []event) [6]float32 {
-	jobNames := make([]string, 0, len(rows))
-	details := make([]string, 0, len(rows))
-	logNames := make([]string, 0, len(rows))
+	var content [3][]string
+	for i := range content {
+		content[i] = make([]string, 0, len(rows))
+	}
 	for _, current := range rows {
-		jobNames = append(jobNames, current.JobName)
-		details = append(details, current.Detail)
-		logNames = append(logNames, logFileName(current.LogFile))
+		for i, value := range historyContentValues(current) {
+			content[i] = append(content[i], value)
+		}
 	}
 	min, max := textColumnMinWidth(), textColumnMaxWidth()
-	return [6]float32{
-		textWidth(historyTimeSample) + cellPadding(),
-		textColumnWidth(historyTriggerSamples, min, max),
-		textColumnWidth(jobNames, min, max),
-		textColumnWidth(historyStateSamples, min, max),
-		textColumnWidth(details, min, max),
-		textColumnWidth(logNames, min, max),
+	widths := [6]float32{
+		0: textWidth(historyTimeSample) + cellPadding(),
+		1: textColumnWidth(historyTriggerSamples, min, max),
+		3: textColumnWidth(historyStateSamples, min, max),
 	}
+	for i, col := range historyContentCols {
+		widths[col] = textColumnWidth(content[i], min, max)
+	}
+	return widths
+}
+
+// maxHistoryRows caps the session History list, the way app.maxJobLogs caps a
+// job's own activity list. History is never persisted and every record carries
+// the run's full captured output, so an app left running in the tray — the mode
+// GoSentry is designed for — would otherwise hold every record of every run
+// forever, and pay a full resort plus a full column-width rescan on each new
+// one. One job on @every 10s produces ~8 600 records a day.
+const maxHistoryRows = 1000
+
+// historyLog is the session History: the capped record list plus the column
+// widths measured from it. It exists so the widths can be folded in one record
+// at a time instead of being recomputed from every row on every event, which
+// is what made the per-event cost grow with the number of rows.
+type historyLog struct {
+	records []event
+	widths  [6]float32
+	// textSize and padding are the theme metrics widths were last measured at.
+	// A theme change invalidates every measurement, so it forces a full rescan
+	// rather than folding new records into stale numbers.
+	textSize float32
+	padding  float32
+}
+
+func newHistoryLog(records []event) *historyLog {
+	h := &historyLog{records: trimHistory(records)}
+	h.rescan()
+	return h
+}
+
+// trimHistory drops the oldest records past the cap. The tail of the backing
+// array is zeroed because a dropped record holds the run's whole output, which
+// would otherwise stay reachable until the slice happens to be reallocated.
+func trimHistory(records []event) []event {
+	if len(records) <= maxHistoryRows {
+		return records
+	}
+	kept := copy(records, records[len(records)-maxHistoryRows:])
+	for i := kept; i < len(records); i++ {
+		records[i] = event{}
+	}
+	return records[:kept]
+}
+
+// add appends one record and widens any content-measured column the record
+// does not fit. Widths only ever grow within a theme: a column is never
+// narrowed when a record ages out, because the rows still on screen were laid
+// out against the wider value.
+func (h *historyLog) add(record event) {
+	h.records = trimHistory(append(h.records, record))
+	if h.stale() {
+		h.rescan()
+		return
+	}
+	min, max := textColumnMinWidth(), textColumnMaxWidth()
+	for i, value := range historyContentValues(record) {
+		if width := textColumnWidth([]string{value}, min, max); width > h.widths[historyContentCols[i]] {
+			h.widths[historyContentCols[i]] = width
+		}
+	}
+}
+
+// columnWidths returns the widths to apply to the table, rescanning every
+// record only when the theme's text metrics have changed since the last scan.
+func (h *historyLog) columnWidths() [6]float32 {
+	if h.stale() {
+		h.rescan()
+	}
+	return h.widths
+}
+
+func (h *historyLog) stale() bool {
+	return theme.TextSize() != h.textSize || cellPadding() != h.padding
+}
+
+func (h *historyLog) rescan() {
+	h.textSize, h.padding = theme.TextSize(), cellPadding()
+	h.widths = historyColumnWidths(h.records)
+}
+
+// historyContentCols are the columns whose width follows the values actually
+// present, in the order historyContentValues returns them. Both the
+// incremental fold in add and the full scan in historyColumnWidths go through
+// this pair, so they cannot disagree about which columns follow content.
+var historyContentCols = [3]int{2, 4, 5}
+
+func historyContentValues(record event) [3]string {
+	return [3]string{record.JobName, record.Detail, logFileName(record.LogFile)}
 }
 
 // historyHeader is a bold tappable label used in the History table header row.
@@ -156,7 +246,7 @@ func (h *historyHeader) SetText(text string) {
 // Time caption is built per update because it carries the sort direction arrow.
 var historyHeaders = [...]string{"Time", "Trigger", "Job", "State", "Detail", "Log"}
 
-func newHistoryView(events *[]event) (*fyne.Container, func()) {
+func newHistoryView(log *historyLog) (*fyne.Container, func()) {
 	descending := false
 	headerText := func(id widget.TableCellID) string {
 		if id.Row < 0 && id.Col == 0 {
@@ -179,7 +269,7 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 	// per redraw: at build time, on a sort toggle, and from refresh().
 	var rows []event
 	resort := func() {
-		rows = append(rows[:0], (*events)...)
+		rows = append(rows[:0], log.records...)
 		sort.SliceStable(rows, func(left int, right int) bool {
 			if descending {
 				return rows[left].Time > rows[right].Time
@@ -224,16 +314,17 @@ func newHistoryView(events *[]event) (*fyne.Container, func()) {
 		table.Unselect(id)
 	}
 	setColumnWidths := func() {
-		for col, width := range historyColumnWidths(rows) {
+		for col, width := range log.columnWidths() {
 			table.SetColumnWidth(col, width)
 		}
 	}
 	setColumnWidths()
 
-	// refresh re-reads the event list into the sorted snapshot and recomputes
-	// every content-fit column width before redrawing, so newly recorded events
-	// appear in the current sort order and longer values widen their column
-	// instead of being truncated.
+	// refresh re-reads the event list into the sorted snapshot and re-applies
+	// the column widths before redrawing, so newly recorded events appear in
+	// the current sort order and longer values widen their column instead of
+	// being truncated. The widths come from historyLog, which folded each new
+	// record in as it arrived — this does not rescan every row.
 	refresh := func() {
 		resort()
 		setColumnWidths()

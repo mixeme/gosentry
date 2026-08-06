@@ -65,6 +65,14 @@ change to their shape has to stay compatible on its own.
 - **History tab is session-only.** `JobRuntime.Logs` exists only in memory for the
   current process. Log files on disk feed aggregate statistics via `SeedStats`
   only. See [ARCHITECTURE.md](ARCHITECTURE.md).
+- **History is capped and its columns only widen.** The tab keeps the newest
+  `maxHistoryRows` records and drops the oldest, the way `maxJobLogs` caps a
+  job's own activity list — an app left in the tray records thousands of runs a
+  day, each carrying the run's full captured output. Column widths are folded in
+  one record at a time instead of rescanned from every row, so a column never
+  narrows when a record ages out: the rows on screen were laid out against the
+  wider value. A theme change is the one case that rescans, because every stored
+  width was measured at the old text size.
 - Several tests share a coverage profile with another test on purpose, and a few
   functions sit at 0% on purpose. Both lists live in
   [TESTS.md](TESTS.md) — check them before reporting a test as redundant or a

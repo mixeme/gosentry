@@ -39,6 +39,13 @@ the app icon (experimental).**
   longer than its own interval no longer accumulates an unbounded backlog that
   then runs back-to-back indefinitely. The job details pane now shows the
   queued-run count (", N queued") whenever it is non-zero.
+- The History tab no longer grows without bound: it keeps the newest 1000
+  records and drops the oldest, the way a job's own activity list is capped.
+  Column widths are also folded in one record at a time instead of being
+  re-measured across every row on every event, so recording a run no longer
+  gets slower the longer the app has been running. Measured on 5000 accumulated
+  records, one History redraw went from **15.8 ms to 0.9 ms**; at the new cap
+  the width rescan alone accounted for 1.5 ms of every redraw.
 
 **Jobs:**
 
