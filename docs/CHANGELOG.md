@@ -77,9 +77,17 @@ the app icon (experimental).**
 
 **Internal:**
 
-- App-side failure-notification timing is appended to `logs/notify-timing.log`
-  for diagnosing toast delay (OS latency excluded). `scripts/measure-windows-toast.ps1`
-  measures the PowerShell baseline on Windows.
+- App-side failure-notification timing is appended to `logs/notify-timing.tsv`
+  for diagnosing toast delay (OS latency excluded). The `.tsv` extension keeps
+  the diagnostic file out of `CleanupLogs`, which manages only `.log` files, so
+  it is neither deleted by age nor counted against **Max log files**. The append
+  runs off the UI thread. `scripts/measure-windows-toast.ps1` measures the
+  PowerShell baseline on Windows.
+- `jobs.json` is no longer rewritten twice per run. Starting and finishing a run
+  touch only `JobRuntime`, which is never persisted, so both saves re-serialised
+  identical bytes; `SetGlobalPause` did the same alongside its real `SaveConfig`.
+  Removing them also removes the run-start rollback path and the save failure it
+  reported, so `RunDue` no longer has a start error to surface at all.
 - File I/O no longer happens while `Service.mu` is held — that is the lock the
   UI thread takes on every job and runtime read, so a JSON write, the
   post-run log cleanup, or the startup log scan used to make a UI refresh wait
