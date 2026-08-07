@@ -2,6 +2,35 @@
 
 All notable GoSentry changes are recorded in this file.
 
+## 1.0.4 - 2026-08-07
+
+**The remaining over-the-guideline source files are split; the roadmap is
+restructured around what actually blocks each item.**
+
+**Documentation:**
+
+- **`ROADMAP.md`** — reorganized into Features, Platform, Fyne/UI, and
+  Maintenance. The over-the-guideline file-split item is closed; each deferred
+  UI item now states whether it is blocked on a missing Fyne API, on UX
+  (shippable today but deferred), or on maintenance timing.
+- **`ARCHITECTURE.md`** — documents the new file layouts for `operations.go`,
+  `store.go`, `history_view.go`, and `settings_view.go`; the size guideline
+  now states the 20% tolerance explicitly; `settings_view` is recorded as
+  four files, not three.
+
+**Internal:**
+
+- Four source files over the ~300-line ceiling (250 + 20%) were split in one
+  pass: `operations.go` into job mutators, config mutators
+  (`operations_settings.go`), `*Locked` helpers (`operations_locked.go`), and
+  pure validators (`operations_validate.go`); `store.go` into the store API,
+  config load (`store_config.go`), and jobs load (`store_jobs.go`);
+  `history_view.go` into column-width helpers (`history_view_columns.go`) and
+  the table widget; and `settings_view.go` into a thin entry point plus
+  `settings_view_form.go` for field construction and save/load handlers.
+  Mechanical moves only — every file is now within the ceiling. `run.go` and
+  `service.go` stay as-is.
+
 ## 1.0.3 - 2026-08-07
 
 **The findings of a whole-project review: durable JSON and log writes, bounded
@@ -94,8 +123,7 @@ History and overlap queues, and a Jobs selection that follows the job.**
   `TestQuoteLeadingWindowsProgramPathPicksEarliestBoundedExtension`), the
   deliberately-uncovered list covers everything the profile reports at 0%, and
   the coverage figure records how to read the total rather than the per-package
-  lines. `ROADMAP.md` — the over-the-guideline table was re-measured; the split
-  is now landed and the open item removed.
+  lines. `ROADMAP.md` — the over-the-guideline table was re-measured.
 - README's scheduler wording caught up with the 0.11.2 rename of "Pause all" to
   **Disable auto**, and its notification description matches what the app sends.
 - `STANDARDS.md` records the rules the review settled: no file I/O under
@@ -133,13 +161,6 @@ History and overlap queues, and a Jobs selection that follows the job.**
   330-line constructor whose dozen closures shared seven mutable locals is now
   widgets reading one named state object — which is what made the selection fix
   above a change in one place instead of five.
-- Four more source files over the ~300-line ceiling (250 + 20%) were split in
-  one pass: `operations.go` into job mutators, config mutators
-  (`operations_settings.go`), `*Locked` helpers, and pure validators; `store.go` into the store API, config load, and jobs load;
-  `history_view.go` into column-width helpers and the table widget; and
-  `settings_view.go` into a thin entry point plus `settings_view_form.go` for
-  field construction and save/load handlers. `run.go` and `service.go` stay
-  as-is — both are within the ceiling.
 - `Service.Store()` is replaced by typed `Service.Config()` and `Service.Paths()`
   accessors that copy under the lock, so the UI no longer reaches into a shared
   `*storage.Store`. The Jobs pause control is now driven by `refreshView`
