@@ -143,7 +143,7 @@ Design notes / open questions:
 
 [ARCHITECTURE.md](ARCHITECTURE.md) sets a ~250-line guideline per source file
 and records the `jobs_view.go` and `settings_view.go` splits as the worked
-examples. `jobs_view.go` was split again in 1.0.2 — into view, state, list, and
+examples. `jobs_view.go` was split again in 1.0.3 — into view, state, list, and
 toolbar — because the selection defect it carried was a symptom of the size
 (one 330-line constructor over seven shared locals). Six non-test files are
 over the guideline:

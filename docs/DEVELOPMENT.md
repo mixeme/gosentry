@@ -280,8 +280,9 @@ Before tagging:
 
 1. Bump `src/app/version.go`. The tag must match it exactly.
 2. Add the version's [CHANGELOG.md](CHANGELOG.md) section.
-3. Retake the README screenshots (`images/screenshot_jobs.PNG`,
-   `images/screenshot_settings.PNG`) if the GUI changed its appearance. This is
+3. Retake the README screenshots (`docs/screenshots/screenshot_jobs.PNG`,
+   `docs/screenshots/screenshot_settings.PNG`,
+   `docs/screenshots/screenshot_history.PNG`) if the GUI changed its appearance. This is
    easy to forget because nothing fails without it: `README.md` is packaged
    inside every release archive and is what the forge shows on the project page,
    so a stale shot advertises an application that no longer exists. Take them

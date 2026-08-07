@@ -2,25 +2,13 @@
 
 All notable GoSentry changes are recorded in this file.
 
-## 1.0.2 - 2026-08-05
+## 1.0.3 - 2026-08-07
 
-**KeepRunningInTray is wired to runtime; Windows failure notifications can show
-the app icon (experimental).**
+**The findings of a whole-project review: durable JSON and log writes, bounded
+History and overlap queues, and a Jobs selection that follows the job.**
 
 **Application:**
 
-- **Keep running in the system tray** now controls behaviour: with the tray on
-  (default), closing the window hides it and autostart uses `--start-in-tray`;
-  with the tray off, closing quits the app and autostart opens the main window.
-- Saving a tray change updates close behaviour and the autostart entry
-  immediately. The notification-area icon follows the saved value after a
-  restart; Settings shows a hint when a restart is needed (Fyne cannot add or
-  remove the icon mid-session).
-- A stale autostart shortcut that still passes `--start-in-tray` no longer hides
-  the window when the tray setting is off — saved config wins over the CLI flag.
-- On Windows, failure toasts can show the app icon: after `NewWindow`,
-  `AppMetadata.Icon` is registered so Fyne picks up artwork without calling
-  `SetIcon`, which would override the PE multi-size window/taskbar icon.
 - Fixed a Windows quoting bug where a job whose **Command** field held a whole
   command line (a `.bat`/`.cmd` wrapper followed by an argument that itself
   ended in `.exe`) had its entire command line mistaken for the program path,
@@ -51,29 +39,51 @@ the app icon (experimental).**
   gets slower the longer the app has been running. Measured on 5000 accumulated
   records, one History redraw went from **15.8 ms to 0.9 ms**; at the new cap
   the width rescan alone accounted for 1.5 ms of every redraw.
+- Two runs of the same job that start within the same second no longer share a
+  log file name. The later one gets a `-2`, `-3`, … suffix instead of silently
+  overwriting the earlier one's log — reachable with a fast manual re-run or a
+  sub-second queue drain.
+- A hand-edited `jobs.json` in which two entries carry the same `id` no longer
+  leaves them sharing one runtime, one parsed schedule, and one statistics
+  bucket; the duplicate is reassigned a free ID on load, as an absent ID always
+  was.
+- The **average run duration** shown in Statistics is now the exact sum divided
+  by the timed-run count rather than an incrementally folded integer mean. The
+  old form truncated on every run and the error compounded over a job's life,
+  so the live figure drifted away from the one rebuilt from log files after a
+  restart.
+- On Linux, a failure to install the `.desktop` file or icon is now reported in
+  History instead of being discarded, so the visible symptom — a generic dock
+  icon — has an explanation.
+
+**Jobs:**
+
 - **The Jobs tab keeps its selection on the job, not on the row.** Selecting a
   different jobs file in Settings replaces the whole job list; the details pane
   then described whichever job happened to land on the previously selected row —
   or went blank if the new list was shorter — while the highlight in the list
   stayed where it was. The selection now follows the job itself, and the
   highlight and the details pane always describe the same one.
+- Switching the **Folder** filter now keeps the current selection when the new
+  filter still shows that job, instead of always jumping to the folder's first
+  job.
+
+**Settings:**
+
 - **Max log files and max log age days now accept 0, meaning "keep
   everything."** Log cleanup already supported disabling either policy; the
   Settings form and the Service validator rejected the value that would have
   turned it on. A config that already set either to 0 is no longer silently
   rewritten back to the 100/30 defaults on load.
-
-**Jobs:**
-
-- New disabled example *Failure notification test* (folder Examples). Run it
-  manually to trigger a failed run and verify Settings → Notifications without
-  waiting on the scheduler.
+- Opening the tab and saving no longer block the window while the autostart
+  status is read — on Windows that check shells out to PowerShell, and it now
+  runs off the UI thread.
+- Two spellings of the same absolute **Jobs file** path (mixed separators, a
+  trailing separator) no longer read as a change of file, so saving no longer
+  triggers a spurious reload of the file already in use.
 
 **Documentation:**
 
-- **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
-  shell, and winproc are OS-specific; compile-time vs runtime branching; rules
-  for adding platform code.
 - Documentation audited against the code. `ARCHITECTURE.md` — the `jobs_view.go`
   split is six files, not five (the state extraction was never counted), the
   statistics table lists `TimedRunCount`, the store edge of the diagram names
@@ -85,15 +95,24 @@ the app icon (experimental).**
   deliberately-uncovered list covers everything the profile reports at 0%, and
   the coverage figure records how to read the total rather than the per-package
   lines. `ROADMAP.md` — the over-the-guideline table was re-measured.
+- README's scheduler wording caught up with the 0.11.2 rename of "Pause all" to
+  **Disable auto**, and its notification description matches what the app sends.
+- `STANDARDS.md` records the rules the review settled: no file I/O under
+  `Service.mu`, the History and pending-run caps, the zero-retention meaning,
+  that a start-only process outlives GoSentry, the single-instance fallback's
+  consequence, and the unauthenticated instance-channel port.
+- `docs/REVIEW.md` (the whole-project review agenda) and the working plan it
+  produced are retired now that every item is either landed here or recorded in
+  `ROADMAP.md`, the way the test review plan was in 1.0.1. `STANDARDS.md` is the
+  surviving reference.
+- The screenshots moved to `docs/screenshots/`.
 
 **Internal:**
 
-- App-side failure-notification timing is appended to `logs/notify-timing.tsv`
-  for diagnosing toast delay (OS latency excluded). The `.tsv` extension keeps
-  the diagnostic file out of `CleanupLogs`, which manages only `.log` files, so
-  it is neither deleted by age nor counted against **Max log files**. The append
-  runs off the UI thread. `scripts/measure-windows-toast.ps1` measures the
-  PowerShell baseline on Windows.
+- The failure-notification timing diagnostic added in 1.0.2 is now written to
+  `logs/notify-timing.tsv`. The `.tsv` extension keeps it out of `CleanupLogs`,
+  which manages only `.log` files, so it is neither deleted by age nor counted
+  against **Max log files**, and the append now runs off the UI thread.
 - `jobs.json` is no longer rewritten twice per run. Starting and finishing a run
   touch only `JobRuntime`, which is never persisted, so both saves re-serialised
   identical bytes; `SetGlobalPause` did the same alongside its real `SaveConfig`.
@@ -108,10 +127,63 @@ the app icon (experimental).**
   instead of twice.
 - The Jobs tab was split into `jobs_view.go` (construction, refresh, layout),
   `jobs_view_state.go` (the job/runtime snapshot, folder filter, and selection),
-  `jobs_view_list.go`, and `jobs_view_toolbar.go`. What used to be one 330-line
-  constructor whose dozen closures shared seven mutable locals is now widgets
-  reading one named state object — which is what made the selection fix above a
-  change in one place instead of five.
+  `jobs_view_list.go`, and `jobs_view_toolbar.go`, joining the existing
+  `jobs_view_details.go` and `jobs_view_helpers.go`. What used to be one
+  330-line constructor whose dozen closures shared seven mutable locals is now
+  widgets reading one named state object — which is what made the selection fix
+  above a change in one place instead of five.
+- `Service.Store()` is replaced by typed `Service.Config()` and `Service.Paths()`
+  accessors that copy under the lock, so the UI no longer reaches into a shared
+  `*storage.Store`. The Jobs pause control is now driven by `refreshView`
+  reading `svc.Config().Paused` on every event, making it a real consumer of
+  `SchedulerStateChanged`, and the main window's event listener is a type switch.
+- Dead code removed: `collectActivity`, the `yaml` tags on `RunRecord`, the
+  `logArguments`/`LogArguments` alias, the redundant package-level
+  `SetAutostart`/`AutostartStatus` functions, and the Settings Save handler's
+  second copy of the Service's validation rules. The
+  `systemTrayRegistered`/`mainWindowHidden` globals are one `trayState` value
+  that `Run` owns and threads through.
+- `scripts/test.bat` no longer prints mojibake for its checkmarks under a
+  non-UTF-8 code page.
+
+## 1.0.2 - 2026-08-05
+
+**KeepRunningInTray is wired to runtime; Windows failure notifications can show
+the app icon (experimental).**
+
+**Application:**
+
+- **Keep running in the system tray** now controls behaviour: with the tray on
+  (default), closing the window hides it and autostart uses `--start-in-tray`;
+  with the tray off, closing quits the app and autostart opens the main window.
+- Saving a tray change updates close behaviour and the autostart entry
+  immediately. The notification-area icon follows the saved value after a
+  restart; Settings shows a hint when a restart is needed (Fyne cannot add or
+  remove the icon mid-session).
+- A stale autostart shortcut that still passes `--start-in-tray` no longer hides
+  the window when the tray setting is off — saved config wins over the CLI flag.
+- On Windows, failure toasts can show the app icon: after `NewWindow`,
+  `AppMetadata.Icon` is registered so Fyne picks up artwork without calling
+  `SetIcon`, which would override the PE multi-size window/taskbar icon.
+
+**Jobs:**
+
+- New disabled example *Failure notification test* (folder Examples). Run it
+  manually to trigger a failed run and verify Settings → Notifications without
+  waiting on the scheduler.
+
+**Documentation:**
+
+- **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
+  shell, and winproc are OS-specific; compile-time vs runtime branching; rules
+  for adding platform code.
+
+**Internal:**
+
+- App-side failure-notification timing is appended to `logs/notify-timing.log`
+  for diagnosing toast delay (OS latency excluded).
+  `scripts/measure-windows-toast.ps1` measures the PowerShell baseline on
+  Windows.
 
 ## 1.0.1 - 2026-08-04
 

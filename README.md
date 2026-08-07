@@ -14,8 +14,11 @@ creating, grouping, pausing, running, and monitoring scheduled shell commands.
 
 <table>
 <tr>
-<td align="center"><img src="images/screenshot_jobs.PNG" alt="Jobs tab"><br><em>Jobs tab — job list with details panel and run statistics.</em></td>
-<td align="center"><img src="images/screenshot_settings.PNG" alt="Settings tab"><br><em>Settings tab — application, queue, storage, and version info.</em></td>
+<td align="center"><img src="docs/screenshots/screenshot_jobs.PNG" alt="Jobs tab"><br><em>Jobs tab — job list with details panel and run statistics.</em></td>
+<td align="center"><img src="docs/screenshots/screenshot_history.PNG" alt="History tab"><br><em>History tab — past runs with trigger, state, and log file.</em></td>
+</tr>
+<tr>
+<td align="center" colspan="2"><img src="docs/screenshots/screenshot_settings.PNG" alt="Settings tab"><br><em>Settings tab — application, queue, storage, and version info.</em></td>
 </tr>
 </table>
 
