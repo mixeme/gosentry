@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-const notificationTimingLogName = "notify-timing.log"
+// notificationTimingLogName deliberately does not end in .log: runner.CleanupLogs
+// only manages .log files in the logs directory, and this diagnostic file
+// should not be subject to (or counted against) that retention policy.
+const notificationTimingLogName = "notify-timing.tsv"
 
 // notificationTiming captures wall-clock points from a failed run through
 // SendNotification. It does not include OS toast display latency — Fyne on

@@ -21,20 +21,11 @@ const runRecordTimeLayout = "2006-01-02 15:04:05"
 type job = domain.Job
 type event = domain.RunRecord
 
-func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.Duration, bool)) {
-	svc.InstallDesktopIcon(appID, assets.IconBytes())
-
-	// Build the initial event history from the current runtime state. Jobs and
-	// runtimes are read here only for this one-time initialization; the jobs view
-	// owns all subsequent state via its own syncFromService closure.
-	initialJobs := svc.Jobs()
-	initialRuntimes := make(map[int]*domain.JobRuntime, len(initialJobs))
-	for _, j := range initialJobs {
-		if rt := svc.Runtime(j.ID); rt != nil {
-			initialRuntimes[j.ID] = rt
-		}
-	}
-	events := newHistoryLog(collectActivity(initialJobs, initialRuntimes))
+func newMainView(w fyne.Window, svc *app.Service, tray *trayState) (fyne.CanvasObject, func(time.Duration, bool)) {
+	// History is session-only: jobs.json never persists JobRuntime.Logs (see
+	// domain.JobRuntime), so there is nothing to seed the History tab with at
+	// startup. It starts empty and fills as events arrive.
+	events := newHistoryLog(nil)
 
 	jobsPanel, refreshJobsView := newJobsView(w, svc)
 
@@ -106,12 +97,15 @@ func newMainView(w fyne.Window, svc *app.Service) (fyne.CanvasObject, func(time.
 			refresh()
 		})
 	}))
+	// Installed after Subscribe so a failure reaches History through
+	// ErrorOccurred instead of being emitted to no listener.
+	svc.InstallDesktopIcon(appID, assets.IconBytes())
 	svc.Start()
 
 	tabs := container.NewAppTabs(
 		container.NewTabItemWithIcon("Jobs", theme.ListIcon(), jobsPanel),
 		container.NewTabItemWithIcon("History", theme.HistoryIcon(), history),
-		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(w, svc)),
+		container.NewTabItemWithIcon("Settings", theme.SettingsIcon(), settingsView(w, svc, tray)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 

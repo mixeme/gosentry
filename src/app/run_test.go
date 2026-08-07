@@ -103,6 +103,15 @@ func TestUpdateStats(t *testing.T) {
 	if rt.AvgDurationMS != 233 {
 		t.Errorf("after run 3: avg=%d, want 233", rt.AvgDurationMS)
 	}
+	// AvgDurationMS must always be exactly DurationSumMS/TimedRunCount — a stored
+	// sum divided once, not an incremental mean that truncates on every step and
+	// compounds error over a long-running job.
+	if rt.DurationSumMS != 700 {
+		t.Errorf("DurationSumMS = %d, want 700", rt.DurationSumMS)
+	}
+	if want := rt.DurationSumMS / int64(rt.TimedRunCount); rt.AvgDurationMS != want {
+		t.Errorf("AvgDurationMS = %d, want DurationSumMS/TimedRunCount = %d", rt.AvgDurationMS, want)
+	}
 }
 
 func TestUpdateStatsSkipsZeroDuration(t *testing.T) {

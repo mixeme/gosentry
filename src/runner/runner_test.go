@@ -135,8 +135,8 @@ func TestLogArguments(t *testing.T) {
 		{"--flag\n--value", "--flag\n--value"},
 	}
 	for _, tc := range cases {
-		if got := logArguments(tc.input); got != tc.want {
-			t.Errorf("logArguments(%q) = %q, want %q", tc.input, got, tc.want)
+		if got := LogArguments(tc.input); got != tc.want {
+			t.Errorf("LogArguments(%q) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }

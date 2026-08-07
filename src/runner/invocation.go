@@ -64,5 +64,3 @@ func LogArguments(arguments string) string {
 	}
 	return strings.ReplaceAll(strings.TrimSpace(arguments), "\r\n", "\n")
 }
-
-func logArguments(arguments string) string { return LogArguments(arguments) }

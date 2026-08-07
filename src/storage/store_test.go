@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -142,6 +143,50 @@ func TestNormalizeJobsFillsDefaults(t *testing.T) {
 	// Pre-set fields survive normalization unchanged.
 	if jobs[2].ID != 5 {
 		t.Errorf("pre-set ID should be preserved: got %d, want 5", jobs[2].ID)
+	}
+}
+
+// TestNormalizeJobsReassignsDuplicateIDs pins the fix for a hand-edited
+// jobs.json carrying two entries with the same ID: without reassignment both
+// would share one JobRuntime, one schedule-cache entry, and one SeedStats
+// bucket, so editing or deleting either would silently affect both.
+func TestNormalizeJobsReassignsDuplicateIDs(t *testing.T) {
+	jobs := []domain.Job{
+		{ID: 5, Name: "First"},
+		{ID: 5, Name: "Second"},
+		{ID: 5, Name: "Third"},
+	}
+
+	normalizeJobs(jobs)
+
+	seen := make(map[int]bool, len(jobs))
+	for _, job := range jobs {
+		if seen[job.ID] {
+			t.Fatalf("ID %d assigned to more than one job after normalization: %+v", job.ID, jobs)
+		}
+		seen[job.ID] = true
+	}
+	if jobs[0].ID != 5 {
+		t.Errorf("first occurrence should keep its ID: got %d, want 5", jobs[0].ID)
+	}
+	if jobs[1].ID == 5 || jobs[2].ID == 5 {
+		t.Errorf("later duplicates should be reassigned away from 5: got %d, %d", jobs[1].ID, jobs[2].ID)
+	}
+}
+
+// TestResolveConfiguredPathCleansAbsolutePaths pins the fix for two spellings
+// of the same absolute path (forward vs. backslashes) resolving to different
+// strings: UpdateSettings compares this against Paths.JobsPath as strings to
+// decide whether the jobs file is changing, so an uncleaned path here could
+// trigger a spurious adoption against the file already in use.
+func TestResolveConfiguredPathCleansAbsolutePaths(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("backslash vs. forward-slash spellings of the same path are a Windows-only ambiguity")
+	}
+	got := ResolveConfiguredPath(`C:\app`, "C:/data/jobs.json")
+	want := ResolveConfiguredPath(`C:\app`, `C:\data\jobs.json`)
+	if got != want {
+		t.Errorf("forward-slash and backslash spellings resolved differently: %q vs %q", got, want)
 	}
 }
 

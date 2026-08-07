@@ -66,7 +66,7 @@ func TestMainViewFitsTheDefaultWindowSize(t *testing.T) {
 	svc := app.NewService(store, nil)
 	defer svc.Stop()
 
-	content, _ := newMainView(w, svc)
+	content, _ := newMainView(w, svc, &trayState{})
 	min := content.MinSize()
 	if min.Width > defaultWindowWidth || min.Height > defaultWindowHeight {
 		t.Errorf("content.MinSize() = %v, want within %vx%v", min, defaultWindowWidth, defaultWindowHeight)
@@ -111,7 +111,7 @@ func TestMainViewRecordStartupAddsHistoryRow(t *testing.T) {
 	svc := newTestService(t)
 	defer svc.Stop()
 
-	content, recordStartup := newMainView(w, svc)
+	content, recordStartup := newMainView(w, svc, &trayState{})
 	w.SetContent(content)
 
 	table := historyTable(t, content)

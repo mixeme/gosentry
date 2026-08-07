@@ -34,11 +34,14 @@ func acquireSingleInstance(showExisting bool) (net.Listener, bool) {
 	// If the port is unavailable but does not answer as GoSentry, continue
 	// startup instead of making the application impossible to open because of an
 	// unrelated local listener. In the normal duplicate-start case the dial above
-	// succeeds and this process exits after waking the first instance.
+	// succeeds and this process exits after waking the first instance. The
+	// consequence of this fallback — two schedulers able to run against the same
+	// jobs.json and logs directory — is recorded in STANDARDS.md alongside the
+	// unauthenticated nature of this same port.
 	return nil, true
 }
 
-func serveSingleInstance(listener net.Listener, w fyne.Window) {
+func serveSingleInstance(listener net.Listener, w fyne.Window, tray *trayState) {
 	if listener == nil {
 		return
 	}
@@ -56,7 +59,7 @@ func serveSingleInstance(listener net.Listener, w fyne.Window) {
 			// Accept runs on its own goroutine, so focusing the window must be
 			// marshaled onto the main thread like every other widget update.
 			fyne.Do(func() {
-				mainWindowHidden = false
+				tray.hidden = false
 				w.Show()
 				w.RequestFocus()
 			})

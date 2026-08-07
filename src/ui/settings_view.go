@@ -26,7 +26,7 @@ var settingsCaptions = []string{
 	"GoSentry", "Go", "Fyne", "Repository",
 }
 
-func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
+func settingsView(w fyne.Window, svc *app.Service, tray *trayState) fyne.CanvasObject {
 	// saved mirrors the config as last persisted (or freshly loaded at
 	// construction); it is a local copy the closures below compare the form
 	// against and reassign after a successful save, rather than holding onto
@@ -49,17 +49,36 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	autostartStatus := widget.NewLabel("")
 	trayRestartHint := widget.NewLabel("")
 	trayRestartHint.Truncation = fyne.TextTruncateClip
+	// autostartCheckGen guards against an in-flight check's result landing after
+	// a newer one started (e.g. the user toggles a checkbox again before the
+	// first check's PowerShell call returns). Both the increment and the compare
+	// happen on the main/Fyne thread, so this needs no lock of its own.
+	var autostartCheckGen int
 	refreshAutostartStatus := func() {
 		if settingsPendingAutostart(startOnLogin, minimizeToTray, saved) {
 			autostartStatus.SetText("Pending: save settings to apply")
 			return
 		}
-		ok, message := svc.AutostartStatus()
-		if ok {
-			autostartStatus.SetText("OK: " + message)
-			return
-		}
-		autostartStatus.SetText("Problem: " + message)
+		// svc.AutostartStatus() reaches readShortcut on Windows, which spawns
+		// powershell.exe and blocks on CombinedOutput() — hundreds of milliseconds
+		// of cold start. Running it off the main thread keeps that from freezing
+		// the window on construction and on every checkbox toggle.
+		autostartStatus.SetText("Checking...")
+		autostartCheckGen++
+		gen := autostartCheckGen
+		go func() {
+			ok, message := svc.AutostartStatus()
+			fyne.Do(func() {
+				if gen != autostartCheckGen {
+					return
+				}
+				if ok {
+					autostartStatus.SetText("OK: " + message)
+					return
+				}
+				autostartStatus.SetText("Problem: " + message)
+			})
+		}()
 	}
 	refreshTrayRestartHint := func(pending bool) {
 		if pending {
@@ -142,27 +161,16 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 	settingsStatus := widget.NewLabel("")
 
 	saveSettings := widget.NewButtonWithIcon("Save settings", theme.DocumentSaveIcon(), func() {
-		files, err := strconv.Atoi(strings.TrimSpace(maxLogFiles.Text))
-		if err != nil || files < 0 {
-			settingsStatus.SetText("Max log files must be zero (unlimited) or a positive number")
-			return
-		}
-		days, err := strconv.Atoi(strings.TrimSpace(maxLogAgeDays.Text))
-		if err != nil || days < 0 {
-			settingsStatus.SetText("Max log age days must be zero (unlimited) or a positive number")
-			return
-		}
-		if strings.TrimSpace(jobsFile.Text) == "" {
-			settingsStatus.SetText("Jobs file is required")
-			return
-		}
-		if strings.TrimSpace(logsDir.Text) == "" {
-			settingsStatus.SetText("Logs directory is required")
-			return
-		}
-		timeout, err := strconv.Atoi(strings.TrimSpace(defaultTimeout.Text))
-		if err != nil || timeout < 0 {
-			settingsStatus.SetText("Default timeout must not be negative (0 = no timeout)")
+		// Only the parse itself happens here: a numeric field has to become an int
+		// before it can go into a domain.Config at all. Everything else — required
+		// fields, negative numbers, valid enum values — is Service.UpdateSettings'
+		// job (see app.validateConfig), so its error is what the user sees rather
+		// than a second copy of the same rules with different wording.
+		files, filesErr := strconv.Atoi(strings.TrimSpace(maxLogFiles.Text))
+		days, daysErr := strconv.Atoi(strings.TrimSpace(maxLogAgeDays.Text))
+		timeout, timeoutErr := strconv.Atoi(strings.TrimSpace(defaultTimeout.Text))
+		if filesErr != nil || daysErr != nil || timeoutErr != nil {
+			settingsStatus.SetText("Max log files, max log age days, and default timeout must be numbers")
 			return
 		}
 		// Build the new config from the form and hand it to the Service, which
@@ -196,7 +204,7 @@ func settingsView(w fyne.Window, svc *app.Service) fyne.CanvasObject {
 			return
 		}
 		refreshAutostartStatus()
-		applyTrayBehavior(fyne.CurrentApp(), w, config.KeepRunningInTray, true)
+		tray.apply(fyne.CurrentApp(), w, config.KeepRunningInTray, true)
 		if previousKeepInTray != config.KeepRunningInTray {
 			trayRestartHint.SetText(trayRestartHintText)
 		} else {

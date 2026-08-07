@@ -21,6 +21,10 @@ type SeededStats struct {
 	AvgDurationMS  int64
 	MaxDurationMS  int64
 	TimedRunCount  int
+	// DurationSumMS is the running total AvgDurationMS was computed from, folded
+	// into JobRuntime.DurationSumMS so app.updateStats continues the same exact
+	// sum instead of restarting from a value it would have to reverse-multiply.
+	DurationSumMS int64
 }
 
 // SeedStats scans logsDir once and reconstructs per-job execution-time
@@ -113,6 +117,7 @@ func aggregateLogStats(files []logSummary) SeededStats {
 	}
 	if durationCount > 0 {
 		stats.TimedRunCount = durationCount
+		stats.DurationSumMS = durationSum
 		stats.AvgDurationMS = durationSum / int64(durationCount)
 	}
 	return stats

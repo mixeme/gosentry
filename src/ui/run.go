@@ -17,9 +17,10 @@ import (
 const appID = "ru.mixeme.gosentry.desktop"
 
 // defaultWindowWidth and defaultWindowHeight are the size the window opens at
-// on first launch (later launches restore the last size from preferences).
-// Fyne enforces the assembled content's MinSize as a hard floor over these, so
-// they only take effect if the content actually fits within them.
+// on every launch. Window size persistence is frozen (see ROADMAP.md), so
+// there is no saved size to restore. Fyne enforces the assembled content's
+// MinSize as a hard floor over these, so they only take effect if the content
+// actually fits within them.
 const defaultWindowWidth = 1024
 const defaultWindowHeight = 660
 
@@ -60,10 +61,7 @@ func Run(startInTray bool) {
 
 	w := a.NewWindow("GoSentry " + app.Version)
 	setWindowsNotificationIcon()
-	prefs := a.Preferences()
-	winW := float32(prefs.FloatWithFallback("window.width", defaultWindowWidth))
-	winH := float32(prefs.FloatWithFallback("window.height", defaultWindowHeight))
-	w.Resize(fyne.NewSize(winW, winH))
+	w.Resize(fyne.NewSize(defaultWindowWidth, defaultWindowHeight))
 	svc, err := app.Open()
 	if err != nil {
 		w.SetContent(container.NewPadded(widget.NewLabel("Failed to load GoSentry configuration: " + err.Error())))
@@ -73,13 +71,14 @@ func Run(startInTray bool) {
 	config := svc.Config()
 	keepInTray = config.KeepRunningInTray
 	startHidden = resolveStartHidden(startInTray, keepInTray)
-	applyTrayBehavior(a, w, keepInTray, false)
+	tray := &trayState{}
+	tray.apply(a, w, keepInTray, false)
 	// Apply the persisted theme before building content so the window renders in
 	// the chosen theme from the first frame rather than flashing the default one.
 	applyTheme(a, config.Theme)
-	content, recordStartup := newMainView(w, svc)
+	content, recordStartup := newMainView(w, svc, tray)
 	w.SetContent(content)
-	serveSingleInstance(instanceListener, w)
+	serveSingleInstance(instanceListener, w, tray)
 	if startHidden {
 		// Autostart launches intentionally stay hidden, so "window shown" would be
 		// a misleading metric. Record a separate startup event for the tray path

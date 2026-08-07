@@ -61,6 +61,9 @@ func TestSeedStatsBasic(t *testing.T) {
 	if s.AvgDurationMS != 400 {
 		t.Errorf("AvgDurationMS = %d, want 400", s.AvgDurationMS)
 	}
+	if s.DurationSumMS != 1200 {
+		t.Errorf("DurationSumMS = %d, want 1200", s.DurationSumMS)
+	}
 }
 
 // TestSeedStatsDurationLessLegacyLog verifies that a log without a duration

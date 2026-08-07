@@ -23,9 +23,9 @@ func writeRunLog(logsDir string, job domain.Job, trigger string, state string, d
 	// by run time. The job name is included for human scanning, but sanitized to
 	// avoid characters that are invalid on Windows or awkward on shells.
 	fileName := started.Format("20060102-150405") + "_" + sanitizeFileName(job.Name) + ".log"
-	path := filepath.Join(logsDir, fileName)
+	path := uniqueLogPath(logsDir, fileName)
 	content := fmt.Sprintf("time: %s\njob_id: %d\njob_name: %s\ntrigger: %s\nstate: %s\ndetail: %s\nduration: %d\ncommand: %s\narguments: %s\nstart_only: %t\n\n%s\n",
-		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, durationMS, job.Command, logArguments(job.Arguments), job.StartOnly, output)
+		started.Format("2006-01-02 15:04:05"), job.ID, job.Name, trigger, state, detail, durationMS, job.Command, LogArguments(job.Arguments), job.StartOnly, output)
 	if err := writeFileAtomic(logsDir, path, []byte(content), 0o644); err != nil {
 		return "", fmt.Errorf("write log file: %w", err)
 	}
@@ -68,6 +68,26 @@ func writeFileAtomic(dir, path string, data []byte, perm os.FileMode) error {
 	}
 	success = true
 	return nil
+}
+
+// uniqueLogPath returns a path for fileName in dir, appending a disambiguating
+// "-2", "-3", … suffix before the extension if the plain name is already
+// taken. Two runs of the same job in the same second — a fast manual re-run,
+// or a sub-second queue drain — would otherwise share one timestamp and the
+// second write would silently overwrite the first.
+func uniqueLogPath(dir, fileName string) string {
+	path := filepath.Join(dir, fileName)
+	if _, err := os.Stat(path); err != nil {
+		return path
+	}
+	ext := filepath.Ext(fileName)
+	base := strings.TrimSuffix(fileName, ext)
+	for n := 2; ; n++ {
+		candidate := filepath.Join(dir, fmt.Sprintf("%s-%d%s", base, n, ext))
+		if _, err := os.Stat(candidate); err != nil {
+			return candidate
+		}
+	}
 }
 
 func sanitizeFileName(name string) string {

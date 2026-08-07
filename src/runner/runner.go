@@ -116,7 +116,7 @@ func startOnlyOutput(job domain.Job, pid int) string {
 	builder.WriteString("command:\n")
 	builder.WriteString(job.Command + "\n\n")
 	builder.WriteString("arguments:\n")
-	builder.WriteString(logArguments(job.Arguments))
+	builder.WriteString(LogArguments(job.Arguments))
 	builder.WriteString("\n\nstart_only:\ntrue")
 	return builder.String()
 }

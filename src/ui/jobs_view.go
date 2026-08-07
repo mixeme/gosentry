@@ -85,8 +85,10 @@ func (v *jobsView) refresh() {
 	// it is re-read here rather than mirrored from the tap handler alone — that is
 	// what makes this view a consumer of SchedulerStateChanged.
 	v.applySchedulerState(v.svc.Config().Paused)
+	// updateDetails already ends in a d.logs.Refresh() (both its update and clear
+	// paths do), so refreshing the activity list again here would redraw it twice
+	// per call.
 	v.updateDetails()
-	v.dp.logs.Refresh()
 	v.list.Refresh()
 	v.syncListSelection()
 }

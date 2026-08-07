@@ -181,7 +181,7 @@ Named descriptors are also accepted: `@hourly`, `@daily`, `@weekly`,
 3. Set **Schedule**, **Command**, optional **Arguments**, **Folder**, and **Enabled**.
 4. Use **Run now** for a one-off manual run without waiting for the schedule.
 5. Use **Pause** on a single job to suspend it without deleting it.
-6. Use **Pause all** as a global stop switch for all scheduled runs.
+6. Use **Disable auto** as a global stop switch for all scheduled runs.
 7. Open **History** to see past runs, their trigger (`Manual`, `Schedule`, or `UI`), state, and log file.
 8. Open **Settings** to change the storage paths, log cleanup limits, queue behavior, and notifications.
 
@@ -241,8 +241,9 @@ sets one.
 ## Notifications
 
 When **Notify on failure** is enabled in Settings, GoSentry sends a desktop
-notification whenever a scheduled or manual run exits with a non-zero exit code.
-The notification shows the job name and the exit code.
+notification whenever a scheduled or manual run ends in the `Failed` state —
+a non-zero exit code, a timeout, or a process that failed to start.
+The notification shows the job name and the failure detail.
 
 ## Autostart
 

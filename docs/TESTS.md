@@ -26,6 +26,12 @@ The GUI tests build the Fyne desktop backend, so CGO must be enabled; on Windows
 that means the MSYS2 UCRT64 toolchain described in
 [DEVELOPMENT.md](DEVELOPMENT.md).
 
+`src/ui` dominates `go test -race ./...`'s wall time — around 229s in the
+2026-08-05 whole-project review, against under 8s for every other package
+combined. Budget iteration accordingly: a change confined to `domain`,
+`storage`, `runner`, `scheduler`, or `app` gets a fast feedback loop; a `ui`
+change does not.
+
 ### Manual test commands
 
 Run all tests:
@@ -61,6 +67,15 @@ covered by the `app` tests. Measure the engine packages together instead:
 
 ```bash
 go test -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
+```
+
+In the PowerShell environment DEVELOPMENT.md prescribes on Windows, PowerShell
+splits the comma-separated `-coverpkg` list on its own and the command fails
+with `directory not found`. Use the stop-parsing token, or quote the whole
+flag:
+
+```powershell
+go test --% -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
 ```
 
 That figure was 84.4% at the 2026-08-04 review, which is the number to compare
@@ -245,6 +260,8 @@ Tests JSON round-tripping, default generation, and backward compatibility.
 | `TestJobsRoundTrip` | Verifies that jobs saved to JSON are reloaded with identical field values. |
 | `TestConfigRoundTrip` | Verifies that settings saved to JSON are reloaded with identical field values. |
 | `TestNormalizeJobsFillsDefaults` | Verifies that `normalizeJobs` assigns sequential IDs and sets default name, schedule, and command for jobs missing those fields. |
+| `TestNormalizeJobsReassignsDuplicateIDs` | Verifies that a hand-edited `jobs.json` with two entries sharing one ID gets the later duplicates reassigned instead of colliding on one runtime. |
+| `TestResolveConfiguredPathCleansAbsolutePaths` | Verifies (Windows only) that forward-slash and backslash spellings of the same absolute path resolve to the same string. |
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults. |
 | `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun` | Verifies that a missing jobs file is created with the sample jobs from `defaultJobs`. |
 | `TestLoadOrCreateConfigKeepsZeroTimeoutOnReload` | Verifies that `default_timeout_seconds: 0` survives a reload rather than being normalized away — 0 is a value, not a missing field. |
@@ -373,6 +390,19 @@ Tests log-file cleanup by age and by count.
 | `TestCleanupLogsNonLogFilesNotDeleted` | Verifies that non-`.log` files in the logs directory are never deleted by cleanup. |
 | `TestCleanupLogsSubdirsNotDeleted` | Verifies that subdirectories inside the logs directory are not deleted by cleanup. |
 | `TestCleanupLogsZeroLimitsDisableBothPolicies` | Verifies that setting both limits to zero disables both the age and count cleanup policies. |
+
+---
+
+### src/runner/logfile_test.go
+
+**Package:** `runner`
+
+Tests the disambiguating suffix `writeRunLog` applies when two runs land on
+the same second.
+
+| Test | Purpose |
+|------|---------|
+| `TestUniqueLogPathAvoidsCollision` | Verifies repeated calls for the same file name return distinct paths instead of silently overwriting an existing log. |
 
 ---
 
@@ -508,8 +538,6 @@ column-width behaviour of the assembled table.
 
 | Test | Purpose |
 |------|---------|
-| `TestCollectActivityMergesAndSorts` | Verifies per-job logs are merged and sorted by time. |
-| `TestCollectActivitySkipsMissingRuntimes` | Verifies missing runtime entries are skipped safely. |
 | `TestHistoryCellText` | Verifies table cell text for all columns; empty trigger → `Unknown`. |
 | `TestLogFileName` | Verifies log path basename extraction on Windows and Unix paths. |
 | `TestNewEventUsesConsistentTimestampShape` | Verifies UI events use the same timestamp layout as run records. |
@@ -593,7 +621,7 @@ Tests the failure-notification timing diagnostics added in 1.0.2.
 | Test | Purpose |
 |------|---------|
 | `TestNotificationTimingFormatLine` | Verifies `notificationTiming.formatLine` renders the job name and the three millisecond deltas (`ms_after_run`, `ms_fyne_do`, `ms_send`) plus their sum (`ms_app_total`). |
-| `TestAppendNotificationTimingLogWritesHeaderAndRow` | Verifies `appendNotificationTimingLog` creates `notify-timing.log` with its header on first write and appends a row containing the job name. |
+| `TestAppendNotificationTimingLogWritesHeaderAndRow` | Verifies `appendNotificationTimingLog` creates `notify-timing.tsv` with its header on first write and appends a row containing the job name. |
 
 ---
 

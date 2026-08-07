@@ -237,8 +237,9 @@ applies to them — and so measure launch latency only.
 | `RunCount` | total runs recorded |
 | `FailCount` | runs that exited non-zero |
 | `LastDurationMS` | wall-clock time of the most recent run (launch latency for `StartOnly`) |
-| `AvgDurationMS` | mean over all runs with a recorded duration |
+| `AvgDurationMS` | mean over all runs with a recorded duration, computed as `DurationSumMS / TimedRunCount` on every update rather than folded incrementally, so it never disagrees with the exact sum/count average `runner.aggregateLogStats` computes when seeding from logs |
 | `MaxDurationMS` | longest recorded run |
+| `DurationSumMS` | running total of every timed run's duration; the source `AvgDurationMS` is divided from |
 
 `runner.RunJob` measures the wall-clock start→finish and sets `DurationMS` on
 the returned `RunRecord`. `runner/logfile.go` writes a `duration` line into the

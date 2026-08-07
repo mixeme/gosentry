@@ -8,7 +8,7 @@ import (
 
 // lastJobLogs returns a fresh slice of the most recent activity entries for the
 // "Selected job activity" panel. Logs are stored newest-first (see
-// app.Service.recordRun), so the leading entries are the latest; the result is
+// app.prependLog), so the leading entries are the latest; the result is
 // capped at maxJobActivityRows.
 func lastJobLogs(logs []event) []event {
 	n := len(logs)

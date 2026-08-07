@@ -1,18 +1,25 @@
 package app
 
 import (
+	"fmt"
+
 	"gitea.mixdep.ru/mix/gosentry/src/platform/desktop"
 )
 
 // InstallDesktopIcon installs the application's .desktop file and icon on
 // Linux (no-op on other platforms). The resulting icon path is stored in
-// store.Paths.DesktopIcon so ApplyAutostart can reference it.
+// store.Paths.DesktopIcon so ApplyAutostart can reference it. A failure is
+// reported through ErrorOccurred rather than discarded, so the visible symptom
+// (a generic dock icon) has an explanation in History instead of none.
 func (s *Service) InstallDesktopIcon(appID string, iconBytes []byte) {
-	if iconPath, err := desktop.InstallDesktopIntegration(appID, s.store.Paths.ExecutablePath, iconBytes); err == nil {
-		s.mu.Lock()
-		s.store.Paths.DesktopIcon = iconPath
-		s.mu.Unlock()
+	iconPath, err := desktop.InstallDesktopIntegration(appID, s.store.Paths.ExecutablePath, iconBytes)
+	if err != nil {
+		s.emit(ErrorOccurred{Err: fmt.Errorf("install desktop icon: %w", err)})
+		return
 	}
+	s.mu.Lock()
+	s.store.Paths.DesktopIcon = iconPath
+	s.mu.Unlock()
 }
 
 // AutostartStatus reports whether the platform autostart entry matches the

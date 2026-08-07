@@ -18,14 +18,34 @@ machine):** average **773 ms** per toast (695–874 ms), dominated by PowerShell
 cold start. Re-run the script when comparing after a native toast implementation.
 
 **App-side timing:** each failure notification appends one line to
-`logs/notify-timing.log` (`ms_after_run`, `ms_fyne_do`, `ms_send`,
+`logs/notify-timing.tsv` (`ms_after_run`, `ms_fyne_do`, `ms_send`,
 `ms_app_total`). These columns end when Fyne returns from `SendNotification`; OS
-toast latency is not included.
+toast latency is not included. The `.tsv` extension keeps it out of
+`runner.CleanupLogs`, which only manages `.log` files — this file is
+diagnostic instrumentation for this item, not job output, and should be
+removed (or unified with the run-log retention policy under its own knob) once
+the native-toast direction below lands and the timing data is no longer
+needed.
 
 **Direction:** add `src/platform/notify/` with a native Windows toast (WinRT or
 a maintained Go wrapper), used for failure notifications on Windows. Keep Fyne
 `SendNotification` on Linux (DBus / xdg-desktop-portal) unless profiling shows it
 needs the same treatment.
+
+### Retire the config compatibility shims
+
+Two read-only shims in `storage.loadOrCreateConfig` rewrite an old file into
+the current shape on the next save, so each becomes dead the moment a user's
+config has been saved once by a build that has it:
+
+- `Config.JobsDir` (pre-0.15, superseded by `Config.JobsFile`).
+- `Theme == "default"` (pre-1.0.1, superseded by `ThemeSystem`).
+
+Neither has an expiry. Remove both — the field, the migration branch, and
+`TestLoadOrCreateConfigMigratesJobsDir` /
+`TestLoadOrCreateConfigMigratesLegacyThemeDefault` — once a release has shipped
+long enough that a config file still carrying either old shape is not a
+realistic upgrade path GoSentry needs to support.
 
 ### Dynamic tray icon toggle
 

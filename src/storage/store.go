@@ -19,6 +19,13 @@ type Store struct {
 // PeekKeepRunningInTray reads keep_running_in_tray from gosentry.json for startup
 // decisions that must run before app.Open(). On error it returns the built-in
 // default.
+//
+// Despite the name, this can write: loadOrCreateConfig creates gosentry.json
+// with defaults on first run, the same as OpenStore does moments later when
+// app.Open() parses the now-existing file again. The double parse and the
+// write-on-read are both harmless — the second read just sees the file the
+// first one created — but worth knowing before adding a third startup path
+// that also wants an early look at the config.
 func PeekKeepRunningInTray() bool {
 	paths, err := ResolvePaths()
 	if err != nil {
@@ -207,13 +214,18 @@ func loadOrCreateJobs(path string) ([]domain.Job, error) {
 
 func normalizeJobs(jobs []domain.Job) {
 	next := 1
+	seen := make(map[int]bool, len(jobs))
 	for index := range jobs {
 		job := &jobs[index]
-		if job.ID <= 0 {
-			// IDs are assigned only when absent. Existing IDs stay stable because
-			// History and future log associations use them to identify jobs.
+		if job.ID <= 0 || seen[job.ID] {
+			// IDs are assigned only when absent or already claimed by an earlier job
+			// in this file — a hand-edited jobs.json can carry two entries with the
+			// same ID, which would otherwise share one runtime, one schedule-cache
+			// entry, and one SeedStats bucket. Existing, unique IDs stay stable
+			// because History and future log associations use them to identify jobs.
 			job.ID = next
 		}
+		seen[job.ID] = true
 		if job.ID >= next {
 			next = job.ID + 1
 		}
@@ -241,7 +253,12 @@ func normalizeJobs(jobs []domain.Job) {
 // apply the same rule to a path the user has typed but not yet saved.
 func ResolveConfiguredPath(appDir string, path string) string {
 	if filepath.IsAbs(path) {
-		return path
+		// Cleaned so two spellings of the same file (forward vs. backslashes, a
+		// trailing separator) resolve to the same string. UpdateSettings compares
+		// this against Paths.JobsPath to decide whether the jobs file is changing,
+		// so an uncleaned path here could trigger a spurious adoption against the
+		// file the app is already using.
+		return filepath.Clean(path)
 	}
 	// Relative paths are resolved against the executable directory, not the
 	// process working directory. This matches ResolvePaths and keeps shortcuts,

@@ -10,16 +10,19 @@ import (
 	fynedesktop "fyne.io/fyne/v2/driver/desktop"
 )
 
-// systemTrayRegistered tracks whether this process registered a tray icon at
-// launch. Fyne cannot add or remove the icon mid-session, so toggling
-// KeepRunningInTray in Settings updates close behavior immediately and shows a
-// restart hint for the icon itself.
-var systemTrayRegistered bool
-
-// mainWindowHidden tracks whether the primary window was hidden via the tray
-// close intercept. Fyne exposes no Window.Visible API, so the flag drives the
-// reveal-on-tray-disable path in applyTrayBehavior.
-var mainWindowHidden bool
+// trayState tracks the two pieces of tray-related process state that Fyne
+// itself does not expose: whether this process has registered the tray icon
+// (Fyne cannot add or remove it mid-session, so toggling KeepRunningInTray in
+// Settings updates close behavior immediately but shows a restart hint for the
+// icon itself) and whether the primary window is currently hidden via the tray
+// close intercept (Fyne exposes no Window.Visible API). Run owns one instance
+// and passes it to every call site of apply — settingsView's Save handler is
+// the other one — so the coupling between them is explicit instead of hidden
+// behind package-level globals that no test can reset.
+type trayState struct {
+	registered bool
+	hidden     bool
+}
 
 const trayRestartHintText = "Restart GoSentry for the tray icon change to take effect."
 
@@ -27,23 +30,23 @@ func resolveStartHidden(cliStartInTray, keepInTray bool) bool {
 	return domain.ResolveStartHidden(cliStartInTray, keepInTray)
 }
 
-// applyTrayBehavior configures window close handling for KeepRunningInTray.
-// When revealIfHidden is true and the tray is off, a hidden window is shown so
-// the user can still reach the app after disabling the tray mid-session.
-func applyTrayBehavior(a fyne.App, w fyne.Window, keepInTray bool, revealIfHidden bool) {
-	if keepInTray && !systemTrayRegistered {
-		registerSystemTray(a, w)
-		systemTrayRegistered = true
+// apply configures window close handling for KeepRunningInTray. When
+// revealIfHidden is true and the tray is off, a hidden window is shown so the
+// user can still reach the app after disabling the tray mid-session.
+func (t *trayState) apply(a fyne.App, w fyne.Window, keepInTray bool, revealIfHidden bool) {
+	if keepInTray && !t.registered {
+		t.registerSystemTray(a, w)
+		t.registered = true
 	}
-	setWindowCloseBehavior(w, keepInTray)
-	if !keepInTray && revealIfHidden && mainWindowHidden {
-		mainWindowHidden = false
+	t.setWindowCloseBehavior(w, keepInTray)
+	if !keepInTray && revealIfHidden && t.hidden {
+		t.hidden = false
 		w.Show()
 		w.RequestFocus()
 	}
 }
 
-func registerSystemTray(a fyne.App, w fyne.Window) {
+func (t *trayState) registerSystemTray(a fyne.App, w fyne.Window) {
 	desk, ok := a.(fynedesktop.App)
 	if !ok {
 		// Not every Fyne driver exposes desktop tray features. Returning silently
@@ -74,7 +77,7 @@ func registerSystemTray(a fyne.App, w fyne.Window) {
 	quit.IsQuit = true
 	menu := fyne.NewMenu("GoSentry",
 		fyne.NewMenuItem("Show", func() {
-			mainWindowHidden = false
+			t.hidden = false
 			w.Show()
 			w.RequestFocus()
 		}),
@@ -85,17 +88,17 @@ func registerSystemTray(a fyne.App, w fyne.Window) {
 	desk.SetSystemTrayWindow(w)
 }
 
-func setWindowCloseBehavior(w fyne.Window, keepInTray bool) {
+func (t *trayState) setWindowCloseBehavior(w fyne.Window, keepInTray bool) {
 	if keepInTray {
 		w.SetCloseIntercept(func() {
 			// Closing hides the window instead of quitting because scheduler tools are
 			// expected to keep working in the background. The explicit Quit tray item
 			// remains the way to stop the process.
-			mainWindowHidden = true
+			t.hidden = true
 			w.Hide()
 		})
 		return
 	}
-	mainWindowHidden = false
+	t.hidden = false
 	w.SetCloseIntercept(nil)
 }

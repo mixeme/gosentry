@@ -121,6 +121,22 @@ change to their shape has to stay compatible on its own.
   an occurrence that fired before the pause/disable. The details pane appends
   ", N queued" to the statistics line via `DisplayStats` whenever the count is
   non-zero.
+- **Single-instance arbitration falls back to "start anyway" when the port is
+  held by something else.** `acquireSingleInstance` (`singleinstance.go`)
+  binds `127.0.0.1:37653`; if that fails and a dial to the same address does
+  not answer as GoSentry either, startup continues rather than refusing to
+  open because of an unrelated local listener. The consequence is deliberate
+  but worth spelling out: two GoSentry processes can then run two schedulers
+  against the same `jobs.json` and the same logs directory, each overwriting
+  the other's saves. Atomic writes (`writeFileAtomic`) prevent a *torn* file
+  from a concurrent write, but not one process's save clobbering the other's.
+- **The single-instance channel is an unauthenticated localhost TCP port.**
+  Port 37653 accepts one command, `"show"`, from any local process — including
+  one running as a different user on a shared machine. This is a deliberate
+  scope choice, not an oversight: the command only raises the existing window,
+  so the impact of an unwelcome sender is a window popping up, not data
+  exposure or control. Anything with a larger blast radius on that channel
+  would need real authentication.
 
 ## Out of scope
 

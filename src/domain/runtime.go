@@ -36,6 +36,14 @@ type JobRuntime struct {
 	// launches that round to 0) increment RunCount but not this. StartOnly runs
 	// otherwise contribute their launch latency.
 	TimedRunCount int
+	// DurationSumMS is the running total of every timed run's duration.
+	// AvgDurationMS is always DurationSumMS/TimedRunCount, computed fresh on each
+	// update rather than folded incrementally — an incremental integer mean
+	// truncates on every step, and the error compounds over the life of a job
+	// that keeps running. A stored sum divided once per update matches the exact
+	// sum/count average runner.aggregateLogStats computes when seeding from logs,
+	// so the two no longer disagree about the same run history.
+	DurationSumMS int64
 }
 
 // NewRuntime builds the initial runtime state for a freshly loaded or created

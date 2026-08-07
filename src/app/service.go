@@ -151,6 +151,7 @@ func (s *Service) applySeededStatsLocked(seeds map[int]runner.SeededStats) {
 		runtime.AvgDurationMS = seed.AvgDurationMS
 		runtime.MaxDurationMS = seed.MaxDurationMS
 		runtime.TimedRunCount = seed.TimedRunCount
+		runtime.DurationSumMS = seed.DurationSumMS
 	}
 }
 

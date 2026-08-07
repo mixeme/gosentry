@@ -253,7 +253,8 @@ func updateStats(rt *domain.JobRuntime, r domain.RunRecord) {
 		rt.MaxDurationMS = r.DurationMS
 	}
 	rt.TimedRunCount++
-	rt.AvgDurationMS = (rt.AvgDurationMS*int64(rt.TimedRunCount-1) + r.DurationMS) / int64(rt.TimedRunCount)
+	rt.DurationSumMS += r.DurationMS
+	rt.AvgDurationMS = rt.DurationSumMS / int64(rt.TimedRunCount)
 }
 
 // runningOutput is the placeholder output shown while a job is running, before

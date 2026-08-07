@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"gitea.mixdep.ru/mix/gosentry/src/domain"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
@@ -54,31 +52,6 @@ func TestIndexOfID(t *testing.T) {
 	}
 	if got := indexOfID(nil, 1); got != -1 {
 		t.Errorf("empty slice: got %d, want -1", got)
-	}
-}
-
-func TestCollectActivityMergesAndSorts(t *testing.T) {
-	jobs := []job{
-		{ID: 1, Name: "A"},
-		{ID: 2, Name: "B"},
-	}
-	runtimes := map[int]*domain.JobRuntime{
-		1: {Logs: []domain.RunRecord{{Time: "2026-01-02 10:00:00", JobID: 1}}},
-		2: {Logs: []domain.RunRecord{{Time: "2026-01-01 09:00:00", JobID: 2}}},
-	}
-	got := collectActivity(jobs, runtimes)
-	if len(got) != 2 {
-		t.Fatalf("len = %d, want 2", len(got))
-	}
-	if got[0].Time != "2026-01-01 09:00:00" || got[1].Time != "2026-01-02 10:00:00" {
-		t.Errorf("sort order = %v, want ascending by Time", got)
-	}
-}
-
-func TestCollectActivitySkipsMissingRuntimes(t *testing.T) {
-	jobs := []job{{ID: 1, Name: "A"}}
-	if got := collectActivity(jobs, nil); len(got) != 0 {
-		t.Errorf("nil runtimes: got %v, want empty", got)
 	}
 }
 

@@ -5,8 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"gitea.mixdep.ru/mix/gosentry/src/domain"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
@@ -24,22 +22,6 @@ func newEvent(jobID int, jobName string, state string, detail string) event {
 		State:   state,
 		Detail:  detail,
 	}
-}
-
-func collectActivity(jobs []job, runtimes map[int]*domain.JobRuntime) []event {
-	var events []event
-	for _, current := range jobs {
-		// At startup this is usually empty because jobs.json does not persist
-		// runtime logs. The function still centralizes the merge for future
-		// history loading from log metadata.
-		if rt := runtimes[current.ID]; rt != nil {
-			events = append(events, rt.Logs...)
-		}
-	}
-	sort.SliceStable(events, func(left int, right int) bool {
-		return events[left].Time < events[right].Time
-	})
-	return events
 }
 
 // textWidth measures how wide s renders at the theme's current body text size.
