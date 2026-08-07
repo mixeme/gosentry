@@ -3,65 +3,9 @@
 This file tracks planned GoSentry work that is larger than a single bug fix.
 Completed work is recorded in [CHANGELOG.md](CHANGELOG.md), not here.
 
-## Open Items
+## Features
 
-### Faster Windows failure notifications
-
-Fyne `SendNotification` on Windows does not call WinRT directly. Each toast
-writes a short script to `%TEMP%` and runs it through a **new PowerShell
-process** (`app/app_windows.go`), which typically adds **1–3 seconds** of cold
-start before the toast appears. GoSentry's own path from run completion through
-`SendNotification` is much smaller and is logged separately.
-
-**Baseline (2026-08-05, `scripts/measure-windows-toast.ps1`, 3 runs on dev
-machine):** average **773 ms** per toast (695–874 ms), dominated by PowerShell
-cold start. Re-run the script when comparing after a native toast implementation.
-
-**App-side timing:** each failure notification appends one line to
-`logs/notify-timing.tsv` (`ms_after_run`, `ms_fyne_do`, `ms_send`,
-`ms_app_total`). These columns end when Fyne returns from `SendNotification`; OS
-toast latency is not included. The `.tsv` extension keeps it out of
-`runner.CleanupLogs`, which only manages `.log` files — this file is
-diagnostic instrumentation for this item, not job output, and should be
-removed (or unified with the run-log retention policy under its own knob) once
-the native-toast direction below lands and the timing data is no longer
-needed.
-
-**Direction:** add `src/platform/notify/` with a native Windows toast (WinRT or
-a maintained Go wrapper), used for failure notifications on Windows. Keep Fyne
-`SendNotification` on Linux (DBus / xdg-desktop-portal) unless profiling shows it
-needs the same treatment.
-
-### Retire the config compatibility shims
-
-Two read-only shims in `storage.loadOrCreateConfig` rewrite an old file into
-the current shape on the next save, so each becomes dead the moment a user's
-config has been saved once by a build that has it:
-
-- `Config.JobsDir` (pre-0.15, superseded by `Config.JobsFile`).
-- `Theme == "default"` (pre-1.0.1, superseded by `ThemeSystem`).
-
-Neither has an expiry. Remove both — the field, the migration branch, and
-`TestLoadOrCreateConfigMigratesJobsDir` /
-`TestLoadOrCreateConfigMigratesLegacyThemeDefault` — once a release has shipped
-long enough that a config file still carrying either old shape is not a
-realistic upgrade path GoSentry needs to support.
-
-### Dynamic tray icon toggle
-
-Fyne exposes `SetSystemTrayIcon` and related APIs only at application startup.
-There is no supported way to register or remove the notification-area icon
-after the process is running.
-
-GoSentry now honours `KeepRunningInTray` from config: close behaviour and the
-autostart entry update immediately when the user saves Settings; the tray icon
-follows the saved value on the next launch. Settings shows a restart hint when
-the tray checkbox changes.
-
-Revisit when Fyne adds a documented API for mid-session tray registration, or
-when a stable cross-platform approach exists without reaching into driver
-internals. Until then, removing the restart hint and applying the icon on save
-is blocked.
+User-facing functionality that is not blocked on a framework or platform gap.
 
 ### Update check from GitHub releases
 
@@ -139,6 +83,65 @@ Design notes / open questions:
   Service exposes import/export operations; the UI only picks the file and
   shows the outcome.
 
+## Platform
+
+OS-specific improvements outside the Fyne abstraction.
+
+### Faster Windows failure notifications
+
+Fyne `SendNotification` on Windows does not call WinRT directly. Each toast
+writes a short script to `%TEMP%` and runs it through a **new PowerShell
+process** (`app/app_windows.go`), which typically adds **1–3 seconds** of cold
+start before the toast appears. GoSentry's own path from run completion through
+`SendNotification` is much smaller and is logged separately.
+
+**Baseline (2026-08-05, `scripts/measure-windows-toast.ps1`, 3 runs on dev
+machine):** average **773 ms** per toast (695–874 ms), dominated by PowerShell
+cold start. Re-run the script when comparing after a native toast implementation.
+
+**App-side timing:** each failure notification appends one line to
+`logs/notify-timing.tsv` (`ms_after_run`, `ms_fyne_do`, `ms_send`,
+`ms_app_total`). These columns end when Fyne returns from `SendNotification`; OS
+toast latency is not included. The `.tsv` extension keeps it out of
+`runner.CleanupLogs`, which only manages `.log` files — this file is
+diagnostic instrumentation for this item, not job output, and should be
+removed (or unified with the run-log retention policy under its own knob) once
+the native-toast direction below lands and the timing data is no longer
+needed.
+
+**Direction:** add `src/platform/notify/` with a native Windows toast (WinRT or
+a maintained Go wrapper), used for failure notifications on Windows. Keep Fyne
+`SendNotification` on Linux (DBus / xdg-desktop-portal) unless profiling shows it
+needs the same treatment.
+
+## Fyne / UI
+
+Work blocked on Fyne APIs, driver behaviour, or missing composable widgets.
+
+### Dynamic tray icon toggle
+
+Fyne exposes `SetSystemTrayIcon` and related APIs only at application startup.
+There is no supported way to register or remove the notification-area icon
+after the process is running.
+
+GoSentry now honours `KeepRunningInTray` from config: close behaviour and the
+autostart entry update immediately when the user saves Settings; the tray icon
+follows the saved value on the next launch. Settings shows a restart hint when
+the tray checkbox changes.
+
+Revisit when Fyne adds a documented API for mid-session tray registration, or
+when a stable cross-platform approach exists without reaching into driver
+internals. Until then, removing the restart hint and applying the icon on save
+is blocked.
+
+### History tab — column filters (Trigger / Job / State)
+
+Add dropdown filters above the History table so the user can narrow rows by
+trigger source, job name, or run state. Blocked on Fyne native support: the
+current `widget.Table` has no built-in filter API, and a filter bar built from
+`widget.Select` widgets above the table feels visually out-of-place. Revisit
+when Fyne adds first-class column filtering or a composable data-grid widget.
+
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled
@@ -172,10 +175,21 @@ saving. Fyne v2.x has no API for this; it needs per-OS native calls:
   headless test driver; it requires a real display and manual or screen-capture
   automation per platform.
 
-### History tab — column filters (Trigger / Job / State)
+## Maintenance
 
-Add dropdown filters above the History table so the user can narrow rows by
-trigger source, job name, or run state. Blocked on Fyne native support: the
-current `widget.Table` has no built-in filter API, and a filter bar built from
-`widget.Select` widgets above the table feels visually out-of-place. Revisit
-when Fyne adds first-class column filtering or a composable data-grid widget.
+Technical debt and one-time cleanup with no user-visible feature surface.
+
+### Retire the config compatibility shims
+
+Two read-only shims in `storage.loadOrCreateConfig` rewrite an old file into
+the current shape on the next save, so each becomes dead the moment a user's
+config has been saved once by a build that has it:
+
+- `Config.JobsDir` (pre-0.15, superseded by `Config.JobsFile`).
+- `Theme == "default"` (pre-1.0.1, superseded by `ThemeSystem`).
+
+Neither has an expiry. Remove both — the field, the migration branch, and
+`TestLoadOrCreateConfigMigratesJobsDir` /
+`TestLoadOrCreateConfigMigratesLegacyThemeDefault` — once a release has shipped
+long enough that a config file still carrying either old shape is not a
+realistic upgrade path GoSentry needs to support.
