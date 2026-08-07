@@ -17,7 +17,7 @@ import (
 // The hard constraint: Fyne's a.SetIcon and SetSystemTrayIcon each take ONE
 // image, which the OS then scales to every size it needs — titlebar (~16px),
 // taskbar/dock (~32-48px), and tray. Neither source survives that scaling:
-// downscaling the 1254px gosentry-icon-big.png to 16px is muddy, and upscaling
+// downscaling the 1254px gosentry-icon-large.png to 16px is muddy, and upscaling
 // the 16px icon to 32px is blurry. The fix is to feed each surface a
 // size-appropriate source — which differs per platform because each platform
 // exposes different icon channels.

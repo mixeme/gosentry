@@ -41,7 +41,7 @@ flowchart LR
 
     user -->|"edits jobs, settings, runs commands"| ui
     ui -->|"CreateJob, UpdateJob, DeleteJob, RunNow, UpdateSettings, AutostartStatus, …"| svc
-    svc -->|"SaveJobs, SaveConfig, LoadJobs, LoadConfig"| store
+    svc -->|"OpenStore, PrepareSaveJobs, PrepareSaveConfig, LoadJobsFile"| store
     store -->|"read/write"| config
     store -->|"read/write"| jobs
 
@@ -119,10 +119,13 @@ example window-maximized detection, which would need per-OS native calls).
 ## Main Flows
 
 1. Startup:
-   `cmd/gosentry` calls `ui.Run`, which creates an `app.Service`, opens the
-   store, loads `gosentry.json` and `jobs.json`, subscribes the UI to service
-   events, builds the main window, and calls `Service.Start` to begin the
-   scheduler loop. On every launch the service seeds per-job run-time statistics
+   `cmd/gosentry` calls `ui.Run`, which owns the process lifecycle: it calls
+   `app.Open()` to open the store, load `gosentry.json` and `jobs.json`, and
+   build the `app.Service`, then hands that Service to `newMainView`
+   (`mainwindow.go`), which subscribes the UI to service events and calls
+   `Service.Start` to begin the scheduler loop before assembling the tabs.
+   `Run` shows the window and, on quit, calls `Service.Stop`.
+   On every launch the service seeds per-job run-time statistics
    from existing log files so the details panel reflects accumulated history
    immediately (see §Statistics below).
 
@@ -239,6 +242,7 @@ applies to them — and so measure launch latency only.
 | `LastDurationMS` | wall-clock time of the most recent run (launch latency for `StartOnly`) |
 | `AvgDurationMS` | mean over all runs with a recorded duration, computed as `DurationSumMS / TimedRunCount` on every update rather than folded incrementally, so it never disagrees with the exact sum/count average `runner.aggregateLogStats` computes when seeding from logs |
 | `MaxDurationMS` | longest recorded run |
+| `TimedRunCount` | runs that carried a duration, and so contributed to the aggregates above; a legacy log without a `duration` header counts toward `RunCount` but not this |
 | `DurationSumMS` | running total of every timed run's duration; the source `AvgDurationMS` is divided from |
 
 `runner.RunJob` measures the wall-clock start→finish and sets `DurationMS` on
@@ -271,7 +275,7 @@ the moment the window opens.
 ### `jobs_view.go` file structure
 
 The size guideline for a file in this project is ~250 lines.
-`src/ui/jobs_view.go` is split across five files along these seams:
+`src/ui/jobs_view.go` is split across six files along these seams:
 
 | File | Contents |
 |------|----------|

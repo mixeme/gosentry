@@ -145,22 +145,23 @@ Design notes / open questions:
 and records the `jobs_view.go` and `settings_view.go` splits as the worked
 examples. `jobs_view.go` was split again in 1.0.2 — into view, state, list, and
 toolbar — because the selection defect it carried was a symptom of the size
-(one 330-line constructor over seven shared locals). Five non-test files are
-over the guideline as of that pass:
+(one 330-line constructor over seven shared locals). Six non-test files are
+over the guideline:
 
 | File | Lines |
 |------|-------|
 | `src/app/operations.go` | 529 |
-| `src/ui/history_view.go` | 373 |
-| `src/storage/store.go` | 365 |
-| `src/ui/settings_view.go` | 318 |
-| `src/app/run.go` | 274 |
+| `src/storage/store.go` | 382 |
+| `src/ui/history_view.go` | 355 |
+| `src/ui/settings_view.go` | 326 |
+| `src/app/run.go` | 275 |
+| `src/app/service.go` | 252 |
 
-The remaining five are deliberately deferred rather than done piecemeal: a
+The remaining six are deliberately deferred rather than done piecemeal: a
 split touches every reader of the file, and doing them in one pass keeps the
-seams consistent instead of settling them five different ways. Splitting is
+seams consistent instead of settling each one its own way. Splitting is
 also the kind of change that reads as pure movement while quietly dropping a
-function, so it wants one careful pass, not five hurried ones.
+function, so it wants one careful pass, not a hurried one per file.
 
 Seams visible today, as a starting point rather than a decision:
 
@@ -174,9 +175,11 @@ Seams visible today, as a starting point rather than a decision:
   table they size.
 - **`store.go`** — path resolution, the config load/normalize path, and the jobs
   load/normalize path are three separate concerns in one file.
-- **`run.go`**, **`settings_view.go`** — barely over. Worth re-measuring at the
-  time; if a pass elsewhere has shrunk them, leave them alone rather than
-  splitting for the sake of the number.
+- **`run.go`**, **`settings_view.go`**, **`service.go`** — barely over. Worth
+  re-measuring at the time; if a pass elsewhere has shrunk them, leave them
+  alone rather than splitting for the sake of the number. The counts above move
+  a few lines either way with any edit, so re-measure before acting on them
+  rather than treating the table as current.
 
 The `jobs_view.go` pass is the worked example for the rest: the constructor was
 broken up along the state it shared, not along line count, and the split landed

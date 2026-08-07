@@ -66,20 +66,31 @@ exercised from another one's tests — `domain.NewRuntime`, for instance, is
 covered by the `app` tests. Measure the engine packages together instead:
 
 ```bash
-go test -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
+go test -coverprofile=cover.out -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
 ```
 
 In the PowerShell environment DEVELOPMENT.md prescribes on Windows, PowerShell
 splits the comma-separated `-coverpkg` list on its own and the command fails
 with `directory not found`. Use the stop-parsing token, or quote the whole
-flag:
+flag — and note that `--%` swallows the rest of the line, so the profile has to
+be read by a second command:
 
 ```powershell
-go test --% -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
+go test --% -coverprofile=cover.out -coverpkg=./src/domain,./src/storage,./src/runner,./src/scheduler,./src/app ./src/domain ./src/storage ./src/runner ./src/scheduler ./src/app
 ```
 
-That figure was 84.4% at the 2026-08-04 review, which is the number to compare
-against before concluding that coverage has slipped.
+The total is the last line of the profile summary. It is **not** any of the
+per-package lines `go test` prints: with `-coverpkg` spanning five packages,
+each of those reports only what that one package's tests reached across the
+whole set, so all five are far below the real figure.
+
+```powershell
+go tool cover -func=cover.out | Select-Object -Last 1
+```
+
+That total was 84.4% at the 2026-08-04 review and 84.1% at the 2026-08-07
+documentation audit — the number to compare against before concluding that
+coverage has slipped.
 
 ---
 
@@ -238,8 +249,8 @@ Tests display-formatting helpers used by the UI.
 | `TestStatusText` | Verifies that job status codes map to the correct display strings. |
 | `TestEventText` | Verifies trigger-type labels for scheduled, manual, and UI triggers. |
 | `TestEventLine` | Verifies the one-line activity rendering of a `RunRecord`, including the log basename and the `Unknown` fallback for a blank trigger. |
-| `TestDisplayFolder` | Verifies that an empty folder string shows "No folder". |
-| `TestDisplayArguments` | Verifies that an empty arguments string shows "None". |
+| `TestDisplayFolder` | Verifies that an empty folder string shows "(No folder)". |
+| `TestDisplayArguments` | Verifies that an empty arguments string shows "(none)". |
 | `TestDisplayRunMode` | Verifies run-mode labels for normal and start-only modes. |
 | `TestDisplayInvocation` | Verifies that the full invocation display string combines command and arguments with spacing. |
 | `TestDisplayIndex` | Verifies the list position of a job index in a filtered index slice. |
@@ -265,12 +276,14 @@ Tests JSON round-tripping, default generation, and backward compatibility.
 | `TestLoadOrCreateConfigCreatesDefaultsOnFirstRun` | Verifies that a missing config file is created with sane defaults. |
 | `TestLoadOrCreateJobsSeedsSampleJobsOnFirstRun` | Verifies that a missing jobs file is created with the sample jobs from `defaultJobs`. |
 | `TestLoadOrCreateConfigKeepsZeroTimeoutOnReload` | Verifies that `default_timeout_seconds: 0` survives a reload rather than being normalized away — 0 is a value, not a missing field. |
+| `TestLoadOrCreateConfigPreservesZeroRetentionLimits` | Verifies that `max_log_files` / `max_log_age_days` of 0 read back as 0 ("keep everything") instead of being backfilled to the 100 / 30 defaults — a field the file sets is not the missing-field case. |
 | `TestLoadOrCreateConfigMigratesJobsDir` | Verifies that a pre-0.15 `jobs_dir` becomes `jobs_file` pointing at the same `jobs.json`, and that the retired key is not written back. |
 | `TestLoadOrCreateConfigMigratesLegacyThemeDefault` | Verifies that a config storing the retired `"default"` theme value is normalized to `system` on load. |
 | `TestLoadJobsFileReportsMissingWithoutCreating` | Verifies that `LoadJobsFile` reports a missing file as not-found without creating or seeding it, and normalizes the jobs it does load. |
 | `TestApplyConfigPathsDerivesJobsDir` | Verifies that the configured jobs file resolves against the program folder and that `Paths.JobsDir` is derived from it. |
 | `TestJobTimeoutRoundTripsThreeStates` | Verifies the on-disk encoding that keeps "inherit" and "no timeout" distinguishable: `nil` is omitted entirely, an explicit `0` is written and read back as set. |
 | `TestJobsJSONDoesNotPersistRuntimeNoise` | Verifies that `jobs.json` does not persist runtime state (LastRun, NextRun, etc.). Only durable job fields are stored. |
+| `TestWriteJSONReplacesFileAtomically` | Pins the durability fix: `writeJSON` replaces the destination through a temp file and a rename rather than truncating it in place, and leaves no temp file behind. |
 
 ---
 
@@ -355,6 +368,7 @@ Tests the Windows shell invocation and hidden-window flags.
 | `TestShellCommandHidesWindow` | Verifies that shell commands request hidden-window startup to prevent console flash. |
 | `TestShellCommandUsesWindowsSafeQuoting` | Verifies `cmd.exe /S /C` quoting for paths with spaces and special characters. |
 | `TestWindowsShellCommandLineQuotesUnquotedProgramPath` | Verifies that unquoted program paths in shell commands are quoted while preserving already-quoted arguments. |
+| `TestQuoteLeadingWindowsProgramPathPicksEarliestBoundedExtension` | Regression: the program path ends at the *earliest* extension match sitting at a token boundary — not the first extension in `.exe`/`.cmd`/`.bat`/`.com` list order, and not a substring inside another word — so a `.bat` wrapper followed by an `.exe` argument still quotes only the wrapper. |
 
 ---
 
@@ -674,6 +688,12 @@ A coverage run over the non-UI packages reports these as uncovered. All are
 intentional; none is an oversight to be "fixed" with a test.
 
 - The real `Clock` — a fake is injected everywhere it is used.
-- `storage.OpenStore`, `storage.ResolvePaths`, `storage.PeekKeepRunningInTray`, `app.Service.Start`, `app.Service.Open` — process entry points, exercised by running the app.
-- The autostart and desktop-icon wrappers — OS integration, driven only on a real desktop.
+- `storage.OpenStore`, `storage.ResolvePaths`, `storage.PeekKeepRunningInTray`, `app.Service.Start`, `app.Open` — process entry points, exercised by running the app.
+- The autostart and desktop-icon wrappers (`app.Service.InstallDesktopIcon`, `AutostartStatus`, `ApplyAutostart`) — OS integration, driven only on a real desktop.
 - `app.Service.ShouldNotifyOnFailure` — a getter under the mutex.
+- `app.Service.Config` and `app.Service.Paths` — read only from `src/ui`, which
+  this run excludes, so they are covered by the suite but not by this profile.
+  The same applies to `storage.Store.SaveJobs`: the engine writes through
+  `PrepareSaveJobs`, and the one-shot wrapper is what `OpenStore` uses.
+- The five `isEvent` marker methods in `app/events.go` — empty bodies that exist
+  only to close the `Event` interface.

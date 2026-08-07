@@ -74,6 +74,17 @@ the app icon (experimental).**
 - **`docs/ARCHITECTURE.md`** — new §Platform layer: why autostart, file manager,
   shell, and winproc are OS-specific; compile-time vs runtime branching; rules
   for adding platform code.
+- Documentation audited against the code. `ARCHITECTURE.md` — the `jobs_view.go`
+  split is six files, not five (the state extraction was never counted), the
+  statistics table lists `TimedRunCount`, the store edge of the diagram names
+  the methods that exist, and startup says where `Service.Start` is actually
+  called. `TESTS.md` — three tests that had no entry are described
+  (`TestLoadOrCreateConfigPreservesZeroRetentionLimits`,
+  `TestWriteJSONReplacesFileAtomically`,
+  `TestQuoteLeadingWindowsProgramPathPicksEarliestBoundedExtension`), the
+  deliberately-uncovered list covers everything the profile reports at 0%, and
+  the coverage figure records how to read the total rather than the per-package
+  lines. `ROADMAP.md` — the over-the-guideline table was re-measured.
 
 **Internal:**
 
