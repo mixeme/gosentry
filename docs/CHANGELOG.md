@@ -94,7 +94,8 @@ History and overlap queues, and a Jobs selection that follows the job.**
   `TestQuoteLeadingWindowsProgramPathPicksEarliestBoundedExtension`), the
   deliberately-uncovered list covers everything the profile reports at 0%, and
   the coverage figure records how to read the total rather than the per-package
-  lines. `ROADMAP.md` — the over-the-guideline table was re-measured.
+  lines. `ROADMAP.md` — the over-the-guideline table was re-measured; the split
+  is now landed and the open item removed.
 - README's scheduler wording caught up with the 0.11.2 rename of "Pause all" to
   **Disable auto**, and its notification description matches what the app sends.
 - `STANDARDS.md` records the rules the review settled: no file I/O under
@@ -132,6 +133,13 @@ History and overlap queues, and a Jobs selection that follows the job.**
   330-line constructor whose dozen closures shared seven mutable locals is now
   widgets reading one named state object — which is what made the selection fix
   above a change in one place instead of five.
+- Four more source files over the ~300-line ceiling (250 + 20%) were split in
+  one pass: `operations.go` into job mutators, config mutators
+  (`operations_settings.go`), `*Locked` helpers, and pure validators; `store.go` into the store API, config load, and jobs load;
+  `history_view.go` into column-width helpers and the table widget; and
+  `settings_view.go` into a thin entry point plus `settings_view_form.go` for
+  field construction and save/load handlers. `run.go` and `service.go` stay
+  as-is — both are within the ceiling.
 - `Service.Store()` is replaced by typed `Service.Config()` and `Service.Paths()`
   accessors that copy under the lock, so the UI no longer reaches into a shared
   `*storage.Store`. The Jobs pause control is now driven by `refreshView`

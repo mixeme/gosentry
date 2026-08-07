@@ -274,8 +274,9 @@ the moment the window opens.
 
 ### `jobs_view.go` file structure
 
-The size guideline for a file in this project is ~250 lines.
-`src/ui/jobs_view.go` is split across six files along these seams:
+The size guideline for a file in this project is ~250 lines; up to 20% over
+(~300 lines) is acceptable. `src/ui/jobs_view.go` is split across six files
+along these seams:
 
 | File | Contents |
 |------|----------|
@@ -299,11 +300,45 @@ list's highlight at the selected job.
 
 ### `settings_view.go` file structure
 
-`src/ui/settings_view.go` is split across three files the same way, once its
+`src/ui/settings_view.go` is split across four files the same way, once its
 own size passed the guideline:
 
 | File | Contents |
 |------|----------|
-| `settings_view.go` | `settingsView` — field construction, save, load, validate; the Theme label translation helpers |
+| `settings_view.go` | `settingsView` — thin entry point; theme label translation helpers |
+| `settings_view_form.go` | `buildSettingsForm` — widget construction, save, load, cancel, and defaults handlers |
 | `settings_view_layout.go` | `newSettingsLayout`, `settingsSection`, `settingsRow` — the two-column arrangement and the button row |
 | `settings_view_helpers.go` | Pure helpers — `fyneVersion`, `mustParseURL`, `settingsFolderPath`, `openFolder`, `chooseFile`/`chooseJSONFile`, `chooseFolder` (`chooseFile` also backs `job_dialog.go`'s command browser) |
+
+### `operations.go` file structure
+
+`src/app/operations.go` is split across four files along the public API,
+locked helpers, and pure validation seams:
+
+| File | Contents |
+|------|----------|
+| `operations.go` | Job mutators (`CreateJob` … `SetEnabled`); shared constants (`maxJobLogs`, `timestampLayout`, `errJobNotFound`) |
+| `operations_settings.go` | Config mutators — `SetGlobalPause`, `SetJobListView`, `ShouldNotifyOnFailure`, `UpdateSettings` |
+| `operations_locked.go` | `*Locked` state helpers (`refreshNextRunLocked` … `nextIDLocked`); `prependLog`, `uiRecord` |
+| `operations_validate.go` | Pure validators and normalizers — `normalizeJob`, `validateJob`, `hasFileName`, `validateConfig` |
+
+### `store.go` file structure
+
+`src/storage/store.go` is split across three files. Path resolution for the
+executable directory lives in `paths.go`; config-relative path resolution stays
+with the store API:
+
+| File | Contents |
+|------|----------|
+| `store.go` | `Store` struct, `OpenStore`, `PeekKeepRunningInTray`, save API, `ResolveConfiguredPath`, `applyConfigPaths`, atomic JSON writes |
+| `store_config.go` | `loadOrCreateConfig` — config load, defaults, and migration shims |
+| `store_jobs.go` | `LoadJobsFile`, `loadOrCreateJobs`, `normalizeJobs`, sample jobs, platform-specific demo commands |
+
+### `history_view.go` file structure
+
+`src/ui/history_view.go` is split across two files:
+
+| File | Contents |
+|------|----------|
+| `history_view_columns.go` | Pure column-width helpers — `textWidth` through `historyColumnWidths`, sample sets, `historyContentValues` |
+| `history_view.go` | `historyLog`, `historyHeader`, `newHistoryView`, cell text, `newEvent`, `logFileName` |

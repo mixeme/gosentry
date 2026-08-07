@@ -139,55 +139,6 @@ Design notes / open questions:
   Service exposes import/export operations; the UI only picks the file and
   shows the outcome.
 
-### Split the files that are over the size guideline
-
-[ARCHITECTURE.md](ARCHITECTURE.md) sets a ~250-line guideline per source file
-and records the `jobs_view.go` and `settings_view.go` splits as the worked
-examples. `jobs_view.go` was split again in 1.0.3 — into view, state, list, and
-toolbar — because the selection defect it carried was a symptom of the size
-(one 330-line constructor over seven shared locals). Six non-test files are
-over the guideline:
-
-| File | Lines |
-|------|-------|
-| `src/app/operations.go` | 529 |
-| `src/storage/store.go` | 382 |
-| `src/ui/history_view.go` | 355 |
-| `src/ui/settings_view.go` | 326 |
-| `src/app/run.go` | 275 |
-| `src/app/service.go` | 252 |
-
-The remaining six are deliberately deferred rather than done piecemeal: a
-split touches every reader of the file, and doing them in one pass keeps the
-seams consistent instead of settling each one its own way. Splitting is
-also the kind of change that reads as pure movement while quietly dropping a
-function, so it wants one careful pass, not a hurried one per file.
-
-Seams visible today, as a starting point rather than a decision:
-
-- **`operations.go`** — the worst overage and the clearest split: the public
-  mutating operations (`CreateJob` … `UpdateSettings`), the `…Locked` state
-  helpers that only they call, and the pure validators and normalizers
-  (`normalizeJob`, `validateJob`, `hasFileName`, `validateConfig`) are three
-  distinct jobs already sitting in three consecutive blocks.
-- **`history_view.go`** — the column-measuring helpers (`textWidth` through
-  `historyColumnWidths`) are pure, already unit-tested, and independent of the
-  table they size.
-- **`store.go`** — path resolution, the config load/normalize path, and the jobs
-  load/normalize path are three separate concerns in one file.
-- **`run.go`**, **`settings_view.go`**, **`service.go`** — barely over. Worth
-  re-measuring at the time; if a pass elsewhere has shrunk them, leave them
-  alone rather than splitting for the sake of the number. The counts above move
-  a few lines either way with any edit, so re-measure before acting on them
-  rather than treating the table as current.
-
-The `jobs_view.go` pass is the worked example for the rest: the constructor was
-broken up along the state it shared, not along line count, and the split landed
-with the selection fix rather than promising it separately.
-
-Scope note: the guideline is about source files. Test files are much larger and
-that is fine — a table-driven test file grows with the cases it covers.
-
 ### Window size persistence *(frozen)*
 
 Window size is currently **not** saved on quit or close. Saving was disabled
