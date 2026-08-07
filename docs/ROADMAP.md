@@ -116,9 +116,19 @@ needs the same treatment.
 
 ## Fyne / UI
 
-Work blocked on Fyne APIs, driver behaviour, or missing composable widgets.
+GUI-layer gaps and trade-offs. Each item below states its **blocker**:
+
+- **Fyne API** — the missing API is the root cause. Qt, GTK, and native
+  toolkits usually expose the same capability; a future Fyne release is the
+  preferred fix. Some items have no viable workaround; others could be bypassed
+  with `src/platform/` code, but that cost is not justified while upstream might
+  still add the API.
+- **UX** — shippable with today's widgets; deferred until a cleaner approach
+  exists (a nicer Fyne widget would help but is not required).
 
 ### Dynamic tray icon toggle
+
+**Blocker: Fyne API** (no viable workaround).
 
 Fyne exposes `SetSystemTrayIcon` and related APIs only at application startup.
 There is no supported way to register or remove the notification-area icon
@@ -136,22 +146,34 @@ is blocked.
 
 ### History tab — column filters (Trigger / Job / State)
 
+**Blocker: UX** (not a Fyne release).
+
 Add dropdown filters above the History table so the user can narrow rows by
-trigger source, job name, or run state. Blocked on Fyne native support: the
-current `widget.Table` has no built-in filter API, and a filter bar built from
-`widget.Select` widgets above the table feels visually out-of-place. Revisit
-when Fyne adds first-class column filtering or a composable data-grid widget.
+trigger source, job name, or run state. A filter bar built from `widget.Select`
+widgets above the table would work today — filter the row slice in app code —
+but `widget.Table` has no built-in filter API and the ad-hoc bar feels visually
+out-of-place. Revisit when Fyne adds first-class column filtering or a
+composable data-grid widget, or when a hand-rolled bar is acceptable.
 
 ### Window size persistence *(frozen)*
+
+**Blocker: Fyne API** (costly platform workaround possible).
 
 Window size is currently **not** saved on quit or close. Saving was disabled
 because `w.Canvas().Size()` returns the maximized dimensions when the window is
 maximized, which would corrupt the stored size on the next launch.
 
-Re-enabling requires a cross-platform way to detect the maximized state before
-saving. Fyne v2.x has no API for this; it needs per-OS native calls:
-`IsZoomed` (Windows), `_NET_WM_STATE` (X11/Linux), `NSWindow.isZoomed`
-(macOS). Unfreeze once that detection is in place.
+Fyne v2.x has no API to query window state (maximized, normal, etc.) — unlike
+Qt, GTK, or platform-native toolkits. If Fyne added something like
+`Window.IsMaximized()`, persistence could be re-enabled without any
+platform-specific code; that upstream API is the preferred unblock.
+
+A bypass through per-OS native detection (`IsZoomed` on Windows,
+`_NET_WM_STATE` on X11, `NSWindow.isZoomed` on macOS) is technically possible,
+similar to other `src/platform/` work, but Fyne does not expose the underlying
+window handle, so the bypass is fragile and expensive. The item stays frozen
+until either Fyne ships window-state API or that platform cost is judged worth
+paying.
 
 **Disadvantages of a platform-specific approach:**
 
